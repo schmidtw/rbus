@@ -80,7 +80,7 @@ typedef enum _rbus_legacy_support
     RBUS_LEGACY_NONE
 } rbusLegacyDataType_t;
 
-typedef enum _rbus_legacy_returs {
+typedef enum _rbus_legacy_returns {
     RBUS_LEGACY_ERR_SUCCESS = 100,
     RBUS_LEGACY_ERR_MEMORY_ALLOC_FAIL = 101,
     RBUS_LEGACY_ERR_FAILURE = 102,
@@ -345,13 +345,30 @@ void _set_callback_handler (rbusHandle_t rbusHandle, rtMessage request, rtMessag
     {
         elementNode* pElmntNode = NULL;
         rbus_callbackTable_t *pCBTable = NULL;
+        int valType = 0;
+        const char* pBuffer = NULL;
 
         pParamTlv = (rbus_Tlv_t*)calloc(numTlvs, sizeof(rbus_Tlv_t));
         for (loopCnt = 0; loopCnt < numTlvs; loopCnt++)
         {
             rbus_PopString(request, (const char**) &pParamTlv[loopCnt].name);
-            rbus_PopInt32(request, (int*) &pParamTlv[loopCnt].type);
-            rbus_PopBinaryData(request, (const void **)&pParamTlv[loopCnt].value, &pParamTlv[loopCnt].length);
+            rbusLegacyDataType_t legacyType = RBUS_LEGACY_STRING;
+            rbus_PopInt32(request, &valType);
+
+            legacyType = (rbusLegacyDataType_t) valType;
+            if ((legacyType >= RBUS_LEGACY_STRING) && (legacyType <= RBUS_LEGACY_NONE))
+            {
+                rbus_PopString(request, &pBuffer);
+                printf("Received Param Value in string : [%s]\n", pBuffer);
+                /* This allocates memory and does conversion like atoi(), atoll() &  atof()*/
+                _parse_rbusData_to_tlv (pBuffer, legacyType, &pParamTlv[loopCnt]);
+            }
+            else
+            {
+                void *value = NULL;
+                pParamTlv[loopCnt].type = (rbus_elementType_e)valType;
+                rbus_PopBinaryData(request, (const void **)&pParamTlv[loopCnt].value, &pParamTlv[loopCnt].length);
+            }
         }
 
         rbus_PopString(request, (const char**) &pIsCommit);
