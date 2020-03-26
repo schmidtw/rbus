@@ -275,7 +275,7 @@ int main(int argc, char *argv[])
         count++;
     }
     int numElements = 0;
-    char** elementNames;
+    char** elementNames = NULL;
     rbus_errorCode_e rc;
     int i;
     rc =  rbus_discoverComponentDataElements(handle,"rbusSampleProvider",RBUS_FALSE,&numElements,&elementNames);
@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
     }
     char* elementNames1[] = {"Device.DeviceInfo.SampleProvider.Manufacturer","Device.DeviceInfo.SampleProvider.ModelName","Device.DeviceInfo.SampleProvider.SoftwareVersion","Device.SampleProvider.SampleData.IntData","Device.SampleProvider.SampleData.BoolData","Device.SampleProvider.SampleData.UIntData","Device.SampleProvider.NestedObject1.TestParam","Device.SampleProvider.NestedObject1.AnotherTestParam","Device.SampleProvider.NestedObject2.TestParam","Device.SampleProvider.NestedObject2.AnotherTestParam"};
     int numComponents = 0;
-    char **componentName;
+    char **componentName = NULL;
     rc = rbus_discoverComponentName(handle,10,elementNames1,&numComponents,&componentName);
     if(RBUS_ERROR_SUCCESS == rc)
     {

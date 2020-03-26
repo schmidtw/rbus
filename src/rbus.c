@@ -859,20 +859,20 @@ rbus_errorCode_e rbus_discoverComponentDataElements (rbusHandle_t rbusHandle,
     ret = rbus_GetElementsAddedByObject(name, &response);
     if(ret == RTMESSAGE_BUS_SUCCESS)
     {
-        const char *comp;
+        const char *comp = NULL;
         rbus_PopInt32(response, numElements);
         if(*numElements > 0)
             *numElements = *numElements-1;  //Fix this. We need a better way to ignore the component name as element name.
         if(*numElements)
         {
             int i;
-            val = (char**)malloc(*numElements * sizeof(char*));
+            val = (char**)calloc(*numElements,  sizeof(char*));
             memset(val, 0, *numElements * sizeof(char*));
             for(i = 0; i < *numElements; i++)
             {
+                comp = NULL;
                 rbus_PopString(response, &comp);
-                val[i] = (char*)malloc(strlen(comp)+1);
-                strncpy(val[i], comp, strlen(comp));
+                val[i] = strdup(comp);
             }
         }
         rtMessage_Release(response);
