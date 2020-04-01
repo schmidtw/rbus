@@ -141,7 +141,6 @@ elementNode* insertElement(elementNode** root, rbus_dataElement_t* el)
                     currentNode->nextSibling = getEmptyElementNode();
                     currentNode = currentNode->nextSibling;
                     currentNode->name = strdup(token);
-                    nextNode = currentNode->child;
                     createChild = 1;
                 }
             }
