@@ -1,6 +1,6 @@
 /*
- * If not stated otherwise in this file or this component's Licenses.txt file the
- * following copyright and licenses apply:
+ * If not stated otherwise in this file or this component's Licenses.txt file
+ * the following copyright and licenses apply:
  *
  * Copyright 2019 RDK Management
  *
@@ -30,63 +30,59 @@
 
 #define MAXPATH 100
 static char gParamName[MAXPATH+1] = {0};
-static rbusBool_t gIsRunning = RBUS_FALSE;
+static bool gIsRunning = false;
 
-static rbus_errorCode_e getRunningParamHandler(void *context, int numTlvs, rbus_Tlv_t* tlv, char *requestingComponentName)
+static rbusError_t getRunningParamHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
-    int i = 0;
-    (void)(context);
-    (void)(requestingComponentName);
+    (void)handle;
+    (void)opts;
 
-    while(i < numTlvs)
+    if(strcmp(rbusProperty_GetName(property), gParamName) == 0)
     {
-        if(strcmp(tlv[i].name, gParamName) == 0)
-        {
-            tlv[i].type = RBUS_BOOLEAN;
-            tlv[i].length = sizeof(rbusBool_t);
-            tlv[i].value = (void *)malloc(tlv[i].length);
-            memcpy(tlv[i].value, &gIsRunning, tlv[i].length);
-        }
-        i++;
-    }
-    return RBUS_ERROR_SUCCESS;
-}
+        rbusValue_t value;
+        rbusValue_Init(&value);
+        rbusValue_SetBoolean(value, gIsRunning);
+        rbusProperty_SetValue(property, value);
+        rbusValue_Release(value);
 
-static rbus_errorCode_e setRunningParamHandler(int numTlvs, rbus_Tlv_t* tlv, int sessionId, rbusBool_t commit, char *requestingComponentName)
-{
-    int i = 0;
-    (void)(sessionId);
-    (void)(commit);
-    (void)(requestingComponentName);
-
-    while(i < numTlvs)
-    {
-        if(strcmp(tlv[i].name, gParamName) == 0)
-        {
-            if(tlv[i].type == RBUS_BOOLEAN)
-            {
-                memcpy(&gIsRunning, tlv[i].value, sizeof(gIsRunning));
-                printf("_test_:setRunningParamHandler result:SUCCESS value:%s\n", gIsRunning ? "TRUE" : "FALSE");
-            }
-            else
-            {
-                printf("_test_:setRunningParamHandler result:FAIL msg:'unexpected type %d'\n", tlv[i].type);
-            }
-        }
-        i++;
+        return RBUS_ERROR_SUCCESS;
     }
 
-    return RBUS_ERROR_SUCCESS;
+    return RBUS_ERROR_INVALID_INPUT;
 }
 
-rbus_errorCode_e runningParamProvider_Init(rbusHandle_t handle, char* paramName)
+static rbusError_t setRunningParamHandler(rbusHandle_t handle, rbusProperty_t property, rbusSetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+
+    if(strcmp(rbusProperty_GetName(property), gParamName) == 0)
+    {
+        rbusValue_t value = rbusProperty_GetValue(property);
+        if(rbusValue_GetType(value) == RBUS_BOOLEAN)
+        {
+            gIsRunning = rbusValue_GetBoolean(value);
+            printf("_test_:setRunningParamHandler result:SUCCESS value:%s\n", gIsRunning ? "TRUE" : "FALSE");
+            return RBUS_ERROR_SUCCESS;
+        }
+        else
+        {
+            printf("_test_:setRunningParamHandler result:FAIL msg:'unexpected type %d'\n", rbusValue_GetType(value));
+        }
+    }
+    printf("_test_:setRunningParamHandler result:FAIL msg:'unexpected name %s'\n", rbusProperty_GetName(property));
+    return RBUS_ERROR_INVALID_INPUT;
+}
+
+rbusError_t runningParamProvider_Init(rbusHandle_t handle, char* paramName)
 {
     int rc;
-    rbus_dataElement_t el = {paramName, {getRunningParamHandler,setRunningParamHandler,NULL,NULL}};
 
     strncpy(gParamName, paramName, MAXPATH);
 
-    rc = rbus_regDataElements(handle, 1, &el);
+    rbusDataElement_t dataElement = { paramName, RBUS_ELEMENT_TYPE_PROPERTY, {getRunningParamHandler, setRunningParamHandler, NULL, NULL, NULL}};
+
+    rc = rbus_regDataElements(handle, 1, &dataElement);
     if(rc == RBUS_ERROR_SUCCESS)
     {
         printf("_test_:runningParamProvider_Init result:SUCCESS\n");
@@ -103,15 +99,14 @@ int runningParamProvider_IsRunning()
     return gIsRunning;
 }
 
-int runningParamConsumer_Set(rbusHandle_t handle, char* paramName, rbusBool_t running)
+int runningParamConsumer_Set(rbusHandle_t handle, char* paramName, bool running)
 {
-    rbus_Tlv_t runTlv;
-    runTlv.name = paramName;
-    runTlv.type = RBUS_BOOLEAN;
-    runTlv.length = sizeof(rbusBool_t);
-    runTlv.value = &running;
     int i;
     int loopFor = 1;
+    rbusValue_t val;
+
+    rbusValue_Init(&val);
+    rbusValue_SetBoolean(val, running);
 
     if(running)
         loopFor = 5;/*give provider time to get ready*/
@@ -119,13 +114,16 @@ int runningParamConsumer_Set(rbusHandle_t handle, char* paramName, rbusBool_t ru
     for(i=0; i<loopFor; ++i)
     {
         int rc;
-        rc = rbus_set(handle, &runTlv, 0, RBUS_FALSE);
+        rc = rbus_set(handle, paramName, val, NULL);
         printf("runningParamConsumer_Set rbus_set=%d\n", rc);
         if(rc == RBUS_ERROR_SUCCESS)
             break;
         if(i<loopFor-1)
             sleep(1);
     }
+
+    rbusValue_Release(val);
+
     if(i==loopFor)
     {
         printf("_test_:runningParamConsumer_Set result:FAIL\n");

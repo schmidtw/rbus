@@ -1,6 +1,6 @@
 /*
- * If not stated otherwise in this file or this component's Licenses.txt file the
- * following copyright and licenses apply:
+ * If not stated otherwise in this file or this component's Licenses.txt file
+ * the following copyright and licenses apply:
  *
  * Copyright 2019 RDK Management
  *
@@ -27,34 +27,44 @@
 #include <string.h>
 #include <getopt.h>
 #include <rbus.h>
+#include "../common/runningParamHelper.h"
+#include "../common/test_macros.h"
 
 int reopened = 0;
 
 static void eventHandler(
     rbusHandle_t handle,
-    rbusEventSubscription_t* subscription,
-    rbus_Tlv_t const* eventData)
+    rbusEvent_t const* event,
+    rbusEventSubscription_t* subscription)
 {
+    rbusValue_t value;
     (void)(handle);
-    printf(
-        "eventHandler called:\n"
-        "\tevent=%s\n"
-        "\tvalue=%s\n"
-        "\ttype=%d\n"
-        "\tlength=%d\n"
-        "\tdata=%s\n",
-        eventData->name,
-        (char*)eventData->value,
-        eventData->length,
-        eventData->type,
-        (char*)subscription->user_data);
-    if(reopened && strcmp((char*)subscription->user_data, "MultiConsumer1")==0)
+
+    PRINT_TEST_EVENT("test_MultiConsumer", event, subscription);
+    
+    value = rbusObject_GetValue(event->data, "value");
+
+    if(value)
     {
-        printf("_test_:eventHandler reopen ERROR: should not have been called user_data=[%s] value=[%s]\n", (char*)subscription->user_data, (char*)eventData->value);
-    }
-    else
-    {
-        printf("_test_:eventHandler user_data:'%s' value:'%s'\n", (char*)subscription->user_data, (char*)eventData->value);
+        char* str = rbusValue_ToDebugString(value, NULL, 0);
+        printf("eventHandler called:\n %s\n userData:%s\n", str, (char*)subscription->userData);
+        free(str);
+
+        str=rbusValue_ToString(value, NULL, 0);
+        if(reopened && strcmp((char*)subscription->userData, "MultiConsumer1")==0)
+        {
+            TALLY(false);
+            printf("_test_:eventHandler reopen ERROR: should not have been called userData=[%s] value=[%s]\n", 
+                (char*)subscription->userData, str);
+        }
+        else
+        {
+            TALLY(true);
+            printf("_test_:eventHandler userData:'%s' value:'%s'\n", 
+                (char*)subscription->userData, str);
+        }
+
+        free(str);
     }
 }
 
@@ -116,7 +126,7 @@ int main(int argc, char *argv[])
     }
 
     /*tell provider we are starting*/
-    if(runningParamConsumer_Set(handles[0], "Device.MultiProvider.TestRunning", RBUS_TRUE) != RBUS_ERROR_SUCCESS)
+    if(runningParamConsumer_Set(handles[0], "Device.MultiProvider.TestRunning", true) != RBUS_ERROR_SUCCESS)
     {
         printf("consumer: provider didn't get ready in time\n");
         goto exit1;
@@ -141,7 +151,6 @@ int main(int argc, char *argv[])
 
     while (loopFor--)
     {
-        char buffer[64];
         eventCount++;
         sleep(2);
 
@@ -150,27 +159,29 @@ int main(int argc, char *argv[])
         {
             if(handles[i])
             {
-                rbus_Tlv_t tlv;
-                tlv.name = elements[i][0];
-                rc = rbus_get(handles[i], &tlv);
+                rbusValue_t value;
+
+                rc = rbus_get(handles[i], elements[i][0], &value);
+
                 if(rc == RBUS_ERROR_SUCCESS)
                 {
-                    if(tlv.type == RBUS_STRING && tlv.value)
+                    if(rbusValue_GetType(value) == RBUS_STRING)
                     {
-                        printf("_test_:rbus_get result:SUCCESS param:'%s' value:'%s'\n", elements[i][0], (char*)tlv.value);
+                        char* val;
+                        printf("_test_:rbus_get result:SUCCESS param:'%s' value:'%s'\n", elements[i][0], val=rbusValue_ToString(value,0,0));
+                        free(val);                        
                     }
                     else
                     {
-                        printf("_test_ rbus_get result:FAIL param:'%s' error:'unexpected type %d'\n", elements[i][0], tlv.type);
+                        printf("_test_ rbus_get result:FAIL param:'%s' error:'unexpected type %d'\n", elements[i][0], rbusValue_GetType(value));
                     }
-
-                    if(tlv.value)
-                        free(tlv.value);
                 }
                 else
                 {
                     printf("_test_:rbus_get result:FAIL param:'%s' rc:%d\n", elements[i][0], rc);
                 }
+
+                rbusValue_Release(value);
             }
         }
 
@@ -214,7 +225,7 @@ int main(int argc, char *argv[])
     }
 
     /*tell provider we are done (after we unsubcribe to avoid race condition)*/
-    runningParamConsumer_Set(handles[0], "Device.MultiProvider.TestRunning", RBUS_FALSE);
+    runningParamConsumer_Set(handles[0], "Device.MultiProvider.TestRunning", false);
 
 exit1:
 

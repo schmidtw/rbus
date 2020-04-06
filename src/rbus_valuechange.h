@@ -16,22 +16,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 #ifndef __RBUS_EVENTS_H
 #define __RBUS_EVENTS_H
 
-#include "rbus_element.h"
+#include "rbus_subscriptions.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-//******************************* STRUCTURES *********************************//
-
-//******************************* FUNCTIONS *********************************//
 void rbusValueChange_SetPollingPeriod(int seconds);
-void rbusValueChange_AddParameter(rbusHandle_t rbusHandle, const elementNode* paramNode, const char* fullName);
-void rbusValueChange_RemoveParameter(rbusHandle_t rbusHandle, const elementNode* paramNode, const char* fullName);
-void rbusValueChange_Close(rbusHandle_t rbusHandle);
+void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode);
+void rbusValueChange_RemovePropertyNode(rbusHandle_t handle, elementNode* propNode);
+void rbusValueChange_Close(rbusHandle_t handle);
 
 #ifdef __cplusplus
 }

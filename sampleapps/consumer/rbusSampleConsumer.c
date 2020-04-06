@@ -1,6 +1,6 @@
 /*
- * If not stated otherwise in this file or this component's Licenses.txt file the
- * following copyright and licenses apply:
+ * If not stated otherwise in this file or this component's Licenses.txt file
+ * the following copyright and licenses apply:
  *
  * Copyright 2019 RDK Management
  *
@@ -26,259 +26,165 @@
 #include <unistd.h>
 #include <string.h>
 #include <getopt.h>
-
 #include <rbus.h>
 
-#define     TotalParams   10
+#define     TotalParams   6
 
-char            componentName[20] = "rbusSampleConsumer";
+char            componentName[] = "rbusSampleConsumer";
 rbusHandle_t    handle;
-char*           paramNames[TotalParams] = {
-                                    "Device.DeviceInfo.SampleProvider.Manufacturer",
-                                    "Device.DeviceInfo.SampleProvider.ModelName",
-                                    "Device.DeviceInfo.SampleProvider.SoftwareVersion",
-                                    "Device.SampleProvider.SampleData.IntData",
-                                    "Device.SampleProvider.SampleData.BoolData",
-                                    "Device.SampleProvider.SampleData.UIntData",
-                                    "Device.SampleProvider.NestedObject1.TestParam",
-                                    "Device.SampleProvider.NestedObject1.AnotherTestParam",
-                                    "Device.SampleProvider.NestedObject2.TestParam",
-                                    "Device.SampleProvider.NestedObject2.AnotherTestParam"
-                                };
+char const*     paramNames[TotalParams] = {
+    "Device.DeviceInfo.SampleProvider.Manufacturer",
+    "Device.DeviceInfo.SampleProvider.ModelName",
+    "Device.DeviceInfo.SampleProvider.SoftwareVersion",
+    "Device.SampleProvider.SampleData.IntData",
+    "Device.SampleProvider.SampleData.BoolData",
+    "Device.SampleProvider.SampleData.UIntData"/*,
+    "Device.SampleProvider.NestedObject1.TestParam",
+    "Device.SampleProvider.NestedObject1.AnotherTestParam",
+    "Device.SampleProvider.NestedObject2.TestParam",
+    "Device.SampleProvider.NestedObject2.AnotherTestParam"*/
+};
 
 int main(int argc, char *argv[])
 {
-    int count = 0;
+    int rc;
+    int count;
 
-    if( argc == 2 ) {
-        printf("The argument supplied is %s\n", argv[1]);
+    (void)argc;
+    (void)argv;
+
+    printf("constumer: start\n");
+
+    rc = rbus_open(&handle, componentName);
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        printf("consumer: rbus_open failed: %d\n", rc);
+        goto exit1;
     }
 
-    printf("Hello from consumer\n");
-    int rbus_errorCode = RBUS_ERROR_BUS_ERROR;
-
-    rbus_errorCode = rbus_open(&handle, componentName);
-    printf("return code from rbus_open is %d\n", rbus_errorCode);
-
-    while(count < TotalParams)
+    for(count=0; count < TotalParams; count++)
     {
-        rbus_Tlv_t tlv;
-        tlv.length = 0;
-        tlv.value = NULL;
+        rbusValue_t value;
+        rbusSetOptions_t opts;
 
-        tlv.name = strdup(paramNames[count]);
+        opts.commit = true;
+        printf("calling rbus get for [%s]\n", paramNames[count]);
+
+        rc = rbus_get(handle, paramNames[count], &value);
+
+        if(rc != RBUS_ERROR_SUCCESS)
+        {
+            printf ("rbus_get failed for [%s] with error [%d]\n", paramNames[count], rc);
+            rbusValue_Release(value);
+            continue;
+        }
 
         switch(count)
         {
             case 0:
-                //Manufacturer
-                tlv.type = RBUS_STRING;
-                printf("calling rbus get for [%s]\n", tlv.name);
-                rbus_get(handle, &tlv);
-                if(tlv.value)
-                {
-                    printf("Manufacturer name = [%s]\n", (char*)tlv.value);
-                    free(tlv.value);
-                }
+                printf("Manufacturer name = [%s]\n", rbusValue_GetString(value, NULL));
                 break;
-
             case 1:
-                //Model Name
-                tlv.type = RBUS_STRING;
-                printf("calling rbus get for [%s]\n", tlv.name);
-                rbus_get(handle, &tlv);
-                if(tlv.value)
-                {
-                    printf("Model name = [%s]\n", (char*)tlv.value);
-                    free(tlv.value);
-                }
+                printf("Model name = [%s]\n", rbusValue_GetString(value, NULL));
                 break;
-
             case 2:
-                //Software Version
-                tlv.type = RBUS_FLOAT;
-                printf("calling rbus get for [%s]\n", tlv.name);
-                rbus_get(handle, &tlv);
-                if(tlv.value)
-                {
-                    printf("Software Version  = [%f]\n", *(float*)tlv.value);
-                    free(tlv.value);
-                }
+                printf("Software Version = [%f]\n", rbusValue_GetSingle(value));
                 break;
             case 3:
-                //Int Data
-                tlv.type = RBUS_INT32;
-                printf("calling rbus get for [%s]\n", tlv.name);
-                rbus_get(handle, &tlv);
-                if(tlv.value)
-                {
-                    printf("The value is = [%d]\n", *(int*)tlv.value);
-                    free(tlv.value);
-                }
-                /**************************/
-                {
-                    int tmp = 250;
-                    tlv.type = RBUS_INT32;
-                    printf("calling rbus set for [%s] with int value %d\n", tlv.name, tmp);
-                    tlv.length = sizeof(tmp);
-                    tlv.value = &tmp;
-                    rbus_errorCode = rbus_set(handle, &tlv, 0, RBUS_TRUE);
-                    if (rbus_errorCode != RBUS_ERROR_SUCCESS)
-                        printf ("Set Failed for %s with error code as %d\n", tlv.name, rbus_errorCode);
-                }
-                /* -ve Test. it will fail */
-                {
-                    char *tmp = "2020";
-                    tlv.type = RBUS_STRING;
-                    printf("calling rbus set for [%s] with string value: %s\n", tlv.name, tmp);
-                    tlv.length = strlen(tmp) + 1;
-                    tlv.value = tmp;
-                    rbus_errorCode = rbus_set(handle, &tlv, 0, RBUS_TRUE);
-                    if (rbus_errorCode != RBUS_ERROR_SUCCESS)
-                        printf ("Set Failed for %s with error code as %d\n", tlv.name, rbus_errorCode);
-                }
-                {
-                    tlv.value = NULL;
-                    printf("calling rbus get for [%s]\n", tlv.name);
-                    rbus_get(handle, &tlv);
-                    if(tlv.value)
-                    {
-                        printf("The value is = [%d]\n", *(int*)tlv.value);
-                        free(tlv.value);
-                    }
-                }
+                printf("The value is = [%d]\n", rbusValue_GetInt32(value));
                 break;
-
             case 4:
-                //Bool Data
-                tlv.type = RBUS_BOOLEAN;
-                printf("calling rbus get for [%s]\n", tlv.name);
-                rbus_get(handle, &tlv);
-                if(tlv.value)
-                {
-                    printf("The value is = [%d]\n", *(rbusBool_t*)tlv.value);
-                    free(tlv.value);
-                }
-                /**************************/
-                {
-                    rbusBool_t tmp = RBUS_TRUE;
-                    tlv.type = RBUS_BOOLEAN;
-                    printf("calling rbus set for [%s] with bool value %d\n", tlv.name, tmp);
-                    tlv.length = sizeof(tmp);
-                    tlv.value = &tmp;
-                    rbus_errorCode = rbus_set(handle, &tlv, 0, RBUS_TRUE);
-                    if (rbus_errorCode != RBUS_ERROR_SUCCESS)
-                        printf ("Set Failed for %s with error code as %d\n", tlv.name, rbus_errorCode);
-                }
-                /* -ve Test. it will fail */
-                {
-                    char *tmp = "TRUE";
-                    tlv.type = RBUS_STRING;
-                    printf("calling rbus set for [%s] with string value: %s\n", tlv.name, tmp);
-                    tlv.length = strlen(tmp) + 1;
-                    tlv.value = tmp;
-                    rbus_errorCode = rbus_set(handle, &tlv, 0, RBUS_TRUE);
-                    if (rbus_errorCode != RBUS_ERROR_SUCCESS)
-                        printf ("Set Failed for %s with error code as %d\n", tlv.name, rbus_errorCode);
-                }
-                {
-                    tlv.value = NULL;
-                    printf("calling rbus get for [%s]\n", tlv.name);
-                    rbus_get(handle, &tlv);
-                    if(tlv.value)
-                    {
-                        printf("The value is = [%d]\n", *(rbusBool_t*)tlv.value);
-                        free(tlv.value);
-                    }
-                }
+                printf("The value is = [%d]\n", rbusValue_GetBoolean(value));
                 break;
-
             case 5:
-                //UInt Data
-                tlv.type = RBUS_UINT32;
-                printf("calling rbus get for [%s]\n", tlv.name);
-                rbus_get(handle, &tlv);
-                if(tlv.value)
-                {
-                    printf("The value is = [%d]\n", *(unsigned int*)tlv.value);
-                    free(tlv.value);
-                }
-                /**************************/
-                {
-                    unsigned int tmp = 0xFFFFFFFF;
-                    tlv.type = RBUS_UINT32;
-                    printf("calling rbus set for [%s] with uint32 value %u\n", tlv.name, tmp);
-                    tlv.length = sizeof(tmp);
-                    tlv.value = &tmp;
-                    rbus_errorCode = rbus_set(handle, &tlv, 0, RBUS_TRUE);
-                    if (rbus_errorCode != RBUS_ERROR_SUCCESS)
-                        printf ("Set Failed for %s with error code as %d\n", tlv.name, rbus_errorCode);
-                }
-                /* -ve Test. it will fail */
-                {
-                    char *tmp = "25625";
-                    tlv.type = RBUS_STRING;
-                    printf("calling rbus set for [%s] with string value: %s\n", tlv.name, tmp);
-                    tlv.length = strlen(tmp) + 1;
-                    tlv.value = tmp;
-                    rbus_errorCode = rbus_set(handle, &tlv, 0, RBUS_TRUE);
-                    if (rbus_errorCode != RBUS_ERROR_SUCCESS)
-                        printf ("Set Failed for %s with error code as %d\n", tlv.name, rbus_errorCode);
-                }
-                {
-                    tlv.value = NULL;
-                    printf("calling rbus get for [%s]\n", tlv.name);
-                    rbus_get(handle, &tlv);
-                    if(tlv.value)
-                    {
-                        printf("The value is = [%d]\n", *(unsigned int*)tlv.value);
-                        free(tlv.value);
-                    }
-                }
-
-                break;
-
-                /*
-                case 6:
-                //Obj1-TestParam
-                tlv.type = RBUS_STRING;
-                printf("calling rbus get for [%s]\n", tlv.name);
-                rbus_get(handle, &tlv);
-                break;
-
-                case 7:
-                //Obj1-AnotherTestParam
-                tlv.type = RBUS_STRING;
-                printf("calling rbus get for [%s]\n", tlv.name);
-                rbus_get(handle, &tlv);
-                break;
-
-                case 8:
-                //Obj2-TestParam
-                tlv.type = RBUS_STRING;
-                printf("calling rbus get for [%s]\n", tlv.name);
-                rbus_get(handle, &tlv);
-                break;
-
-                case 9:
-                //Obj2-AnotherTestParam
-                tlv.type = RBUS_STRING;
-                printf("calling rbus get for [%s]\n", tlv.name);
-                rbus_get(handle, &tlv);
-                break;
-                 */
-            default:
+                printf("The value is = [%u]\n", rbusValue_GetUInt32(value));
                 break;
         }
 
-        free(tlv.name);
-        count++;
+        rbusValue_Release(value);
+
+        /*additional test with set*/
+        if(count == 3)
+        {
+            rbusValue_t value;
+            rbusValue_Init(&value);
+            rbusValue_SetInt32(value, 250);
+            rc = rbus_set(handle, paramNames[count], value, &opts);
+            if (rc != RBUS_ERROR_SUCCESS)
+                printf ("rbus_set failed for [%s] with error [%d]\n", paramNames[count], rc);
+
+            /* -ve Test. it will fail because it expects type Int32, not String*/
+            printf("calling rbus set for [%s] with string value.  this should fail.\n", paramNames[count]);
+            rbusValue_SetString(value, "Test");
+            rc = rbus_set(handle, paramNames[count], value, &opts);
+            if (rc != RBUS_ERROR_SUCCESS)
+                printf ("rbus_set Failed for [%s] with error [%d]\n", paramNames[count], rc);
+            rbusValue_Release(value);
+
+            printf("calling rbus get for [%s]\n", paramNames[count]);
+            rc = rbus_get(handle, paramNames[count], &value);
+            if(rc != RBUS_ERROR_SUCCESS)
+                printf ("rbus_get failed for [%s] with error [%d]\n", paramNames[count], rc);
+
+            printf("The value is [%d]\n", rbusValue_GetInt32(value));
+            rbusValue_Release(value);
+        }
+        else if(count == 4)
+        {
+            rbusValue_t value;
+            rbusValue_Init(&value);
+            rbusValue_SetBoolean(value, true);
+            rc = rbus_set(handle, paramNames[count], value, &opts);
+            if (rc != RBUS_ERROR_SUCCESS)
+                printf ("rbus_set failed for [%s] with error [%d]\n", paramNames[count], rc);
+
+            /* -ve Test. it will fail because it expects type Int32, not String*/
+            printf("calling rbus set for [%s] with string value.  this should fail.\n", paramNames[count]);
+            rbusValue_SetString(value, "Test");
+            rc = rbus_set(handle, paramNames[count], value, &opts);
+            if (rc != RBUS_ERROR_SUCCESS)
+                printf ("rbus_set Failed for [%s] with error [%d]\n", paramNames[count], rc);
+            rbusValue_Release(value);
+
+            printf("calling rbus get for [%s]\n", paramNames[count]);
+            rc = rbus_get(handle, paramNames[count], &value);
+            if(rc != RBUS_ERROR_SUCCESS)
+                printf ("rbus_get failed for [%s] with error [%d]\n", paramNames[count], rc);
+
+            printf("The value is [%d]\n", rbusValue_GetBoolean(value));
+            rbusValue_Release(value);
+
+        }
+        else if(count == 5)
+        {
+            rbusValue_t value;
+            rbusValue_Init(&value);
+            rbusValue_SetUInt32(value, 0xffffffff);
+            rc = rbus_set(handle, paramNames[count], value, &opts);
+            if (rc != RBUS_ERROR_SUCCESS)
+                printf ("rbus_set failed for [%s] with error [%d]\n", paramNames[count], rc);
+
+            /* -ve Test. it will fail because it expects type Int32, not String*/
+            printf("calling rbus set for [%s] with string value.  this should fail.\n", paramNames[count]);
+            rbusValue_SetString(value, "12234");
+            rc = rbus_set(handle, paramNames[count], value, &opts);
+            if (rc != RBUS_ERROR_SUCCESS)
+                printf ("rbus_set Failed for [%s] with error [%d]\n", paramNames[count], rc);
+            rbusValue_Release(value);
+
+            printf("calling rbus get for [%s]\n", paramNames[count]);
+            rc = rbus_get(handle, paramNames[count], &value);
+            if(rc != RBUS_ERROR_SUCCESS)
+                printf ("rbus_get failed for [%s] with error [%d]\n", paramNames[count], rc);
+
+            printf("The value is [%u]\n", rbusValue_GetUInt32(value));
+            rbusValue_Release(value);
+        }
     }
     int numElements = 0;
     char** elementNames = NULL;
-    rbus_errorCode_e rc;
     int i;
-    rc =  rbus_discoverComponentDataElements(handle,"rbusSampleProvider",RBUS_FALSE,&numElements,&elementNames);
+    rc =  rbus_discoverComponentDataElements(handle,"rbusSampleProvider",false,&numElements,&elementNames);
     if(RBUS_ERROR_SUCCESS == rc)
     {
         printf ("Discovered elements are,\n");
@@ -312,8 +218,9 @@ int main(int argc, char *argv[])
         printf ("Failed to discover component array. Error Code = %s\n", "");
     }
 
-    rbus_errorCode = rbus_close(handle);
-    printf("return code from rbus_close is %d\n", rbus_errorCode);
+    rbus_close(handle);
+exit1:
+    printf("constumer: exit\n");
     return 0;
 }
 

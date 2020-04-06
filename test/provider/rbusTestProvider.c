@@ -26,20 +26,513 @@
 #include <unistd.h>
 #include <string.h>
 #include <getopt.h>
+#include <assert.h>
 #include <rbus.h>
+#include <rtList.h>
 #include "../common/runningParamHelper.h"
+#include "../common/testValueHelper.h"
 
+
+/*value tests*/
+TestValueProperty* gTestValues;
+
+/*
+ * Generic Data Model Tree Structure
+ */
+#define MAX_ALIAS_LEN 64
+#define RBUS_ELEMENT_TYPE_OBJECT 1000
+#define RBUS_ELEMENT_TYPE_TABLE_ROW 1001
+
+struct Node;
+struct TableNode;
+struct TableRowNode;
+struct PropertyNode;
+
+typedef rbusError_t (*addTableRowHandler_t)(struct TableNode* tableNode, char const* alias, uint32_t* instNum);
+typedef rbusError_t (*removeTableRowHandler_t)(struct TableRowNode* rowNode);
+
+typedef struct Node
+{
+    rbusElementType_t type;
+    char name[MAX_ALIAS_LEN];
+    struct Node* parent;
+    rtList children;
+} Node;
+
+typedef struct TableNode
+{
+    struct Node node;
+    addTableRowHandler_t addHandler;
+    removeTableRowHandler_t removeHandler;
+    uint32_t instNum;
+} TableNode;
+
+typedef struct TableRowNode
+{
+    struct Node node;
+    uint32_t instNum;
+    /*row alias stored in Node.name*/
+} TableRowNode;
+
+typedef struct PropertyNode
+{
+    struct Node node;
+    rbusProperty_t prop;
+} PropertyNode;
+
+Node* getNode(Node* startNode, char const* fullName)
+{
+    char* tokName;
+    char* token;
+    Node* node = NULL;
+
+    tokName = strdup(fullName);
+    token = strtok(tokName, ".");
+
+    while(token)
+    {
+        if(!node)
+        {
+            if(strcmp(startNode->name, token)==0)
+                node = startNode;
+        }
+        else
+        {
+            Node* nextNode = NULL;
+            Node* child;
+            rtListItem item;
+            void* data;
+
+            rtList_GetFront(node->children, &item);
+
+            while(item)
+            {
+                rtListItem_GetData(item, &data);
+
+                child = (Node*)data;
+
+                if(child->type == RBUS_ELEMENT_TYPE_TABLE_ROW)
+                {
+                    /*check if row alias matches
+                      alias is stored in the name*/
+                    if(strlen(child->name) > 0)
+                    {
+                        char alias[MAX_ALIAS_LEN+2];
+
+                        /*tr-069: the alias must be wrapped in square brackets*/
+                        snprintf(alias, MAX_ALIAS_LEN+2, "[%s]", child->name);
+
+                        if(strcmp(alias, token)==0)
+                        {
+                            nextNode = child;
+                        }
+                    }
+
+                    /*check if row instance number matches*/
+                    if(!nextNode)
+                    {
+                        char number[MAX_ALIAS_LEN];
+
+                        snprintf(number, MAX_ALIAS_LEN, "%d", ((TableRowNode*)child)->instNum);
+
+                        if(strcmp(number, token)==0)
+                        {
+                            nextNode = child;
+                        }
+                    }
+                }
+                else if(strcmp(child->name, token)==0)
+                {
+                    nextNode = child;
+                }
+
+                if(nextNode)
+                    break;
+
+                rtListItem_GetNext(item, &item);
+            }
+
+            if(nextNode)
+            {
+                node = nextNode;
+            }
+            else
+            {
+                free(tokName);
+                return NULL;
+            }
+        }
+        token = strtok(NULL, ".");
+    }
+    free(tokName);
+    return node;    
+}
+
+void destroyNode(Node* node)
+{
+    rtListItem item;
+    void* data;
+
+    /*destroy all children*/    
+    rtList_GetFront(node->children, &item);
+
+    while(item)
+    {
+        rtListItem_GetData(item, &data);
+        rtListItem_GetNext(item, &item);
+
+        destroyNode(data);
+    }
+    rtList_Destroy(node->children, NULL);
+
+    /*release property*/
+    if(node->type == RBUS_ELEMENT_TYPE_PROPERTY)
+    {
+        rbusProperty_Release(((PropertyNode*)node)->prop);
+    }
+
+    /*remove node from parent children list*/
+    if(node->parent)
+    {
+        rtList_GetFront(node->parent->children, &item);
+
+        /*remove row from table*/
+        while(item)
+        {
+            rtListItem_GetData(item, &data);
+
+            if(data == node)
+            {
+                rtList_RemoveItem(node->parent->children, item, NULL);
+                break;
+            }
+
+            rtListItem_GetNext(item, &item);
+        }
+    }
+
+    /*and of course*/
+    free(node);
+}
+
+rbusError_t defaultRemoveTableRowHandler(TableRowNode* rowNode)
+{
+    destroyNode((Node*)rowNode);
+    return RBUS_ERROR_SUCCESS;
+}
+
+Node* createNode(Node* parent, rbusElementType_t type, char const* name)
+{
+    Node* node;
+    size_t nodeSize;
+
+    switch((int)type)
+    {
+        case RBUS_ELEMENT_TYPE_TABLE: 
+        nodeSize = sizeof(struct TableNode); 
+        break;
+
+        case RBUS_ELEMENT_TYPE_TABLE_ROW:
+        nodeSize = sizeof(struct TableRowNode); 
+        break;
+
+        case RBUS_ELEMENT_TYPE_PROPERTY:
+        nodeSize = sizeof(struct PropertyNode); 
+        break;
+
+        default:
+        nodeSize = sizeof(struct Node);
+        break;
+    }
+
+    node = calloc(1, nodeSize);
+
+    node->type = type;
+
+    if(name)
+    {
+        strncpy(node->name, name, MAX_ALIAS_LEN);
+    }
+
+    if(parent)
+    {
+        node->parent = parent;
+        rtList_PushBack(parent->children, node, NULL);
+    }
+
+    rtList_Create(&node->children);
+
+    return node;
+}
+
+TableNode* createTableNode(Node* parent, char const* name, addTableRowHandler_t addHandler)
+{
+    TableNode* node = (TableNode*)createNode(parent, RBUS_ELEMENT_TYPE_TABLE, name);
+    node->addHandler = addHandler;
+    node->removeHandler = defaultRemoveTableRowHandler;
+    node->instNum = 1;
+    return node;
+}
+
+rbusError_t createTableRowNode(Node* parent, char const* alias, uint32_t* instNum, TableRowNode** pnode)
+{
+    *pnode = NULL;
+
+    assert(parent->type == RBUS_ELEMENT_TYPE_TABLE);
+
+    /*verify alias not in use*/
+    if(alias && strlen(alias))
+    {
+        rtListItem item;
+
+        rtList_GetFront(parent->children, &item);
+
+        while(item)
+        {
+            Node* child;
+
+            rtListItem_GetData(item, (void**)&child);
+
+            assert(child->type == RBUS_ELEMENT_TYPE_TABLE_ROW);
+
+            if(child->type == RBUS_ELEMENT_TYPE_TABLE_ROW)
+            {
+                if(child->name && strlen(child->name) && strcmp(child->name, alias)==0)
+                {
+                    return RBUS_ERROR_ELEMENT_NAME_DUPLICATE;
+                }
+            }
+            rtListItem_GetNext(item, &item);
+        }
+    }
+    
+    *pnode = (TableRowNode*)createNode(parent, RBUS_ELEMENT_TYPE_TABLE_ROW, alias);
+    
+    *instNum = (*pnode)->instNum = ((TableNode*)parent)->instNum++;
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+PropertyNode* createPropertyNode(Node* parent, char const* name)
+{
+    rbusValue_t val;
+    PropertyNode* node = (PropertyNode*)createNode(parent, RBUS_ELEMENT_TYPE_PROPERTY, name);
+    rbusValue_Init(&val);
+    rbusValue_SetString(val, "");
+    rbusProperty_Init(&node->prop, NULL, val);
+    rbusValue_Release(val);
+    return node;
+}
+
+/*
+ * End Generic Data Model Tree Structure
+ */
+
+/*
+ * Application Data Model Instantiation
+ */
 //TODO handle filter matching
 
 int subscribed1 = 0;
 int subscribed2 = 0;
 
-rbus_errorCode_e eventSubHandler(
-  rbus_eventSubAction_e action,
-  const char* eventName, 
-  rbusEventFilter_t* filter)
+Node* gRootNode;
+
+rbusError_t addTable3RowHandler(TableNode* tableNode, char const* alias, uint32_t* instNum)
 {
-    (void)(filter);
+    TableRowNode* rowNode;
+    rbusError_t err;
+
+    err = createTableRowNode((Node*)tableNode, alias, instNum, &rowNode);
+
+    if(err != RBUS_ERROR_SUCCESS)
+        return err;
+
+    /*add properties and tables to the new row object*/
+    createPropertyNode((Node*)rowNode, "data");
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t addTable2RowHandler(TableNode* tableNode, char const* alias, uint32_t* instNum)
+{
+    TableRowNode* rowNode;
+    rbusError_t err;
+
+    err = createTableRowNode((Node*)tableNode, alias, instNum, &rowNode);
+
+    if(err != RBUS_ERROR_SUCCESS)
+        return err;
+
+    /*add properties and tables to the new row object*/
+    createTableNode((Node*)rowNode, "Table3", addTable3RowHandler);
+    createPropertyNode((Node*)rowNode, "data");
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t addTable1RowHandler(TableNode* tableNode, char const* alias, uint32_t* instNum)
+{
+    TableRowNode* rowNode;
+    rbusError_t err;
+
+    err = createTableRowNode((Node*)tableNode, alias, instNum, &rowNode);
+
+    if(err != RBUS_ERROR_SUCCESS)
+        return err;
+
+    /*add properties and tables to the new row object*/
+    createTableNode((Node*)rowNode, "Table2", addTable2RowHandler);
+    createPropertyNode((Node*)rowNode, "data");
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+void initNodeTree()
+{
+    gRootNode = createNode(NULL, RBUS_ELEMENT_TYPE_OBJECT, "Device");
+    Node* pTestProvider = createNode(gRootNode, RBUS_ELEMENT_TYPE_OBJECT, "TestProvider");
+    createTableNode(pTestProvider, "Table1", addTable1RowHandler);
+}
+
+Node* getNodeWithTypeVerification(Node* startNode, rbusElementType_t type, char const* name)
+{
+    Node* node;
+
+    node = getNode(startNode, name);
+
+    if(!node)
+    {
+        printf("provider: node not found %s\n", name);
+        return NULL;
+    }
+
+    if(node->type != type)
+    {
+        printf("provider: node type invalid %s\n", name);
+        return NULL;
+    }
+
+    return node;
+}
+
+rbusError_t tableAddRowHandler(
+    rbusHandle_t handle,
+    char const* tableName,
+    char const* aliasName,
+    uint32_t* instNum)
+{
+    (void)handle;
+
+    printf("%s %s %s\n", __FUNCTION__, tableName, aliasName);
+
+    TableNode* node = (TableNode*)getNodeWithTypeVerification(gRootNode, RBUS_ELEMENT_TYPE_TABLE, tableName);
+
+    if(node)
+    {
+        return node->addHandler(node, aliasName, instNum);
+    }
+    else
+    {
+        return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
+    }
+}
+
+rbusError_t tableRemoveRowHandler(
+    rbusHandle_t handle,
+    char const* rowName)
+{
+    (void)handle;
+
+    printf("%s %s\n", __FUNCTION__, rowName);
+
+    TableRowNode* node = (TableRowNode*)getNodeWithTypeVerification(gRootNode, RBUS_ELEMENT_TYPE_TABLE_ROW, rowName);
+
+    if(node)
+    {
+        TableNode* table = (TableNode*)node->node.parent;
+
+        return table->removeHandler(node);
+    }
+    else
+    {
+        return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
+    }
+}
+
+rbusError_t dataGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+
+    char const* propName = rbusProperty_GetName(property);
+
+    printf("%s %s\n", __FUNCTION__, propName);
+
+    PropertyNode* node = (PropertyNode*)getNodeWithTypeVerification(gRootNode, RBUS_ELEMENT_TYPE_PROPERTY, propName);
+
+    if(node)
+    {
+        char* sVal = rbusValue_ToString(rbusProperty_GetValue(node->prop), NULL, 0);
+        printf("%s %s: node found with value=%s\n", __FUNCTION__, propName, sVal);
+        free(sVal);
+
+        rbusProperty_SetValue(property, rbusProperty_GetValue(node->prop));
+
+        return RBUS_ERROR_SUCCESS;
+    }     
+    else
+    {
+        printf("%s %s: node not found\n" , __FUNCTION__, propName);
+        return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
+    }
+}
+
+rbusError_t dataSetHandler(rbusHandle_t handle, rbusProperty_t property, rbusSetHandlerOptions_t* options)
+{
+    (void)handle;
+    (void)options;
+
+    char const* propName = rbusProperty_GetName(property);
+
+    printf("%s %s\n", __FUNCTION__, propName);
+
+    PropertyNode* node = (PropertyNode*)getNodeWithTypeVerification(gRootNode, RBUS_ELEMENT_TYPE_PROPERTY, propName);
+
+    if(node)
+    {
+        rbusProperty_SetValue(node->prop, rbusProperty_GetValue(property));
+        return RBUS_ERROR_SUCCESS;
+    }     
+    else
+    {
+        return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
+    }
+}
+
+rbusError_t resetTablesSetHandler(rbusHandle_t handle, rbusProperty_t property, rbusSetHandlerOptions_t* options)
+{
+    char const* name = rbusProperty_GetName(property);
+    (void)handle;
+    (void)options;
+
+    printf("%s called for property %s\n", __FUNCTION__, name);
+
+    if(rbusValue_GetBoolean(rbusProperty_GetValue(property)) == true)
+    {
+        printf("%s resetting table data\n", __FUNCTION__);
+        destroyNode(gRootNode);
+        initNodeTree();
+    }
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusEventFilter_t* filter, bool* autoPublish)
+{
+    (void)handle;
+    (void)filter;
+    (void)autoPublish;
 
     printf(
         "eventSubHandler called:\n" \
@@ -64,36 +557,67 @@ rbus_errorCode_e eventSubHandler(
     return RBUS_ERROR_SUCCESS;
 }
 
-rbus_errorCode_e getHandler(void *context, int numTlvs, rbus_Tlv_t* tlv, char *requestingComponentName)
+rbusError_t getValueHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
-    static uint32_t count = 0;
-    static uint32_t value = 0;
-    int i = 0;
-    static char buff[100];
+    char const* name = rbusProperty_GetName(property);
+    (void)handle;
+    (void)opts;
 
-    (void)(context);
-    (void)(requestingComponentName);
+    printf("%s called for property %s\n", __FUNCTION__, name);
 
-    snprintf(buff, 100, "value %d", value);
-
-    //fake a value change every 3rd time the getHandler is called
-    if( ((count++) % 3) == 0 )
+    TestValueProperty* data = gTestValues;
+    while(data->name)
     {
-        printf("test:value-change=%s\n", buff);
-        value++;
+        if(strcmp(name,data->name)==0)
+        {
+            rbusProperty_SetValue(property, data->values[0]);
+            break;
+        }
+        data++;
     }
 
-    while(i < numTlvs)
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t setValueHandler(rbusHandle_t handle, rbusProperty_t property, rbusSetHandlerOptions_t* options)
+{
+    char const* name = rbusProperty_GetName(property);
+    (void)handle;
+    (void)options;
+
+    printf("%s called for property %s\n", __FUNCTION__, name);
+
+    TestValueProperty* data = gTestValues;
+    while(data->name)
     {
-        if(strcmp(tlv[i].name, "Device.TestProvider.Param1") == 0)
+        if(strcmp(name,data->name)==0)
         {
-            printf("Called get handler for [%s]\n", tlv[i].name);
-            tlv[i].type = RBUS_STRING;
-            tlv[i].length = strlen(buff)+1;
-            tlv[i].value = (void *)malloc(tlv[i].length);
-            memcpy(tlv[i].value, buff, tlv[i].length);
+            rbusValue_SetPointer(&data->values[0], rbusProperty_GetValue(property));
+            break;
         }
-        i++;
+        data++;
+    }
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t getHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    static uint32_t count = 0;
+    (void)handle;
+    (void)opts;
+
+    if(strcmp(rbusProperty_GetName(property), "Device.TestProvider.Param1") == 0)
+    {
+        char buff[100];
+        snprintf(buff, 100, "value %d", count++/3);//fake a value change every 3rd time the getHandler is called
+        printf("Called get handler for [%s=%s]\n", rbusProperty_GetName(property), buff);
+
+        rbusValue_t value;
+        rbusValue_Init(&value);
+        rbusValue_SetString(value, buff);
+        rbusProperty_SetValue(property, value);
+        rbusValue_Release(value);
     }
     return RBUS_ERROR_SUCCESS;
 }
@@ -106,24 +630,46 @@ int main(int argc, char *argv[])
     rbusHandle_t handle;
     int rc = RBUS_ERROR_SUCCESS;
     char componentName[] = "TestProvider";
-    int dataVal=0;
+    int eventCounts[2]={0,0};
+    int j;
+    #define numDataElems 10
 
-    #define numElements 3
-
-    rbus_dataElement_t elements[numElements] = {
-        {"Device.TestProvider.Event1!",{NULL,NULL,NULL,eventSubHandler}},
-        {"Device.TestProvider.Event2!",{NULL,NULL,NULL,eventSubHandler}},
-        {"Device.TestProvider.Param1", {getHandler,NULL,NULL,NULL}}
+    rbusDataElement_t dataElement[numDataElems] = {
+        {"Device.TestProvider.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler}},
+        {"Device.TestProvider.Event2!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler}},
+        {"Device.TestProvider.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,NULL,NULL,NULL,NULL}},
+        {"Device.TestProvider.Table1.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler}},
+        {"Device.TestProvider.Table1.{i}.Table2.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler}},
+        {"Device.TestProvider.Table1.{i}.Table2.{i}.Table3.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler}},
+        {"Device.TestProvider.Table1.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL}},
+        {"Device.TestProvider.Table1.{i}.Table2.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL}},
+        {"Device.TestProvider.Table1.{i}.Table2.{i}.Table3.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL}},
+        {"Device.TestProvider.ResetTables", RBUS_ELEMENT_TYPE_PROPERTY, {NULL, resetTablesSetHandler, NULL, NULL, NULL}}
     };
 
     printf("provider: start\n");
+
+    TestValueProperties_Init(&gTestValues);
+
+    initNodeTree();
 
     rc = rbus_open(&handle, componentName);
     printf("provider: rbus_open=%d\n", rc);
     if(rc != RBUS_ERROR_SUCCESS)
         goto exit2;
 
-    rc = rbus_regDataElements(handle, numElements, elements);
+    TestValueProperty* data = gTestValues;
+    while(data->name)
+    {
+        rbusDataElement_t el = { data->name, RBUS_ELEMENT_TYPE_PROPERTY, {getValueHandler,setValueHandler,NULL,NULL,NULL}};
+        rc = rbus_regDataElements(handle, 1, &el);
+        printf("provider: rbus_regDataElements=%d\n", rc);
+        if(rc != RBUS_ERROR_SUCCESS)
+            goto exit1;
+        data++;
+    }
+    
+    rc = rbus_regDataElements(handle, numDataElems, dataElement);
     printf("provider: rbus_regDataElements=%d\n", rc);
     if(rc != RBUS_ERROR_SUCCESS)
         goto exit1;
@@ -144,50 +690,53 @@ int main(int argc, char *argv[])
     {
         #define BUFF_LEN 100
         char buffer[BUFF_LEN];
-        dataVal++;
 
         sleep(1);
 
-        if(subscribed1)
+        for(j=0; j<2; ++j)
         {
-            printf("publishing Event1\n");
+            if((j==0 && subscribed1) || (j==1 && subscribed2))
+            {
+                printf("publishing Event%d\n", j);
 
-            snprintf(buffer, BUFF_LEN, "event 1 data %d\n", dataVal);
+                snprintf(buffer, BUFF_LEN, "event %d data %d", j, eventCounts[j]);
 
-            rbus_Tlv_t tlv;
-            tlv.name = elements[0].elementName;
-            tlv.type = RBUS_STRING;
-            tlv.value = buffer;
-            tlv.length = strlen(tlv.value) + 1;
+                rbusObject_t data;
+                rbusValue_t bufferVal;
+                rbusValue_t indexVal;
 
-            rc = rbusEvent_Publish(handle, &tlv);
+                rbusValue_Init(&bufferVal);
+                rbusValue_Init(&indexVal);
 
-            if(rc != RBUS_ERROR_SUCCESS)
-                printf("provider: rbusEvent_Publish Event1 failed: %d\n", rc);
-        }
+                rbusValue_SetString(bufferVal, buffer);
+                rbusValue_SetInt32(indexVal, eventCounts[j]);
 
-        if(subscribed2)
-        {
-            printf("publishing Event2\n");
+                rbusObject_Init(&data, NULL);
+                rbusObject_SetValue(data, "buffer", bufferVal);
+                rbusObject_SetValue(data, "index", indexVal);
 
-            snprintf(buffer, BUFF_LEN, "event 2 data %d\n", dataVal);
+                rbusEvent_t event;
+                event.name = dataElement[j].name;
+                event.data = data;
+                event.type = RBUS_EVENT_GENERAL;
 
-            rbus_Tlv_t tlv;
-            tlv.name = elements[1].elementName;
-            tlv.type = RBUS_STRING;
-            tlv.value = buffer;
-            tlv.length = strlen(tlv.value) + 1;
+                rc = rbusEvent_Publish(handle, &event);
 
-            rc = rbusEvent_Publish(handle, &tlv);
+                rbusValue_Release(bufferVal);
+                rbusValue_Release(indexVal);
+                rbusObject_Release(data);
 
-            if(rc != RBUS_ERROR_SUCCESS)
-                printf("provider: rbusEvent_Publish Event2 failed: %d\n", rc);
+                if(rc != RBUS_ERROR_SUCCESS)
+                    printf("provider: rbusEvent_Publish Event%d failed: %d\n", j, rc);
+
+                eventCounts[j]++;
+            }
         }
     }
 
     printf("provider: finishing\n");
 
-    rc = rbus_unregDataElements(handle, numElements, elements);
+    rc = rbus_unregDataElements(handle, numDataElems, dataElement);
     printf("provider: rbus_unregDataElements=%d\n", rc);
 
 exit1:
@@ -195,6 +744,10 @@ exit1:
     printf("provider: rbus_close=%d\n", rc);
 
 exit2:
+
+    TestValueProperties_Release(gTestValues);
+    destroyNode(gRootNode);
+
     printf("provider: exit\n");
     return rc;
 }

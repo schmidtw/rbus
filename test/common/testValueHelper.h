@@ -17,26 +17,24 @@
  * limitations under the License.
 */
 
-#ifndef __RBUS_TEST_RUNNINGPARAM_H
-#define __RBUS_TEST_RUNNINGPARAM_H
+#ifndef __RBUS_TEST_VALUE_HELPER_H
+#define __RBUS_TEST_VALUE_HELPER_H
 
-#include <stdlib.h>
 #include <rbus.h>
-
-#include <rbus_core.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-rbusError_t
-runningParamProvider_Init(rbusHandle_t handle, char* paramName);
+typedef struct TestValueProperty
+{
+    rbusValueType_t type;
+    char* name;
+    rbusValue_t values[3];
+} TestValueProperty;
 
-int
-runningParamProvider_IsRunning();
-
-int
-runningParamConsumer_Set(rbusHandle_t handle, char* paramName, bool running);
+void TestValueProperties_Init(TestValueProperty** list);
+void TestValueProperties_Release(TestValueProperty* list);
 
 #ifdef __cplusplus
 }

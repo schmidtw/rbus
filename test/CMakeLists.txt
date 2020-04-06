@@ -10,7 +10,6 @@
 #
 # http://www.apache.org/licenses/LICENSE-2.0
 #
-#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,16 +25,21 @@ if (BUILD_RBUS_INTERFACE_TEST_APPS)
 
 add_executable(rbusTestProvider 
     provider/rbusTestProvider.c
-    common/runningParamHelper.c)
+    common/runningParamHelper.c
+    common/testValueHelper.c)
 add_dependencies(rbusTestProvider rbus)
 target_link_libraries(rbusTestProvider rbus)
 
 add_executable(rbusTestConsumer 
     consumer/rbusTestConsumer.c
+    consumer/value.c
+    consumer/valueChange.c
     consumer/subscribe.c
     consumer/subscribeEx.c
-    consumer/valueChange.c
-    common/runningParamHelper.c)
+    consumer/tables.c
+    consumer/events.c
+    common/runningParamHelper.c
+    common/testValueHelper.c)
 add_dependencies(rbusTestConsumer rbus)
 target_link_libraries(rbusTestConsumer rbus)
 
@@ -62,6 +66,15 @@ add_dependencies(rbusTestMultiConsumer rbus)
 target_link_libraries(rbusTestMultiConsumer rbus)
 
 install (TARGETS rbusTestMultiProvider rbusTestMultiConsumer 
+        RUNTIME DESTINATION bin)
+
+add_executable(rbusTestValue 
+    rbusTestValue.c)
+add_dependencies(rbusTestValue rbus)
+target_link_libraries(rbusTestValue rbus)
+set (CMAKE_C_FLAGS "-Wno-overflow ${CMAKE_C_FLAGS}")
+
+install (TARGETS rbusTestValue
         RUNTIME DESTINATION bin)
 
 endif (BUILD_RBUS_INTERFACE_TEST_APPS)
