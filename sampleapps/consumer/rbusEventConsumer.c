@@ -1,6 +1,6 @@
 /*
- * If not stated otherwise in this file or this component's Licenses.txt file the
- * following copyright and licenses apply:
+ * If not stated otherwise in this file or this component's Licenses.txt file
+ * the following copyright and licenses apply:
  *
  * Copyright 2019 RDK Management
  *
@@ -32,73 +32,123 @@
 #define TEST_SUBSCRIBE      1
 #define TEST_SUBSCRIBE_EX   1
 
-int loopFor = 20;
+int loopFor = 24;
 
-void eventReceiveHandler1(
+#define PRINT_EVENT(EVENT, SUBSCRIPTION) \
+    printf("\n############################################################################\n" \
+        " Event received in handler: %s\n" \
+        " Subscription:\n" \
+        "   eventName=%s\n" \
+        "   userData=%s\n" \
+        " Event:\n" \
+        "   type=%d\n" \
+        "   name=%s\n" \
+        "   data=\n", \
+            __FUNCTION__, \
+            (SUBSCRIPTION)->eventName, \
+            (char*)(SUBSCRIPTION)->userData, \
+            (EVENT)->type, \
+            (EVENT)->name); \
+    rbusObject_fwrite((EVENT)->data, 8, stdout); \
+    printf("############################################################################\n");
+
+static void generalEvent1Handler(
     rbusHandle_t handle,
-    rbusEventSubscription_t* subscription,
-    rbus_Tlv_t const* eventData)
+    rbusEvent_t const* event,
+    rbusEventSubscription_t* subscription)
 {
-    printf(
-        "eventReceiveHandler1 called:\n"
-        "\tevent=%s\n"
-        "\tvalue=%s\n"
-        "\ttype=%d\n"
-        "\tlength=%d\n"
-        "\tdata=%s\n",
-        eventData->name,
-        (char*)eventData->value,
-        eventData->length,
-        eventData->type,
-        (char*)subscription->user_data);
+    rbusValue_t someText;
+
+    PRINT_EVENT(event, subscription);
+
+    someText = rbusObject_GetValue(event->data, "someText");
+
+    printf("Consumer receiver General event 1 %s\n", event->name);
+
+    if(someText)
+        printf("  someText: %s\n", rbusValue_GetString(someText, NULL));
+
+    printf("  My user data: %s\n", (char*)subscription->userData);
+
+    (void)handle;
 }
 
-void eventReceiveHandler2(
+static void generalEvent2Handler(
     rbusHandle_t handle,
-    rbusEventSubscription_t* subscription,
-    rbus_Tlv_t const* eventData)
+    rbusEvent_t const* event,
+    rbusEventSubscription_t* subscription)
 {
-    printf(
-        "eventReceiveHandler2 called:\n"
-        "\tevent=%s\n"
-        "\tvalue=%s\n"
-        "\ttype=%d\n"
-        "\tlength=%d\n"
-        "\tdata=%s\n",
-        eventData->name,
-        (char*)eventData->value,
-        eventData->length,
-        eventData->type,
-        (char*)subscription->user_data);
+    rbusValue_t label, text, counter, flag, subObject;
+    label = text = counter = flag = subObject = NULL;
+
+    PRINT_EVENT(event, subscription);
+
+    label = rbusObject_GetValue(event->data, "label");
+
+    subObject = rbusObject_GetValue(event->data, "subObject");
+
+    if(subObject)
+    {
+        rbusObject_t obj = rbusValue_GetObject(subObject);
+
+        text = rbusObject_GetValue(obj, "text");
+        counter = rbusObject_GetValue(obj, "counter");
+        flag = rbusObject_GetValue(obj, "flag");
+    }
+
+    printf("Consumer receiver General event 2 %s\n", event->name);
+
+    if(label)
+        printf("  label: %s\n", rbusValue_GetString(label, NULL));
+
+    if(text)
+        printf("  text: %s\n", rbusValue_GetString(text, NULL));
+
+    if(counter)
+        printf("  counter: %d\n", rbusValue_GetInt32(counter));
+
+    if(flag)
+        printf("  flag: %s\n", rbusValue_GetBoolean(flag) ? "true" : "false");
+
+    printf("  My user data: %s\n", (char*)subscription->userData);
+
+    (void)handle;
 }
 
-void eventReceiveHandler3(
+static void valueChangeHandler(
     rbusHandle_t handle,
-    rbusEventSubscription_t* subscription,
-    rbus_Tlv_t const* eventData)
+    rbusEvent_t const* event,
+    rbusEventSubscription_t* subscription)
 {
-    printf(
-        "eventReceiveHandler3 called:\n"
-        "\tevent=%s\n"
-        "\tvalue=%s\n"
-        "\ttype=%d\n"
-        "\tlength=%d\n"
-        "\tdata=%p\n",
-        eventData->name,
-        (char*)eventData->value,
-        eventData->length,
-        eventData->type,
-        subscription->user_data);
+    rbusValue_t newValue = rbusObject_GetValue(event->data, "value");
+    rbusValue_t oldValue = rbusObject_GetValue(event->data, "oldValue");
+
+    printf("Consumer receiver ValueChange event for param %s\n", event->name);
+
+    if(newValue)
+        printf("  New Value: %s\n", rbusValue_GetString(newValue, NULL));
+
+    if(oldValue)
+        printf("  Old Value: %s\n", rbusValue_GetString(oldValue, NULL));
+
+    printf("  My user data: %s\n", (char*)subscription->userData);
+
+    PRINT_EVENT(event, subscription);
+
+    (void)handle;
 }
 
 int main(int argc, char *argv[])
 {
+    (void)(argc);
+    (void)(argv);
+
     int rc = RBUS_ERROR_SUCCESS;
     rbusHandle_t handle;
     char* data[2] = { "My Data 1", "My Data2" };
     rbusEventSubscription_t subscriptions[2] = {
-        {"Device.Provider1.Event1!", NULL, 0, eventReceiveHandler1, data[0], 0},
-        {"Device.Provider1.Event2!", NULL, 0, eventReceiveHandler2, data[1], 0}
+        {"Device.Provider1.Event1!", NULL, 0, generalEvent1Handler, data[0], 0},
+        {"Device.Provider1.Event2!", NULL, 0, generalEvent2Handler, data[1], 0}
     };
 
     printf("constumer: start\n");
@@ -111,22 +161,11 @@ int main(int argc, char *argv[])
     }
 
 #if TEST_VALUE_CHANGE
-#if 0
-    rbus_Tlv_t tlv;
-    tlv.name = "Device.Provider1.Param1";
-    if(rbus_get(handle, &tlv) == RBUS_ERROR_SUCCESS)
-    {
-        if(tlv.type == RBUS_STRING)
-        {
-            printf("get %s: %s\n", tlv.name, (char*)tlv.value);
-        }
-    }
-#endif
 
     rc = rbusEvent_Subscribe(
         handle,
         "Device.Provider1.Param1",
-        eventReceiveHandler3,
+        valueChangeHandler,
         NULL);
 
     if(rc != RBUS_ERROR_SUCCESS)
@@ -135,7 +174,7 @@ int main(int argc, char *argv[])
         goto exit3;
     }
 
-    sleep(loopFor);
+    sleep(loopFor/4);
     
 #endif
 
@@ -143,7 +182,7 @@ int main(int argc, char *argv[])
     rc = rbusEvent_Subscribe(
         handle,
         "Device.Provider1.Event1!",
-        eventReceiveHandler1,
+        generalEvent1Handler,
         data[0]);
 
     if(rc != RBUS_ERROR_SUCCESS)
@@ -155,7 +194,7 @@ int main(int argc, char *argv[])
     rc = rbusEvent_Subscribe(
         handle,
         "Device.Provider1.Event2!",
-        eventReceiveHandler2,
+        generalEvent2Handler,
         data[1]);
 
     if(rc != RBUS_ERROR_SUCCESS)
@@ -164,10 +203,10 @@ int main(int argc, char *argv[])
         goto exit2;
     }
 
-    sleep(loopFor/2);
+    sleep(loopFor/4);
     printf("Unsubscribing from Event2\n");
     rbusEvent_Unsubscribe(handle, "Device.Provider1.Event2!");
-    sleep(loopFor/2);
+    sleep(loopFor/4);
     printf("Unsubscribing from Event1\n");
     rbusEvent_Unsubscribe(handle, "Device.Provider1.Event1!");
 #endif
@@ -181,7 +220,7 @@ int main(int argc, char *argv[])
         goto exit3;
     }
 
-    sleep(loopFor);
+    sleep(loopFor/4);
 
     rbusEvent_UnsubscribeEx(handle, subscriptions, 2);
 #endif

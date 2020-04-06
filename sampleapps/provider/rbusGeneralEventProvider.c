@@ -30,7 +30,7 @@
 
 //TODO handle filter matching
 
-int loopFor = 30;
+int runtime = 30;
 int subscribed1 = 0;
 int subscribed2 = 0;
 
@@ -39,7 +39,6 @@ rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, co
     (void)handle;
     (void)filter;
     (void)autoPublish;
-
     printf(
         "eventSubHandler called:\n" \
         "\taction=%s\n" \
@@ -63,58 +62,21 @@ rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, co
     return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t getHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* options)
-{
-    char const* name = rbusProperty_GetName(property);
-    (void)handle;
-    (void)options;
-
-    if(strcmp(name, "Device.Provider1.Param1") == 0)
-    {
-        static int mydata = 0;
-        char buff[10];
-        rbusValue_t value;
-
-        sprintf(buff, "v%d", mydata++/3);/*fake a value change every 3rd call to this function*/
-
-        printf("Called get handler for [%s] val=[%s]\n", name, buff);
-
-        rbusValue_Init(&value);
-        rbusValue_SetString(value, buff);
-
-        rbusProperty_SetValue(property, value);
-
-        rbusValue_Release(value);
-    }
-    else if(strcmp(name, "Device.SampleProvider.SampleData2.StrData") == 0)
-    {
-        rbusValue_t value;
-        rbusValue_Init(&value);
-        rbusValue_SetString(value, "String Data from Event Provider");
-
-        rbusProperty_SetValue(property, value);
-
-        rbusValue_Release(value);
-    }
-    return RBUS_ERROR_SUCCESS;
-}
-
 int main(int argc, char *argv[])
 {
     (void)(argc);
     (void)(argv);
 
     rbusHandle_t handle;
+    char buffer[128];
     int rc = RBUS_ERROR_SUCCESS;
 
     char componentName[] = "EventProvider";
     char* eventData[2] = { "Hello Earth", "Hello Mars" };
 
-    rbusDataElement_t dataElements[4] = {
+    rbusDataElement_t dataElements[2] = {
         {"Device.Provider1.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler}},
-        {"Device.Provider1.Event2!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler}},
-        {"Device.Provider1.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler, NULL, NULL, NULL, NULL}},
-        {"Device.SampleProvider.SampleData2.StrData", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler, NULL, NULL, NULL, NULL}}
+        {"Device.Provider1.Event2!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler}}
     };
 
     printf("provider: start\n");
@@ -126,33 +88,35 @@ int main(int argc, char *argv[])
         goto exit2;
     }
 
-    rc = rbus_regDataElements(handle, 4, dataElements);
+    rc = rbus_regDataElements(handle, 2, dataElements);
     if(rc != RBUS_ERROR_SUCCESS)
     {
         printf("provider: rbusEventProvider_Register failed: %d\n", rc);
         goto exit1;
     }
 
-    while (loopFor != 0)
+    while (runtime != 0)
     {
-        printf("provider: exiting in %d seconds\n", loopFor);
+        printf("provider: exiting in %d seconds\n", runtime);
         sleep(1);
-        loopFor--;
+        runtime--;
 
         if(subscribed1)
         {
-            rbusEvent_t event;
-            rbusObject_t data;
-            rbusValue_t value;
-
             printf("publishing Event1\n");
 
+            snprintf(buffer, 128, "%s %d", eventData[0], runtime);
+
+            rbusValue_t value;
+            rbusObject_t data;
+
             rbusValue_Init(&value);
-            rbusValue_SetString(value, eventData[0]);
+            rbusValue_SetString(value, buffer);
 
             rbusObject_Init(&data, NULL);
-            rbusObject_SetValue(data, "someText", value);
+            rbusObject_SetValue(data, "value", value);
 
+            rbusEvent_t event;
             event.name = dataElements[0].name;
             event.data = data;
             event.type = RBUS_EVENT_GENERAL;
@@ -167,49 +131,33 @@ int main(int argc, char *argv[])
         }
         if(subscribed2)
         {
-            rbusEvent_t event;
-            rbusObject_t data;
-            rbusObject_t subobj;
-
-            rbusValue_t value;
-
             printf("publishing Event2\n");
 
+            rbusValue_t valueLabel;
+            rbusValue_t valueNumber;
+            rbusObject_t data;
+
+            snprintf(buffer, 128, "%s %d", eventData[1], runtime);
+
+            rbusValue_Init(&valueLabel);
+            rbusValue_Init(&valueNumber);
+
+            rbusValue_SetString(valueLabel, buffer);
+            rbusValue_SetInt32(valueNumber, runtime);
+
             rbusObject_Init(&data, NULL);
-            rbusObject_Init(&subobj, "This is a sub object");
+            rbusObject_SetValue(data, "label", valueLabel);
+            rbusObject_SetValue(data, "number", valueNumber);
 
-            rbusValue_Init(&value);
-            rbusValue_SetString(value, eventData[1]);
-            rbusObject_SetValue(data, "label", value);
-            rbusValue_Release(value);
-
-            rbusValue_Init(&value);
-            rbusValue_SetString(value, "Some Text");
-            rbusObject_SetValue(subobj, "text", value);
-            rbusValue_Release(value);
-
-            rbusValue_Init(&value);
-            rbusValue_SetInt32(value, loopFor);
-            rbusObject_SetValue(subobj, "counter", value);
-            rbusValue_Release(value);
-
-            rbusValue_Init(&value);
-            rbusValue_SetBoolean(value, ((loopFor % 3) == 0 ? true:false));
-            rbusObject_SetValue(subobj, "flag", value);
-            rbusValue_Release(value);
-
-            rbusValue_Init(&value);
-            rbusValue_SetObject(value, subobj);
-            rbusObject_Release(subobj);
-            rbusObject_SetValue(data, "subObject", value);
-            rbusValue_Release(value);
-
+            rbusEvent_t event;
             event.name = dataElements[1].name;
             event.data = data;
             event.type = RBUS_EVENT_GENERAL;
 
             rc = rbusEvent_Publish(handle, &event);
 
+            rbusValue_Release(valueLabel);
+            rbusValue_Release(valueNumber);
             rbusObject_Release(data);
 
             if(rc != RBUS_ERROR_SUCCESS)
@@ -217,7 +165,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    rbus_unregDataElements(handle, 4, dataElements);
+    rbus_unregDataElements(handle, 2, dataElements);
 exit1:
     rbus_close(handle);
 exit2:

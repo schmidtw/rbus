@@ -27,141 +27,95 @@
 #include <string.h>
 #include <getopt.h>
 #include <rbus.h>
+#include "../common/runningParamHelper.h"
 
-rbusBool_t testRunning = RBUS_FALSE;
 int subscribes[5] = {-1,-1,-1,-1,-1};
 
-rbus_errorCode_e getTestRunningHandler(void *context, int numTlvs, rbus_Tlv_t* tlv, char *requestingComponentName)
+rbusError_t getHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
-    int i = 0;
-    (void)(context);
-    (void)(requestingComponentName);
+    static int counter = 0;
 
-    while(i < numTlvs)
+    char const* name = rbusProperty_GetName(property);
+
+    (void)handle;
+    (void)opts;
+
+    if( strcmp(name, "Device.MultiProvider1.Param") == 0 ||
+        strcmp(name, "Device.MultiProvider2.Param") == 0 ||
+        strcmp(name, "Device.MultiProvider3.Param") == 0 ||
+        strcmp(name, "Device.MultiProvider4.Param") == 0 ||
+        strcmp(name, "Device.MultiProvider5.Param") == 0)
     {
-        if(strcmp(tlv[i].name, "Device.TestProvider.TestRunning") == 0)
-        {
-            tlv[i].type = RBUS_BOOLEAN;
-            tlv[i].length = sizeof(rbusBool_t);
-            tlv[i].value = (void *)malloc(tlv[i].length);
-            memcpy(tlv[i].value, &testRunning, tlv[i].length);
-        }
-        i++;
+        char sVal[256];
+        snprintf(sVal, 256, "param=%s counter=%d", name, ++counter);
+
+        rbusValue_t value;
+        rbusValue_Init(&value);
+        rbusValue_SetString(value, sVal);
+        rbusProperty_SetValue(property, value);
+        rbusValue_Release(value);
+
+        printf("_test_:getHandler result:SUCCESS value:'%s'\n", sVal);
+        return RBUS_ERROR_SUCCESS;
     }
-    return RBUS_ERROR_SUCCESS;
-}
-rbus_errorCode_e setTestRunningHandler(int numTlvs, rbus_Tlv_t* tlv, int sessionId, rbusBool_t commit, char *requestingComponentName)
-{
-    int i = 0;
-    (void)(sessionId);
-    (void)(commit);
-    (void)(requestingComponentName);
-
-    while(i < numTlvs)
+    else
     {
-        if(strcmp(tlv[i].name, "Device.TestProvider.TestRunning") == 0)
+        printf("_test_:getHandler result:FAIL error:'unexpected param' param:'%s'\n", name);
+    }
+
+    return RBUS_ERROR_BUS_ERROR;
+}
+
+rbusError_t setHandler(rbusHandle_t handle, rbusProperty_t property, rbusSetHandlerOptions_t* opts)
+{
+    char const* name;
+    char* sVal;
+    rbusValue_t value;
+
+    (void)handle;
+    (void)opts;
+
+    name = rbusProperty_GetName(property);
+    value = rbusProperty_GetValue(property);
+
+    if(value)
+    {
+        if( strcmp(name, "Device.MultiProvider1.Param") == 0 ||
+            strcmp(name, "Device.MultiProvider2.Param") == 0 ||
+            strcmp(name, "Device.MultiProvider3.Param") == 0 ||
+            strcmp(name, "Device.MultiProvider4.Param") == 0 ||
+            strcmp(name, "Device.MultiProvider5.Param") == 0)
         {
-            if(tlv[i].type == RBUS_BOOLEAN)
+            if(rbusValue_GetType(value) == RBUS_STRING)
             {
-                memcpy(&testRunning, tlv[i].value, sizeof(testRunning));
-                printf("provider:TestRunning set %s\n", testRunning ? "TRUE" : "FALSE");
+                sVal=rbusValue_ToString(value, 0,0);
+                printf("_test_:setHandler result:SUCCESS param='%s' value='%s'\n", name, sVal);
+                free(sVal);
+                return RBUS_ERROR_SUCCESS;
             }
             else
             {
-                printf("provider:setTestRunningHandler error: expected RBUS_BOOL but got type %d\n", tlv[i].type);
+                printf("_test_:setHandler result:FAIL error:'unexpected type %d'\n", rbusValue_GetType(value));
             }
-        }
-        i++;
-    }
-
-    return RBUS_ERROR_SUCCESS;
-}
-
-rbus_errorCode_e getHandler(void *context, int numTlvs, rbus_Tlv_t* tlv, char *requestingComponentName)
-{
-    int i = 0;
-    int found = 0;
-    static int counter = 0;
-
-    (void)(context);
-    (void)(requestingComponentName);
-
-    while(i < numTlvs)
-    {
-        if( strcmp(tlv[i].name, "Device.MultiProvider1.Param") == 0 ||
-            strcmp(tlv[i].name, "Device.MultiProvider2.Param") == 0 ||
-            strcmp(tlv[i].name, "Device.MultiProvider3.Param") == 0 ||
-            strcmp(tlv[i].name, "Device.MultiProvider4.Param") == 0 ||
-            strcmp(tlv[i].name, "Device.MultiProvider5.Param") == 0)
-        {
-            char value[256];
-            snprintf(value, 256, "param=%s caller=%s counter=%d", tlv[i].name, requestingComponentName, ++counter);
-            tlv[i].type = RBUS_STRING;
-            tlv[i].length = strlen(value)+1;
-            tlv[i].value = strdup(value);
-
-            found = 1;
-            printf("_test_:getHandler result:SUCCESS value:'%s'\n", value);
         }
         else
         {
-            printf("_test_:getHandler result:FAIL error:'unexpected param' param:'%s' caller:%s\n", tlv[i].name, requestingComponentName);
+            printf("_test_:getHandler result:FAIL error:'no param matched' name='%s'\n", name);
         }
-        i++;
     }
-
-    if(!found)
+    else
     {
-        printf("_test_:getHandler result:FAIL error:'no param matched' caller:%s\n", requestingComponentName);
+        printf("_test_:getHandler result:FAIL value=NULL name='%s'\n", name);
     }
 
-    return RBUS_ERROR_SUCCESS;
+    return RBUS_ERROR_BUS_ERROR;
 }
 
-rbus_errorCode_e setHandler(int numTlvs, rbus_Tlv_t* tlv, int sessionId, rbusBool_t commit, char *requestingComponentName)
+rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusEventFilter_t* filter, bool* autoPublish)
 {
-    int i = 0;
-    int found = 0;
-
-    (void)(sessionId);
-    (void)(commit);
-    (void)(requestingComponentName);
-
-    while(i < numTlvs)
-    {
-        if( strcmp(tlv[i].name, "Device.MultiProvider1.Param") == 0 ||
-            strcmp(tlv[i].name, "Device.MultiProvider2.Param") == 0 ||
-            strcmp(tlv[i].name, "Device.MultiProvider3.Param") == 0 ||
-            strcmp(tlv[i].name, "Device.MultiProvider4.Param") == 0 ||
-            strcmp(tlv[i].name, "Device.MultiProvider5.Param") == 0)
-        {
-            if(tlv[i].type == RBUS_STRING)
-            {
-                printf("_test_:setHandler result:SUCCESS param='%s' value='%s' caller=%s\n", tlv[i].name, (char*)tlv[i].value, requestingComponentName);
-            }
-            else
-            {
-                printf("_test_:setHandler result:FAIL error:'unexpected type %d' caller=%s \n", tlv[i].type, requestingComponentName);
-            }
-            found = 1;
-        }
-        i++;
-    }
-
-    if(!found)
-    {
-        printf("_test_:getHandler result:FAIL error:'no param matched' caller=%s\n", requestingComponentName);
-    }
-
-    return RBUS_ERROR_SUCCESS;
-}
-
-rbus_errorCode_e eventSubHandler(
-  rbus_eventSubAction_e action,
-  const char* eventName, 
-  rbusEventFilter_t* filter)
-{
-    (void)(filter);
+    (void)handle;
+    (void)filter;
+    (void)autoPublish;
 
     if(strcmp(eventName, "Device.MultiProvider1.Event!") == 0)
     {   
@@ -209,27 +163,31 @@ int main(int argc, char *argv[])
         "MultiProvider5"
     };
 
-    rbus_dataElement_t elements[5][2] = {
-        {   {"Device.MultiProvider1.Param", {getHandler,setHandler,NULL,NULL}},
-            {"Device.MultiProvider1.Event!",{NULL,NULL,NULL,eventSubHandler}}
+    rbusDataElement_t dataElements[5][2] = {
+        {
+            {"Device.MultiProvider1.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL}},
+            {"Device.MultiProvider1.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler}}
         },
-        {   {"Device.MultiProvider2.Param", {getHandler,setHandler,NULL,NULL}},
-            {"Device.MultiProvider2.Event!",{NULL,NULL,NULL,eventSubHandler}}
+        {
+            {"Device.MultiProvider2.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL}},
+            {"Device.MultiProvider2.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler}}
         },
-        {   {"Device.MultiProvider3.Param", {getHandler,setHandler,NULL,NULL}},
-            {"Device.MultiProvider3.Event!",{NULL,NULL,NULL,eventSubHandler}}
+        {
+            {"Device.MultiProvider3.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL}},
+            {"Device.MultiProvider3.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler}}
         },
-        {   {"Device.MultiProvider4.Param", {getHandler,setHandler,NULL,NULL}},
-            {"Device.MultiProvider4.Event!",{NULL,NULL,NULL,eventSubHandler}}
+        {
+            {"Device.MultiProvider4.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL}},
+            {"Device.MultiProvider4.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler}}
         },
-        {   {"Device.MultiProvider5.Param", {getHandler,setHandler,NULL,NULL}},
-            {"Device.MultiProvider5.Event!",{NULL,NULL,NULL,eventSubHandler}}
+        {
+            {"Device.MultiProvider5.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL}},
+            {"Device.MultiProvider5.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler}}
         }
     };
 
     int rc = RBUS_ERROR_SUCCESS;
     int i;
-    int loopFor = 20;
     int eventCount = 0;
 
     printf("provider: opening 5 handles\n");
@@ -257,7 +215,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        rc = rbus_regDataElements(handles[i], 2, elements[i]);
+        rc = rbus_regDataElements(handles[i], 2, dataElements[i]);
         printf("provider: rbus_regDataElements %s=%d\n", componentNames[i], rc);
         if(rc == RBUS_ERROR_SUCCESS)
         {
@@ -292,23 +250,35 @@ int main(int argc, char *argv[])
         {
             if(handles[i])
             {
-                snprintf(buffer, 64, "from=%s count=%d\n", componentNames[i], eventCount);
+                snprintf(buffer, 64, "from=%s count=%d", componentNames[i], eventCount);
 
-                rbus_Tlv_t tlv;
-                tlv.name = elements[i][1].elementName;
-                tlv.type = RBUS_STRING;
-                tlv.value = buffer;
-                tlv.length = strlen(tlv.value) + 1;
+                rbusValue_t value;
+                rbusObject_t data;
 
-                rc = rbusEvent_Publish(handles[i], &tlv);
-                printf("provider: rbusEvent_Publish %s=%d\n", elements[i][1].elementName, rc);
+                rbusValue_Init(&value);
+                rbusValue_SetString(value, buffer);
+
+                rbusObject_Init(&data, NULL);
+                rbusObject_SetValue(data, "value", value);
+
+                rbusEvent_t event;
+                event.name = dataElements[i][1].name;
+                event.data = data;
+                event.type = RBUS_EVENT_GENERAL;
+
+                rc = rbusEvent_Publish(handles[i], &event);
+
+                rbusValue_Release(value);
+                rbusObject_Release(data);
+                
+                printf("provider: rbusEvent_Publish %s=%d\n", dataElements[i][1].name, rc);
                 if(rc == RBUS_ERROR_SUCCESS)
                 {
-                    printf("_test_:rbusEvent_Publish result:SUCCESS event:%s\n", elements[i][1].elementName);
+                    printf("_test_:rbusEvent_Publish result:SUCCESS event:%s\n", dataElements[i][1].name);
                 }
                 else
                 {
-                    printf("_test_:rbusEvent_Publish result:FAIL event:%s rc=%d\n", elements[i][1].elementName, rc);
+                    printf("_test_:rbusEvent_Publish result:FAIL event:%s rc=%d\n", dataElements[i][1].name, rc);
                 }
             }
         }
@@ -322,15 +292,15 @@ exit1:
     {
         if(handles[i])
         {
-            rc = rbus_unregDataElements(handles[i], 2, elements[i]);
-            printf("provider: rbus_unregDataElements %s=%d\n", componentNames[i], rc);
+            rc = rbus_unregDataElements(handles[i], 2, dataElements[i]);
+            printf("provider: rbusEventProvider_Unregister %s=%d\n", componentNames[i], rc);
             if(rc == RBUS_ERROR_SUCCESS)
             {
-                printf("_test_:rbus_unregDataElements result:SUCCESS component:%s\n", componentNames[i]);
+                printf("_test_:rbusEventProvider_Unregister result:SUCCESS component:%s\n", componentNames[i]);
             }
             else
             {
-                printf("_test_:rbus_unregDataElements result:FAIL component:%s rc:%d\n", componentNames[i], rc);
+                printf("_test_:rbusEventProvider_Unregister result:FAIL component:%s rc:%d\n", componentNames[i], rc);
             }
 
             rc = rbus_close(handles[i]);

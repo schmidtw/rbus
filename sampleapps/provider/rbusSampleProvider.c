@@ -1,6 +1,6 @@
 /*
- * If not stated otherwise in this file or this component's Licenses.txt file the
- * following copyright and licenses apply:
+ * If not stated otherwise in this file or this component's Licenses.txt file
+ * the following copyright and licenses apply:
  *
  * Copyright 2019 RDK Management
  *
@@ -26,7 +26,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <getopt.h>
-
 #include <rbus.h>
 
 #define UNUSED1(a)              (void)(a)
@@ -36,262 +35,315 @@
 #define UNUSED5(a,b,c,d,e)      UNUSED1(a),UNUSED4(b,c,d,e)
 #define UNUSED6(a,b,c,d,e,f)    UNUSED1(a),UNUSED5(b,c,d,e,f)
 
-#define TotalParams   10
+#define TotalParams   13
 
-rbus_dataElement_t* elements;
 rbusHandle_t        rbusHandle;
-int                 loopFor = 5;
+int                 loopFor = 60;
 char                componentName[20] = "rbusSampleProvider";
-char*               paramNames[TotalParams] = {
-                                            "Device.DeviceInfo.SampleProvider.Manufacturer",
-                                            "Device.DeviceInfo.SampleProvider.ModelName",
-                                            "Device.DeviceInfo.SampleProvider.SoftwareVersion",
-                                            "Device.SampleProvider.SampleData.IntData",
-                                            "Device.SampleProvider.SampleData.BoolData",
-                                            "Device.SampleProvider.SampleData.UIntData",
-                                            "Device.SampleProvider.NestedObject1.TestParam",
-                                            "Device.SampleProvider.NestedObject1.AnotherTestParam",
-                                            "Device.SampleProvider.NestedObject2.TestParam",
-                                            "Device.SampleProvider.NestedObject2.AnotherTestParam"
-                                        };
+
+rbusError_t SampleProvider_DeviceGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts);
+rbusError_t SampleProvider_SampleDataSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts);
+rbusError_t SampleProvider_SampleDataGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts);
+rbusError_t SampleProvider_NestedObjectsGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts);
+rbusError_t SampleProvider_BuildResponseDataGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts);
+
+rbusDataElement_t dataElements[TotalParams] = {
+    {"Device.DeviceInfo.SampleProvider.Manufacturer", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_DeviceGetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.DeviceInfo.SampleProvider.ModelName", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_DeviceGetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.DeviceInfo.SampleProvider.SoftwareVersion", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_DeviceGetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.SampleData.IntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_SampleDataGetHandler, SampleProvider_SampleDataSetHandler, NULL, NULL, NULL}},
+    {"Device.SampleProvider.SampleData.BoolData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_SampleDataGetHandler, SampleProvider_SampleDataSetHandler, NULL, NULL, NULL}},
+    {"Device.SampleProvider.SampleData.UIntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_SampleDataGetHandler, SampleProvider_SampleDataSetHandler, NULL, NULL, NULL}},
+    {"Device.SampleProvider.NestedObject1.TestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.NestedObject1.AnotherTestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.NestedObject2.TestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.NestedObject2.AnotherTestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.TestData.IntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.TestData.BoolData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.TestData.UIntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL}}
+};
 
 typedef struct _rbus_sample_data {
     int m_intData;
-    rbusBool_t m_boolData;
+    bool m_boolData;
     unsigned int m_unsignedIntData;
 } rbus_sample_provider_data_t;
 
 rbus_sample_provider_data_t gTestInfo = {0};
 
-rbus_errorCode_e SampleProvider_DeviceGetHandler(void *context, int numTlvs, rbus_Tlv_t* tlv, char *requestingComponentName)
+rbusError_t SampleProvider_DeviceGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
-    int count = 0;
-    UNUSED2(context, requestingComponentName);
-    while(count < numTlvs)
+    (void)handle;
+    (void)opts;
+    rbusValue_t value;
+    char const* name;
+
+    rbusValue_Init(&value);
+
+    name = rbusProperty_GetName(property);
+
+    if(strcmp(name, "Device.DeviceInfo.SampleProvider.Manufacturer") == 0)
     {
-        if(strcmp(tlv[count].name, "Device.DeviceInfo.SampleProvider.Manufacturer") == 0)
-        {
-            char* mf = "COMCAST";
-            printf("Called get handler for [%s]\n", tlv[count].name);
-            tlv[count].type = RBUS_STRING;
-            tlv[count].length = strlen(mf)+1;
-            tlv[count].value = strdup(mf);
-        }
-        else if(strcmp(tlv[count].name, "Device.DeviceInfo.SampleProvider.ModelName") == 0)
-        {
-            char *mn = "XB3";
-            printf("Called get handler for [%s]\n", tlv[count].name);
-            tlv[count].type = RBUS_STRING;
-            tlv[count].length = strlen(mn)+1;
-            tlv[count].value = strdup(mn);
-        }
-        else if (strcmp(tlv[count].name, "Device.DeviceInfo.SampleProvider.SoftwareVersion") == 0)
-        {
-            float sv = 2.14;
-
-            printf("Called get handler for [%s]\n", tlv[count].name);
-
-            tlv[count].type = RBUS_FLOAT;
-            tlv[count].length = sizeof(float);
-            tlv[count].value = (void *)malloc(tlv[count].length);
-            memcpy(tlv[count].value, &sv, sizeof(float));
-        }
-        else
-        {
-            printf("Cant Handle [%s]\n", tlv[count].name);
-            loopFor = 0;
-        }
-        count++;
+        printf("Called get handler for [%s]\n", name);
+        rbusValue_SetString(value, "COMCAST");
     }
+    else if(strcmp(name, "Device.DeviceInfo.SampleProvider.ModelName") == 0)
+    {
+        printf("Called get handler for [%s]\n", name);
+        rbusValue_SetString(value, "XB3");
+
+    }
+    else if (strcmp(name, "Device.DeviceInfo.SampleProvider.SoftwareVersion") == 0)
+    {
+        printf("Called get handler for [%s]\n", name);
+        rbusValue_SetSingle(value, 2.14f);
+    }
+    else
+    {
+        printf("Cant Handle [%s]\n", name);
+        return RBUS_ERROR_INVALID_INPUT;
+    }
+
+    rbusProperty_SetValue(property, value);
+    rbusValue_Release(value);
+
     return RBUS_ERROR_SUCCESS;
 }
 
-rbus_errorCode_e SampleProvider_SampleDataSetHandler (int numTlvs, rbus_Tlv_t* tlv, int sessionId, rbusBool_t commit, char *requestingComponentName)
+rbusObject_t gTestObject;
+static bool isFirstTime = true;
+
+void _prepare_object_for_future_query(void)
 {
-    int count = 0;
-    UNUSED2(sessionId, commit);
-    while(count < numTlvs)
+    /* This flag is also a sample; as we can always release the object and get a new one.. */
+    if (isFirstTime)
     {
-        if(strcmp(tlv[count].name, "Device.SampleProvider.SampleData.IntData") == 0)
-        {
-            if (tlv[count].type != RBUS_INT32)
-            {
-                printf("%s Called Set handler for [%s] with wrong data type\n", requestingComponentName, tlv[count].name);
-                return RBUS_ERROR_INVALID_INPUT;
-            }
-            else
-            {
-                printf("%s Called Set handler for [%s] with value = %d\n", requestingComponentName, tlv[count].name, *(int*) tlv[count].value);
-                memcpy (&gTestInfo.m_intData, tlv[count].value, sizeof(int));
-            }
-        }
-        else if(strcmp(tlv[count].name, "Device.SampleProvider.SampleData.BoolData") == 0)
-        {
-            if (tlv[count].type != RBUS_BOOLEAN)
-            {
-                printf("%s Called Set handler for [%s] with wrong data type\n", requestingComponentName, tlv[count].name);
-                return RBUS_ERROR_INVALID_INPUT;
-            }
-            else
-            {
-                printf("%s Called Set handler for [%s] with value = %d\n", requestingComponentName, tlv[count].name, *(int*) tlv[count].value);
-                memcpy (&gTestInfo.m_boolData, tlv[count].value, sizeof(rbusBool_t));
-            }
-        }
-        else if (strcmp(tlv[count].name, "Device.SampleProvider.SampleData.UIntData") == 0)
-        {
-            if (tlv[count].type != RBUS_UINT32)
-            {
-                printf("%s Called Set handler for [%s] with wrong data type\n", requestingComponentName, tlv[count].name);
-                return RBUS_ERROR_INVALID_INPUT;
-            }
-            else
-            {
-                printf("%s Called Set handler for [%s] with value = %u\n", requestingComponentName, tlv[count].name, *(unsigned int*) tlv[count].value);
-                memcpy (&gTestInfo.m_unsignedIntData, tlv[count].value, sizeof(unsigned int));
-            }
-        }
-        count++;
+        isFirstTime = false;
+        rbusObject_Init (&gTestObject, "SampleTestData");
+
+        rbusValue_t val1;
+        rbusValue_t val2;
+        rbusValue_t val3;
+        rbusProperty_t prop1;
+        rbusProperty_t prop2;
+        rbusProperty_t prop3;
+
+        rbusValue_Init(&val1);
+        rbusValue_Init(&val2);
+        rbusValue_Init(&val3);
+
+        rbusValue_SetInt32(val1, gTestInfo.m_intData);
+        rbusValue_SetBoolean(val2, gTestInfo.m_boolData);
+        rbusValue_SetUInt32(val3, gTestInfo.m_unsignedIntData);
+
+        rbusProperty_Init (&prop1, "Device.SampleProvider.TestData.IntData", val1);
+        rbusProperty_Init (&prop2, "Device.SampleProvider.TestData.BoolData", val2);
+        rbusProperty_Init (&prop3, "Device.SampleProvider.TestData.UIntData", val3);
+
+        rbusObject_SetProperty(gTestObject, prop1);
+        rbusObject_SetProperty(gTestObject, prop2);
+        rbusObject_SetProperty(gTestObject, prop3);
+
+        rbusValue_Release(val1);
+        rbusValue_Release(val2);
+        rbusValue_Release(val3);
+        rbusProperty_Release(prop1);
+        rbusProperty_Release(prop2);
+        rbusProperty_Release(prop3);
     }
+    else
+    {
+        rbusValue_t val1;
+        rbusValue_t val2;
+        rbusValue_t val3;
+
+        rbusValue_Init(&val1);
+        rbusValue_Init(&val2);
+        rbusValue_Init(&val3);
+
+        rbusValue_SetInt32(val1, gTestInfo.m_intData);
+        rbusValue_SetBoolean(val2, gTestInfo.m_boolData);
+        rbusValue_SetUInt32(val3, gTestInfo.m_unsignedIntData);
+
+        rbusObject_SetValue(gTestObject, "Device.SampleProvider.TestData.IntData", val1);
+        rbusObject_SetValue(gTestObject, "Device.SampleProvider.TestData.BoolData", val2);
+        rbusObject_SetValue(gTestObject, "Device.SampleProvider.TestData.UIntData", val3);
+
+        rbusValue_Release(val1);
+        rbusValue_Release(val2);
+        rbusValue_Release(val3);
+    }
+    return;
+}
+
+void _release_object_for_future_query()
+{
+    rbusObject_Release(gTestObject);
+}
+
+rbusError_t SampleProvider_BuildResponseDataGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+    rbusValue_t value;
+    char const* name;
+
+    name = rbusProperty_GetName(property);
+    value = rbusObject_GetValue(gTestObject, name);
+    rbusProperty_SetValue(property, value);
+
     return RBUS_ERROR_SUCCESS;
 }
 
-rbus_errorCode_e SampleProvider_SampleDataGetHandler(void *context, int numTlvs, rbus_Tlv_t* tlv, char *requestingComponentName)
+rbusError_t SampleProvider_SampleDataSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
 {
-    int count = 0;
-    UNUSED2(context, requestingComponentName);
-    while(count < numTlvs)
-    {
-        if(strcmp(tlv[count].name, "Device.SampleProvider.SampleData.IntData") == 0)
-        {
-            printf("Called get handler for [%s]\n", tlv[count].name);
-            tlv[count].type = RBUS_INT32;
-            tlv[count].length = sizeof(int);
-            tlv[count].value = (void *)malloc(tlv[count].length);
-            memcpy(tlv[count].value, &gTestInfo.m_intData, tlv[count].length);
+    (void)handle;
+    (void)opts;
 
-        }
-        else if(strcmp(tlv[count].name, "Device.SampleProvider.SampleData.BoolData") == 0)
+    char const* name = rbusProperty_GetName(prop);
+    rbusValue_t value = rbusProperty_GetValue(prop);
+    rbusValueType_t type = rbusValue_GetType(value);
+
+    if(strcmp(name, "Device.SampleProvider.SampleData.IntData") == 0)
+    {
+        if (type != RBUS_INT32)
         {
-            printf("Called get handler for [%s]\n", tlv[count].name);
-            tlv[count].type = RBUS_BOOLEAN;
-            tlv[count].length = sizeof(rbusBool_t);
-            tlv[count].value = (void *)malloc(tlv[count].length);
-            memcpy(tlv[count].value, &gTestInfo.m_boolData, tlv[count].length);
-        }
-        else if (strcmp(tlv[count].name, "Device.SampleProvider.SampleData.UIntData") == 0)
-        {
-            printf("Called get handler for [%s]\n", tlv[count].name);
-            tlv[count].type = RBUS_UINT32;;
-            tlv[count].length = sizeof(unsigned int);
-            tlv[count].value = (void *)malloc(tlv[count].length);
-            memcpy(tlv[count].value, &gTestInfo.m_unsignedIntData, tlv[count].length);
-            printf("Called get handler for [%d]\n", *(unsigned int*)tlv[count].value);
+            printf("%s Called Set handler with wrong data type\n", name);
+            return RBUS_ERROR_INVALID_INPUT;
         }
         else
         {
-            printf("Cant Handle [%s]\n", tlv[count].name);
-            loopFor = 0;
+            printf("%s Called Set handler with value = %d\n", name, rbusValue_GetInt32(value));
+            gTestInfo.m_intData = rbusValue_GetInt32(value);
         }
-        count++;
     }
+    else if(strcmp(name, "Device.SampleProvider.SampleData.BoolData") == 0)
+    {
+        if (type != RBUS_BOOLEAN)
+        {
+            printf("%s Called Set handler with wrong data type\n", name);
+            return RBUS_ERROR_INVALID_INPUT;
+        }
+        else
+        {
+            printf("%s Called Set handler with value = %d\n", name, rbusValue_GetBoolean(value));
+            gTestInfo.m_boolData = rbusValue_GetBoolean(value);
+        }
+    }
+    else if (strcmp(name, "Device.SampleProvider.SampleData.UIntData") == 0)
+    {
+        if (type != RBUS_UINT32)
+        {
+            printf("%s Called Set handler with wrong data type\n", name);
+            return RBUS_ERROR_INVALID_INPUT;
+        }
+        else
+        {
+            printf("%s Called Set handler with value = %u\n", name, rbusValue_GetUInt32(value));
+            gTestInfo.m_unsignedIntData = rbusValue_GetUInt32(value);
+        }
+    }
+
+    /* Sample Case for Build Response APIs that are proposed */
+    _prepare_object_for_future_query();
+
     return RBUS_ERROR_SUCCESS;
 }
 
-rbus_errorCode_e SampleProvider_NestedObjectsGetHandler(void *context, int numTlvs, rbus_Tlv_t* tlv, char *requestingComponentName)
+rbusError_t SampleProvider_SampleDataGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
-    int count = 0;
-    UNUSED2(context, requestingComponentName);
+    (void)handle;
+    (void)opts;
+    rbusValue_t value;
+    char const* name;
 
-    while(count < numTlvs)
+    rbusValue_Init(&value);
+    name = rbusProperty_GetName(property);
+
+    if(strcmp(name, "Device.SampleProvider.SampleData.IntData") == 0)
     {
-        if(strcmp(tlv[count].name, "Device.SampleProvider.NestedObject1.TestParam") == 0)
-        {
-            printf("Called get handler for [%s]\n", tlv[count].name);
-        }
-        else if(strcmp(tlv[count].name, "Device.SampleProvider.NestedObject1.AnotherTestParam") == 0)
-        {
-            printf("Called get handler for [%s]\n", tlv[count].name);
-        }
-        else if (strcmp(tlv[count].name, "Device.SampleProvider.NestedObject2.TestParam") == 0)
-        {
-            printf("Called get handler for [%s]\n", tlv[count].name);
-        }
-        else if(strcmp(tlv[count].name, "Device.SampleProvider.NestedObject2.AnotherTestParam") == 0)
-        {
-            printf("Called get handler for [%s]\n", tlv[count].name);
-        }
-        else
-        {
-            printf("Cant Handle [%s]\n", tlv[count].name);
-            loopFor = 0;
-        }
-        count++;
+        printf("Called get handler for [%s]\n", name);
+        rbusValue_SetInt32(value, gTestInfo.m_intData);
     }
+    else if(strcmp(name, "Device.SampleProvider.SampleData.BoolData") == 0)
+    {
+        printf("Called get handler for [%s]\n", name);
+        rbusValue_SetBoolean(value, gTestInfo.m_boolData);
+
+    }
+    else if (strcmp(name, "Device.SampleProvider.SampleData.UIntData") == 0)
+    {
+        printf("Called get handler for [%s]\n", name);
+        rbusValue_SetUInt32(value, gTestInfo.m_unsignedIntData);
+    }
+    else
+    {
+        printf("Cant Handle [%s]\n", name);
+        return RBUS_ERROR_INVALID_INPUT;
+    }
+
+    rbusProperty_SetValue(property, value);
+    rbusValue_Release(value);
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t SampleProvider_NestedObjectsGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+    printf("SampleProvider_NestedObjectsGetHandler called for %s\n", rbusProperty_GetName(property));
+
+    rbusValue_t value;
+    rbusValue_Init(&value);
+
+    rbusValue_SetString(value, "Testing Rbus Nested Object");
+    rbusProperty_SetValue(property, value);
+
+    rbusValue_Release(value);
     return RBUS_ERROR_SUCCESS;
 }
 
 int main(int argc, char *argv[])
 {
-    int count = 0;
-    if( argc == 2 )
+    rbusError_t rc;
+
+    (void)argc;
+    (void)argv;
+
+    printf("provider: start\n");
+
+    rc = rbus_open(&rbusHandle, componentName);
+    if(rc != RBUS_ERROR_SUCCESS)
     {
-        printf("The argument supplied is %s\n", argv[1]);
+        printf("provider: rbus_open failed: %d\n", rc);
+        goto exit2;
     }
 
-    printf("Hello from provider\n");
-    int rbus_errorCode = RBUS_ERROR_BUS_ERROR;
-
-    rbus_errorCode = rbus_open(&rbusHandle, componentName);
-    printf("return code from rbus_open is %d\n", rbus_errorCode);
-
-    elements = (rbus_dataElement_t*)malloc(sizeof(rbus_dataElement_t)*TotalParams);
-
-    while(count < TotalParams)
+    rc = rbus_regDataElements(rbusHandle, TotalParams, dataElements);
+    if(rc != RBUS_ERROR_SUCCESS)
     {
-        elements[count].elementName = strdup(paramNames[count]);
-
-        elements[count].table.rbus_setHandler = NULL;
-        elements[count].table.rbus_updateTableHandler = NULL;
-        elements[count].table.rbus_eventSubHandler = NULL;
-
-        if(count < 3)
-        {
-            elements[count].table.rbus_getHandler = SampleProvider_DeviceGetHandler;
-        }
-        else if(count >= 3 && count < 6)
-        {
-            elements[count].table.rbus_getHandler = SampleProvider_SampleDataGetHandler;
-            elements[count].table.rbus_setHandler = SampleProvider_SampleDataSetHandler;
-        }
-        else
-        {
-            elements[count].table.rbus_getHandler = SampleProvider_NestedObjectsGetHandler;
-        }
-
-        count++;
+        printf("provider: rbus_regDataElements failed: %d\n", rc);
+        goto exit1;
     }
 
-    rbus_regDataElements(rbusHandle, TotalParams, elements);
+    /* Sample Case for Build Response APIs that are proposed */
+    _prepare_object_for_future_query();
 
-    //Wait here....
-    while (1)
+    while(loopFor--)
     {
-        sleep(5);
+        printf("provider: exiting in %d seconds\n", loopFor);
+        sleep(1);
     }
 
-    rbus_unregDataElements(rbusHandle, TotalParams, elements);
+    rbus_unregDataElements(rbusHandle, TotalParams, dataElements);
 
-    count = 0;
-    //To DO: Call rebus unregister data elements here...
-    while(count < TotalParams)
-    {
-        free(elements[count].elementName);
-        count++;
-    }
-    free(elements);
+    /* Sample Case for freeing the Response that was prebuilt */
+    _release_object_for_future_query();
+exit1:
+    rbus_close(rbusHandle);
 
-    rbus_errorCode = rbus_close(rbusHandle);
-    printf("return code from  rbus_close is %d\n", rbus_errorCode);
+exit2:
+    printf("provider: exit\n");
     return 0;
 }

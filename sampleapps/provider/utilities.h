@@ -17,28 +17,39 @@
  * limitations under the License.
 */
 
-#ifndef __RBUS_TEST_RUNNINGPARAM_H
-#define __RBUS_TEST_RUNNINGPARAM_H
+#ifndef UTILITIES_H
+#define UTILITIES_H
 
-#include <stdlib.h>
-#include <rbus.h>
-
-#include <rbus_core.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-rbusError_t
-runningParamProvider_Init(rbusHandle_t handle, char* paramName);
+#define MAX_ALIAS_LENGTH 64
 
-int
-runningParamProvider_IsRunning();
+typedef enum TableRowIDType
+{
+    TableRowIDInvalid,
+    TableRowIDNumber,
+    TableRowIDAlias
+} TableRowIDType;
 
-int
-runningParamConsumer_Set(rbusHandle_t handle, char* paramName, bool running);
+typedef struct TableRowID
+{
+    TableRowIDType type;
+    uint32_t instNum;
+    char alias[MAX_ALIAS_LENGTH];
+} TableRowID;
+
+bool getTableRowID(char const* path, int index, TableRowID* id);
+bool compareTableRowID(TableRowID* id, uint32_t instNum, char const* alias);
+
+bool propertyNameEquals(char const* propertyFullName, const char* propertyLastName);
 
 #ifdef __cplusplus
 }
 #endif
+
 #endif

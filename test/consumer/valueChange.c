@@ -10,13 +10,13 @@
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,59 +27,69 @@
 #include <string.h>
 #include <getopt.h>
 #include <rbus.h>
+#include "../common/test_macros.h"
 
-static int duration = 10;
+static int gDuration = 20;
+
+static int vcCount = 1;
 
 void rbusValueChange_SetPollingPeriod(int seconds);
 
-static void paramValueChangeHandler(
-    rbusHandle_t handle,
-    rbusEventSubscription_t* subscription,
-    rbus_Tlv_t const* eventData)
-{
-    (void)(handle);
-
-    printf(
-        "paramValueChange called:\n"
-        "\tevent=%s\n"
-        "\tvalue=%s\n"
-        "\ttype=%d\n"
-        "\tlength=%d\n"
-        "\tdata=%p\n",
-        eventData->name,
-        (char*)eventData->value,
-        eventData->length,
-        eventData->type,
-        subscription->user_data);
-
-    printf("_test_ValueChange_handler=%s\n", (char*)eventData->value);
-}
-
 int getDurationValueChange()
 {
-    return duration;
+    return gDuration;
 }
 
-int testValueChange(rbusHandle_t handle)
+static void paramValueChangeHandler(
+    rbusHandle_t handle,
+    rbusEvent_t const* event,
+    rbusEventSubscription_t* subscription)
 {
-    int rc = RBUS_ERROR_SUCCESS;
+    (void)(handle);
+    char valExpectNew[32];
+    char valExpectOld[32];
+    char const* valActualNew;
+    char const* valActualOld;
+    bool pass;
 
+    PRINT_TEST_EVENT("test_ValueChange", event, subscription);
+
+    snprintf(valExpectNew, 32, "value %d", vcCount);
+    snprintf(valExpectOld, 32, "value %d", vcCount-1);
+
+    valActualNew = rbusValue_GetString(rbusObject_GetValue(event->data, "value"), NULL);
+    valActualOld = rbusValue_GetString(rbusObject_GetValue(event->data, "oldValue"), NULL);
+
+    pass = (strcmp(valExpectNew, valActualNew)==0 && strcmp(valExpectOld, valActualOld)==0);
+
+    TALLY(pass);
+
+    printf("_test_ValueChange %s: expect=[value:%s oldValue:%s] actual=[value:%s oldValue:%s]\n", 
+        pass ? "PASS" : "FAIL", valExpectNew, valExpectOld, valActualNew, valActualOld);
+
+    vcCount++;
+}
+
+void testValueChange(rbusHandle_t handle, int* countPass, int* countFail)
+{
+    int rc;
     rbusValueChange_SetPollingPeriod(1);
 
     rc = rbusEvent_Subscribe(handle, "Device.TestProvider.Param1", paramValueChangeHandler, NULL);
-    printf("_test_ValueChange_rbusEvent_Subscribe=%d\n", rc);
-
+    TALLY(rc == RBUS_ERROR_SUCCESS);
+    printf("_test_ValueChange rbusEvent_Subscribe Param1 %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
     if(rc != RBUS_ERROR_SUCCESS)
-    {
-        printf("consumer: rbusEvent_Subscribe Param1 failed: %d\n", rc);
-        return 1;
-    }
+        goto exit0;
 
-    sleep(duration);
+    sleep(gDuration);
 
     rc = rbusEvent_Unsubscribe(handle, "Device.TestProvider.Param1");
-    printf("_test_ValueChange_rbusEvent_Unsubscribe=%d\n", rc);
+    TALLY(rc == RBUS_ERROR_SUCCESS);
+    printf("_test_ValueChange rbusEvent_Unsubscribe Param1 %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
 
-    return 0;
+exit0:
+    *countPass = gCountPass;
+    *countFail = gCountFail;
+    PRINT_TEST_RESULTS("test_ValueChange");
 }
 

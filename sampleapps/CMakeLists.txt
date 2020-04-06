@@ -32,6 +32,14 @@ add_executable(rbusSampleConsumer consumer/rbusSampleConsumer.c)
 add_dependencies(rbusSampleConsumer rbus)
 target_link_libraries(rbusSampleConsumer rbus)
 
+add_executable(rbusTableProvider provider/rbusTableProvider.c provider/utilities.c)
+add_dependencies(rbusTableProvider rbus)
+target_link_libraries(rbusTableProvider rbus)
+
+add_executable(rbusTableConsumer consumer/rbusTableConsumer.c)
+add_dependencies(rbusTableConsumer rbus)
+target_link_libraries(rbusTableConsumer rbus)
+
 add_executable(rbusEventProvider provider/rbusEventProvider.c)
 add_dependencies(rbusEventProvider rbus)
 target_link_libraries(rbusEventProvider rbus)
@@ -40,8 +48,39 @@ add_executable(rbusEventConsumer consumer/rbusEventConsumer.c)
 add_dependencies(rbusEventConsumer rbus)
 target_link_libraries(rbusEventConsumer rbus)
 
-install (TARGETS rbusSampleConsumer rbusSampleProvider 
-        RUNTIME DESTINATION bin)
+add_executable(rbusGeneralEventProvider provider/rbusGeneralEventProvider.c)
+add_dependencies(rbusGeneralEventProvider rbus)
+target_link_libraries(rbusGeneralEventProvider rbus)
+
+add_executable(rbusGeneralEventConsumer consumer/rbusGeneralEventConsumer.c)
+add_dependencies(rbusGeneralEventConsumer rbus)
+target_link_libraries(rbusGeneralEventConsumer rbus)
+
+add_executable(rbusValueChangeProvider provider/rbusValueChangeProvider.c)
+add_dependencies(rbusValueChangeProvider rbus)
+target_link_libraries(rbusValueChangeProvider rbus)
+
+add_executable(rbusValueChangeConsumer consumer/rbusValueChangeConsumer.c)
+add_dependencies(rbusValueChangeConsumer rbus)
+target_link_libraries(rbusValueChangeConsumer rbus)
+
+add_executable(rbusTR104MtaAgentApp provider/mta_proxy_tr104.c
+provider/mta_hal_tr104.c provider/mta_hal_tr104.h)
+add_dependencies(rbusTR104MtaAgentApp rbus)
+target_link_libraries(rbusTR104MtaAgentApp rbus)
+
+install (TARGETS 
+    rbusSampleProvider
+    rbusSampleConsumer
+    rbusTableProvider
+    rbusTableConsumer
+    rbusEventProvider
+    rbusEventConsumer
+    rbusGeneralEventProvider
+    rbusGeneralEventConsumer
+    rbusValueChangeProvider
+    rbusValueChangeConsumer
+    RUNTIME DESTINATION bin)
 
 endif (BUILD_RBUS_INTERFACE_SAMPLE_APPS)
 

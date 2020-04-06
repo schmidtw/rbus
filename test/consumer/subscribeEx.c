@@ -10,13 +10,13 @@
  *
  * http://www.apache.org/licenses/LICENSE-2.0
  *
- *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,59 +27,42 @@
 #include <string.h>
 #include <getopt.h>
 #include <rbus.h>
+#include "../common/test_macros.h"
 
-static int count1 = 0;
-static int count2 = 0;
-static int duration = 10;
+static int gDuration = 5;
+
+extern int gEventCounts[2]; /*from subscribe.c*/
+
+bool testSubscribeHandleEvent(
+    char* label,
+    int eventIndex,
+    rbusEvent_t const* event,
+    rbusEventSubscription_t* subscription) /*from subscribe.c*/;
+
+int getDurationSubscribeEx()
+{
+    return gDuration;
+}
 
 static void handler1(
     rbusHandle_t handle,
-    rbusEventSubscription_t* subscription,
-    rbus_Tlv_t const* eventData)
+    rbusEvent_t const* event,
+    rbusEventSubscription_t* subscription)
 {
     (void)(handle);
-    printf(
-        "handler1 called:\n"
-        "\tevent=%s\n"
-        "\tvalue=%s\n"
-        "\ttype=%d\n"
-        "\tlength=%d\n"
-        "\tdata=%s\n",
-        eventData->name,
-        (char*)eventData->value,
-        eventData->length,
-        eventData->type,
-        (char*)subscription->user_data);
-    printf("_test_SubscribeEx_handler1=%s\n", (char*)eventData->value);
+    TALLY(testSubscribeHandleEvent("_test_SubscribeEx handle1", 0, event, subscription));
 }
 
 static void handler2(
     rbusHandle_t handle,
-    rbusEventSubscription_t* subscription,
-    rbus_Tlv_t const* eventData)
+    rbusEvent_t const* event,
+    rbusEventSubscription_t* subscription)
 {
     (void)(handle);
-    printf(
-        "handler2 called:\n"
-        "\tevent=%s\n"
-        "\tvalue=%s\n"
-        "\ttype=%d\n"
-        "\tlength=%d\n"
-        "\tdata=%s\n",
-        eventData->name,
-        (char*)eventData->value,
-        eventData->length,
-        eventData->type,
-        (char*)subscription->user_data);
-    printf("_test_SubscribeEx_handler2=%s\n", (char*)eventData->value);
+    TALLY(testSubscribeHandleEvent("_test_SubscribeEx handle2", 1, event, subscription));
 }
 
-int getDurationSubscribeEx()
-{
-    return duration;
-}
-
-int testSubscribeEx(rbusHandle_t handle)
+void testSubscribeEx(rbusHandle_t handle, int* countPass, int* countFail)
 {
     int rc = RBUS_ERROR_SUCCESS;
     char* data[2] = { "My Data 1", "My Data2" };
@@ -89,21 +72,20 @@ int testSubscribeEx(rbusHandle_t handle)
         {"Device.TestProvider.Event2!", NULL, 0, handler2, data[1], 0}
     };
 
-    count1 = count2 = 0;
-
     rc = rbusEvent_SubscribeEx(handle, subscriptions, 2);
-    printf("_test_SubscribeEx_rbusEvent_SubscribeEx=%d\n", rc);
-
+    TALLY(rc == RBUS_ERROR_SUCCESS);
+    printf("_test_Subscribe rbusEvent_SubscribeEx %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
     if(rc != RBUS_ERROR_SUCCESS)
-    {
-        printf("consumer %s: rbusEvent_SubscribeEx failed: %d\n", __FUNCTION__, rc);
-        return 1;
-    }
+        goto exit0;
 
-    sleep(duration);
+    sleep(gDuration);
 
     rc = rbusEvent_UnsubscribeEx(handle, subscriptions, 2);
-    printf("_test_SubscribeEx_rbusEvent_UnsubscribeEx=%d\n", rc);
+    TALLY(rc == RBUS_ERROR_SUCCESS);
+    printf("_test_SubscribeEx rbusEvent_UnsubscribeEx %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
 
-    return 0;
+exit0:
+    *countPass = gCountPass;
+    *countFail = gCountFail;
+    PRINT_TEST_RESULTS("test_SubscribeEx");
 }
