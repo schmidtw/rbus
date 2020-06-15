@@ -622,6 +622,116 @@ rbusError_t getHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHand
     return RBUS_ERROR_SUCCESS;
 }
 
+typedef struct MethodData
+{
+    rbusMethodAsyncHandle_t asyncHandle;
+    rbusObject_t inParams;
+}MethodData;
+
+static void* asyncMethodFunc(void *p)
+{
+    MethodData* data;
+    rbusObject_t outParams;
+    rbusValue_t value;
+    rbusError_t err;
+    char buff[256];
+
+    printf("%s enter\n", __FUNCTION__);
+
+    sleep(3);
+
+    data = p;
+
+
+    rbusObject_Init(&outParams, NULL);
+
+    rbusValue_Init(&value);
+    rbusValue_SetString(value, "MethodAsync2()");
+    rbusObject_SetValue(outParams, "name", value);
+    rbusValue_Release(value);
+
+    rbusValue_Init(&value);
+    snprintf(buff, 255, "Async Method Response inParams=%s\n", rbusValue_ToString(rbusObject_GetValue(data->inParams, "param1"), NULL, 0));
+    rbusValue_SetString(value, buff);
+    rbusObject_SetValue(outParams, "value", value);
+    rbusValue_Release(value);
+    
+    printf("%s sending response\n", __FUNCTION__);
+    err = rbusMethod_SendAsyncResponse(data->asyncHandle, RBUS_ERROR_SUCCESS, outParams);
+    if(err != RBUS_ERROR_SUCCESS)
+    {
+        printf("%s rbusMethod_SendAsyncResponse failed err:%d\n", __FUNCTION__, err);
+    }
+
+    rbusObject_Release(data->inParams);
+    rbusObject_Release(outParams);
+
+    free(data);
+
+    printf("%s exit\n", __FUNCTION__);
+
+    return NULL;
+}
+
+static rbusError_t methodHandler(rbusHandle_t handle, char const* methodName, rbusObject_t inParams, rbusObject_t outParams, rbusMethodAsyncHandle_t asyncHandle)
+{
+    (void)handle;
+    (void)asyncHandle;
+    rbusValue_t value;
+
+    printf("methodHandler called: %s\n", methodName);
+    rbusObject_fwrite(inParams, 1, stdout);
+
+
+    if(strstr(methodName, "Method1()"))
+    {
+        rbusValue_Init(&value);
+        rbusValue_SetString(value, "Method1()");
+        rbusObject_SetValue(outParams, "name", value);
+        rbusValue_Release(value);
+        printf("methodHandler success\n");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else
+    if(strstr(methodName, "Method2()"))
+    {
+        rbusValue_Init(&value);
+        rbusValue_SetString(value, "Method2()");
+        rbusObject_SetValue(outParams, "name", value);
+        rbusValue_Release(value);
+        printf("methodHandler success\n");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else
+    if(strstr(methodName, "MethodAsync1()"))
+    {
+        sleep(4);
+        rbusValue_Init(&value);
+        rbusValue_SetString(value, "MethodAsync1()");
+        rbusObject_SetValue(outParams, "name", value);
+        rbusValue_Release(value);
+        printf("methodHandler success\n");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else
+    if(strstr(methodName, "MethodAsync2()"))
+    {
+        pthread_t pid;
+        MethodData* data = malloc(sizeof(MethodData));
+        data->asyncHandle = asyncHandle;
+        data->inParams = inParams;
+        rbusObject_Retain(inParams);
+        if(pthread_create(&pid, NULL, asyncMethodFunc, data) || pthread_detach(pid))
+        {
+            printf("%s failed to spawn thread\n", __FUNCTION__);
+            return RBUS_ERROR_BUS_ERROR;
+        }
+        return RBUS_ERROR_ASYNC_RESPONSE;
+    }
+    printf("methodHandler fail\n");
+    return RBUS_ERROR_BUS_ERROR;
+}
+
 int main(int argc, char *argv[])
 {
     (void)(argc);
@@ -632,19 +742,23 @@ int main(int argc, char *argv[])
     char componentName[] = "TestProvider";
     int eventCounts[2]={0,0};
     int j;
-    #define numDataElems 10
+    #define numDataElems 14
 
     rbusDataElement_t dataElement[numDataElems] = {
-        {"Device.TestProvider.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler}},
-        {"Device.TestProvider.Event2!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler}},
-        {"Device.TestProvider.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,NULL,NULL,NULL,NULL}},
-        {"Device.TestProvider.Table1.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler}},
-        {"Device.TestProvider.Table1.{i}.Table2.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler}},
-        {"Device.TestProvider.Table1.{i}.Table2.{i}.Table3.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler}},
-        {"Device.TestProvider.Table1.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL}},
-        {"Device.TestProvider.Table1.{i}.Table2.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL}},
-        {"Device.TestProvider.Table1.{i}.Table2.{i}.Table3.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL}},
-        {"Device.TestProvider.ResetTables", RBUS_ELEMENT_TYPE_PROPERTY, {NULL, resetTablesSetHandler, NULL, NULL, NULL}}
+        {"Device.TestProvider.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler, NULL}},
+        {"Device.TestProvider.Event2!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler, NULL}},
+        {"Device.TestProvider.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.Table1.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler, NULL}},
+        {"Device.TestProvider.Table1.{i}.Table2.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler, NULL}},
+        {"Device.TestProvider.Table1.{i}.Table2.{i}.Table3.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler, NULL}},
+        {"Device.TestProvider.Table1.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.Table1.{i}.Table2.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.Table1.{i}.Table2.{i}.Table3.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.ResetTables", RBUS_ELEMENT_TYPE_PROPERTY, {NULL, resetTablesSetHandler, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.Table1.{i}.Method1()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
+        {"Device.TestProvider.Table1.{i}.Table2.{i}.Method2()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
+        {"Device.TestProvider.MethodAsync1()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
+        {"Device.TestProvider.Table1.{i}.MethodAsync2()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}}
     };
 
     printf("provider: start\n");
@@ -661,7 +775,7 @@ int main(int argc, char *argv[])
     TestValueProperty* data = gTestValues;
     while(data->name)
     {
-        rbusDataElement_t el = { data->name, RBUS_ELEMENT_TYPE_PROPERTY, {getValueHandler,setValueHandler,NULL,NULL,NULL}};
+        rbusDataElement_t el = { data->name, RBUS_ELEMENT_TYPE_PROPERTY, {getValueHandler,setValueHandler,NULL,NULL,NULL,NULL}};
         rc = rbus_regDataElements(handle, 1, &el);
         printf("provider: rbus_regDataElements=%d\n", rc);
         if(rc != RBUS_ERROR_SUCCESS)

@@ -38,6 +38,7 @@ add_executable(rbusTestConsumer
     consumer/subscribeEx.c
     consumer/tables.c
     consumer/events.c
+    consumer/methods.c
     common/runningParamHelper.c
     common/testValueHelper.c)
 add_dependencies(rbusTestConsumer rbus)

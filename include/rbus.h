@@ -67,6 +67,7 @@
  * @defgroup    Providers       Providers
  * @defgroup    Tables          Tables
  * @defgroup    Events          Events
+ * @defgroup    Methods         Methods
  * @defgroup    Discovery       Discovery
  */
 
@@ -129,9 +130,12 @@ typedef enum _rbusError
                                                    element was not permitted by
                                                    the provider component.    */
     //Get Response Builder error codes
-    RBUS_ERROR_INVALID_CONTEXT          = 5001  /**< The Context is not same as
+    RBUS_ERROR_INVALID_CONTEXT          = 5001,  /**< The Context is not same as
                                                     what was sent in the get
                                                     callback handler.         */
+
+    RBUS_ERROR_TIMEOUT,                         /**< The operation timedout   */
+    RBUS_ERROR_ASYNC_RESPONSE                   /**< The method request will be handle asynchronously by provider */
 } rbusError_t;
 
 /** @struct     rbusSetOptions_t
@@ -185,6 +189,11 @@ typedef struct _rbusSetHandlerOptions
     char const* requestingComponent;    /**< Component that invoking the SET method. */
 } rbusSetHandlerOptions_t;
 
+struct _rbusMethodAsyncHandle_t;
+
+///  @brief     An RBus handle used for async method responses
+typedef struct _rbusMethodAsyncHandle_t* rbusMethodAsyncHandle_t;
+
 /** @addtogroup Events
  *  @{
  */
@@ -218,7 +227,7 @@ typedef enum
 typedef struct
 {
     rbus_ThresholdType_t    type;       /**< type of threshold                */
-    void*                   value;      /**< value to be checked against
+    rbusValue_t             value;      /**< value to be checked against
                                              (Value is event specific. The type
                                              of value will be same as that
                                              of the event parameter for which
@@ -250,37 +259,6 @@ typedef struct
                                              based filter
                                         */
 } rbusEventFilter_t;
-
-/// @brief rbus_filterCap_t Filter capabilities for an event.
-typedef struct
-{
-    int                     type;       /**< All supported types for a given
-                                             event. "Bitwise OR"ed value of
-                                             each supported types in
-                                             rbusEventFilterType_t
-                                        */
-    int                     minInterval;/**< The minInterval(in ms)supported for
-                                             the event. Event can be subscribed
-                                             for multiples of minInterval.
-                                             Applicable only when EVENT_ON_INTERVAL
-                                             type is supported.
-                                        */
-    int                     threshold;  /**< All supported threshold for a given
-                                             event. "Bitwise OR"ed value of each
-                                             supported types in
-                                             rbus_ThresholdType_t. Applicable
-                                             only when EVENT_ON_CHANGE type
-                                             is supported.
-                                        */
-} rbus_filterCap_t;
-
-/// @brief rbus_eventInfo_t Event Info (name & filter capabilities of event)
-typedef struct
-{
-    char*                   name;       /**< Event Name */
-    rbus_filterCap_t        filterCap;  /**< Filter Capabilities available
-                                             for the event */
-} rbus_eventInfo_t;
 
 /**
  * @enum        rbusEventType_t
@@ -327,11 +305,12 @@ typedef struct _rbusEventSubscription
     rbusHandle_t        handle;     /** Private use only: The rbus handle associated with this subscription */
 } rbusEventSubscription_t;
 
-/** @fn typedef void (* rbusEventHandler_t)(rbusHandle_t              handle,
- *                                          rbusEvent_t const*        eventData
- *                                          rbusEventSubscription_t*  subscription)
+/** @fn typedef void (* rbusEventHandler_t)(
+ *          rbusHandle_t              handle,
+ *          rbusEvent_t const*        eventData
+ *          rbusEventSubscription_t*  subscription)
  *  @brief A component will receive this API callback when an event is received.
- *      This callback is registered with rbusEvent_Subscribe. \n
+ *  This callback is registered with rbusEvent_Subscribe. \n
  *  Used by: Any component that subscribes for events.
  *  @param rbusHandle Bus Handle
  *  @param eventData Event data sent from the publishing component
@@ -344,8 +323,29 @@ typedef void (*rbusEventHandler_t)(
     rbusEvent_t const*          eventData,
     rbusEventSubscription_t*    subscription
 );
+
 /** @} */
 
+/** @fn typedef void (* rbusMethodAsyncRespHandler_t)(
+ *          rbusHandle_t handle,
+ *          char* methodName
+ *          rbusObject_t params)
+ *  @brief A component will receive this API callback when the result of 
+ *  and asynchronous method invoked with rbusMethod_InvokeAsync is ready.\n
+ *  Used by: Any component that calls rbusMethod_InvokeAsync.
+ *  @param rbusHandle Bus Handle
+ *  @param methodName The method name
+ *  @param error      Any error that occured
+ *  @param params     The returned params of the method
+ *  @return void
+ *  @ingroup Methods
+ */
+typedef void (*rbusMethodAsyncRespHandler_t)(
+    rbusHandle_t handle, 
+    char const* methodName, 
+    rbusError_t error,
+    rbusObject_t params
+);
 
 /** @addtogroup Providers
   * @{ 
@@ -415,7 +415,7 @@ typedef rbusError_t (*rbusSetHandler_t)(
 );
 
 /** @fn typedef rbusError_t (*rbusTableAddRowHandler_t)(
-            rbusHandle_t handle,
+ *          rbusHandle_t handle,
  *          char const* tableName,
  *          char const* aliasName,
  *          uint32_t* instNum)
@@ -440,7 +440,7 @@ typedef rbusError_t (*rbusTableAddRowHandler_t)(
     uint32_t* instNum);
 
 /** @fn typedef rbusError_t (*rbusTableRemoveRowHandler_t)(
-            rbusHandle_t handle,
+ *          rbusHandle_t handle,
  *          char const* rowName)
  *  @brief A table row remove callback handler
  *
@@ -455,6 +455,35 @@ typedef rbusError_t (*rbusTableAddRowHandler_t)(
 typedef rbusError_t (*rbusTableRemoveRowHandler_t)(
     rbusHandle_t handle,
     char const* rowName);
+
+/** @fn typedef rbusError_t (*rbusMethodHandler_t)(
+ *          rbusHandle_t handle, 
+ *          char const* methodName, 
+ *          rbusObject_t inParams,
+ *          rbusObject_t outParams
+ *          rbusMethodAsyncHandle_t asyncHandle)
+ *  @brief A method invocation callback handler
+ *
+ * A provider must implement this handler to support methods.  
+ * There are two ways to return a response to the method.
+ * The first is to set outParams in the handler and return RBUS_ERROR_SUCCESS.
+ * The second is to send the response later by storing the asyncHandle,
+ * returning RBUS_ERROR_ASYNC_RESPONSE from the handler, and later 
+ * calling rbusMethod_SendAsyncResponse, passing the asyncHandle and output params.
+ *  @param  handle          Bus Handle
+ *  @param  methodName      The name of the method being invoked ( e.g. "Device.Foo.SomeFunc()");
+ *  @param  inParams        The input parameters to the functions
+ *  @param  outParams       The output/return parameters of the functions
+ *  @param  asyncHandle     Handle passed to rbusMethod_SendAsyncResponse
+ *  @return RBus error code as defined by rbusError_t.
+ *  Possible values are: RBUS_ERROR_INVALID_INPUT
+ */
+typedef rbusError_t (*rbusMethodHandler_t)(
+    rbusHandle_t handle, 
+    char const* methodName, 
+    rbusObject_t inParams,
+    rbusObject_t outParams,
+    rbusMethodAsyncHandle_t asyncHandle);
 
 /** @fn typedef rbusError_t (* rbusEventSubHandler_t)(
  *          rbusHandle_t handle,
@@ -525,6 +554,7 @@ typedef struct rbusCallbackTable_t
                                                             and unsubscribe
                                                             handler for the
                                                             event name       */
+    rbusMethodHandler_t      methodHandler;             /**< Method handler  */
 } rbusCallbackTable_t;
 
 ///  @brief rbusDataElement_t The structure used when registering or
@@ -1142,6 +1172,12 @@ rbusError_t rbusEvent_UnsubscribeEx(
     rbusEventSubscription_t* subscriptions,
     int numSubscriptions);
 
+/** @} */
+
+/** @addtogroup Providers
+  * @{ 
+  */
+
 /** @fn rbusError_t  rbusEvent_Publish (
  *          rbusHandle_t handle,
  *          rbusEvent_t* eventData)
@@ -1160,6 +1196,96 @@ rbusError_t rbusEvent_UnsubscribeEx(
 rbusError_t  rbusEvent_Publish(
     rbusHandle_t handle,
     rbusEvent_t* eventData);
+
+/** @} */
+
+/** @addtogroup Consumers
+  * @{ 
+  */
+
+/** @fn rbusError_t rbusMethod_Invoke(
+ *          rbusHandle_t handle, 
+ *          char const* methodName, 
+ *          rbusObject_t inParams, 
+ *          rbusObject_t* outParams)
+ *  @brief Invoke a remote method.
+ *  
+ *  Invokes a remote method and blocks waiting for the result.
+ *  @param      handle      Bus Handle
+ *  @param      methodName  Method name
+ *  @param      inParams    Input params
+ *  @param      outParams   Return params
+ *  @return RBus error code as defined by rbusError_t.
+ *  Possible values are: RBUS_ERROR_INVALID_EVENT
+ *  @ingroup Methods
+ */
+rbusError_t rbusMethod_Invoke(
+    rbusHandle_t handle, 
+    char const* methodName, 
+    rbusObject_t inParams, 
+    rbusObject_t* outParams);
+
+/** @fn rbusError_t rbusMethod_InvokeAsync(
+ *          rbusHandle_t handle, 
+ *          char* methodName, 
+ *          rbusObject_t inParams, 
+ *          rbusMethodAsyncRespHandler_t callback, 
+ *          int timeout)
+ *  @brief Invokes a remote method, non-blocking, with an asynchronous return callback.
+ *  
+ *  Invokes a remote method without blocking.  
+ * The return params of the method will be received asynchronously by the callback provided.
+ * inParams will be retained and used to invoke the method on a background thread; therefore,
+ * inParams should not be altered by the calling program until the callback complete.
+ *  @param      handle      Bus Handle
+ *  @param      methodName  Method name
+ *  @param      inParams    Input params
+ *  @param      callback    Callback handler for the method's return parameters.
+ *  @param      timeout     Optional maximum time to receive a callback. 
+ *  @return RBus error code as defined by rbusError_t.
+ *  Possible values are: RBUS_ERROR_INVALID_EVENT
+ *  @ingroup Methods
+ */
+rbusError_t rbusMethod_InvokeAsync(
+    rbusHandle_t handle, 
+    char const* methodName, 
+    rbusObject_t inParams, 
+    rbusMethodAsyncRespHandler_t callback, 
+    int timeout);
+
+/** @} */
+
+/** @addtogroup Providers
+  * @{ 
+  */
+
+/** @fn rbusError_t rbusMethod_SendAsyncResponse(
+ *          rbusMethodAsyncHandle_t asyncHandle, 
+ *          rbusError_t error, 
+ *          rbusObject_t outParams)
+ *  @brief Send the response to an invoked method.
+ *  
+ * Providers can use this method to send the result of an invoke method asynchronously.  
+ * The asyncHandle is provided when the provider's MethodHandler is called.  
+ * The outParams param should be initialized and released by the provider.  outParams can be NULL.
+ * The error params should be set to RBUS_ERROR_SUCCESS if the method was successful, 
+ * or to an approprioate error if the method fails.  
+ *  @param      asyncHandle     Async handle
+ *  @param      error           Any error that occured
+ *  @param      outParams       The returned params of the method
+ *  @return RBus error code as defined by rbusError_t.
+ *  @ingroup Methods
+ */
+rbusError_t rbusMethod_SendAsyncResponse(
+    rbusMethodAsyncHandle_t asyncHandle,
+    rbusError_t error,
+    rbusObject_t outParams);
+
+/** @} */
+
+/** @addtogroup Consumers
+  * @{ 
+  */
 
 /** @fn rbusError_t rbus_createSession(
  *          rbusHandle_t handle,

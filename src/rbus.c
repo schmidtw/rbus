@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <pthread.h>
 #include <rtVector.h>
 #include <rbus_core.h>
 #include <rbus_marshalling.h>
@@ -55,6 +56,11 @@ struct _rbusHandle_t
     elementNode*    elementRoot;
     rtVector        eventSubs; /* consumer side subscriptions FIXME - this needs to be an associative map instead of list/vector*/
     rbusSubscriptions_t subscriptions; /*provider side subscriptions */
+};
+
+struct _rbusMethodAsyncHandle_t
+{
+    rtMessageHeader hdr;
 };
 
 #define comp_info struct _rbusHandle_t
@@ -1398,7 +1404,84 @@ static void _table_remove_row_callback_handler (rbusHandle_t handle, rtMessage r
     rbus_AppendInt32(*response, result);
 }
 
-static int _callback_handler(char const* destination, char const* method, rtMessage request, void* userData, rtMessage* response)
+static int _method_callback_handler(rbusHandle_t handle, rtMessage request, rtMessage* response, const rtMessageHeader* hdr)
+{
+    comp_info* ci = (comp_info*)handle;
+    rbusError_t result = RBUS_ERROR_BUS_ERROR;
+    int sessionId;
+    char const* methodName;
+    rbusObject_t inParams, outParams;
+
+    rbus_PopInt32(request, &sessionId);
+    rbus_PopString(request, &methodName);
+    rbusObject_initFromMessage(&inParams, request);
+
+    rtLog_Info("%s method [%s]", __FUNCTION__, methodName);
+
+    /*get the element for the row */
+    elementNode* methRegElem = retrieveElement(ci->elementRoot, methodName);
+    elementNode* methInstElem = retrieveInstanceElement(ci->elementRoot, methodName);
+
+    if(methRegElem && methInstElem)
+    {
+        if(methRegElem->cbTable.methodHandler)
+        {
+            rtLog_Info("%s calling methodHandler method [%s]", __FUNCTION__, methodName);
+
+            rbusObject_Init(&outParams, NULL);
+
+            rbusMethodAsyncHandle_t asyncHandle = malloc(sizeof(struct _rbusMethodAsyncHandle_t));
+            asyncHandle->hdr = *hdr;
+
+            result = methRegElem->cbTable.methodHandler(handle, methodName, inParams, outParams, asyncHandle);
+            
+            if (result == RBUS_ERROR_ASYNC_RESPONSE)
+            {
+                /*outParams will be sent async*/
+                rtLog_Info("%s async method in progress [%s]", __FUNCTION__, methodName);
+            }
+            else
+            {
+                free(asyncHandle);
+            }
+
+            if (result != RBUS_ERROR_SUCCESS)
+            {
+                rbusObject_Release(outParams);
+            }
+        }
+        else
+        {
+            rtLog_Info("%s methodHandler not registered method [%s]", __FUNCTION__, methodName);
+            result = RBUS_ERROR_ACCESS_NOT_ALLOWED;
+        }
+    }
+    else
+    {
+        rtLog_Warn("%s no element found method [%s]", __FUNCTION__, methodName);
+        result = RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
+    }
+
+    rbusObject_Release(inParams);
+
+    if(result == RBUS_ERROR_ASYNC_RESPONSE)
+    {
+        return RTMESSAGE_BUS_SUCCESS_ASYNC;
+    }
+    else
+    {
+        rtMessage_Create(response);
+        rbus_AppendInt32(*response, result);
+        if (result == RBUS_ERROR_SUCCESS)
+        {
+            rbusObject_appendToMessage(outParams, *response);
+            rbusObject_Release(outParams);
+        }
+        return RTMESSAGE_BUS_SUCCESS; 
+    }
+}
+
+static int _callback_handler(char const* destination, char const* method, rtMessage request, void* userData, rtMessage* response, const rtMessageHeader* hdr)
 {
     rbusHandle_t handle = (rbusHandle_t)userData;
 
@@ -1419,6 +1502,10 @@ static int _callback_handler(char const* destination, char const* method, rtMess
     else if(!strcmp(method, METHOD_DELETETBLROW))
     {
         _table_remove_row_callback_handler (handle, request, response);
+    }
+    else if(!strcmp(method, METHOD_RPC))
+    {
+        return _method_callback_handler (handle, request, response, hdr);
     }
     else
     {
@@ -1687,37 +1774,7 @@ rbusError_t rbus_regDataElements(
             }
             else
             {
-                char eventName[RBUS_MAX_NAME_LENGTH];
-
                 rtLog_Info("%s inserted successfully!", name);
-
-                strcpy(eventName, name);
-                
-                if(elements[i].type == RBUS_ELEMENT_TYPE_TABLE)
-                {
-                    /*for tables we need to strip of the '{i}.' at the end before registering it as an event*/
-                    char const* last = getLastTokenInName(name);
-                    if(strncmp(last, "{i}", 3) == 0)
-                    {
-                        ptrdiff_t offset = last-name;
-                        strncpy(eventName, name, offset);
-                        eventName[offset] = 0;
-                    }
-                }
-/*
-                if((err = rbus_registerEvent(ci->componentName, eventName, _event_subscribe_callback_handler, handle)) != RTMESSAGE_BUS_SUCCESS)
-                {
-                    rtLog_Info("<%s>: failed to register event with core [%s] err=%d!!", __FUNCTION__, eventName, err);
-                    rbus_removeElement(ci->componentName, eventName);
-                    removeElement(&(ci->elementRoot), eventName);
-                    rc = RBUS_ERROR_OUT_OF_RESOURCES;
-                    break;
-                }
-                else
-                {
-                    rtLog_Info("Event registered successfully! %s", eventName);
-                }
-*/
             }
         }
     }
@@ -2422,7 +2479,7 @@ rbusError_t rbusTable_addRow(
 
     rtMessage_Create(&request);
     rbus_AppendInt32(request, 0);/*TODO: this should be the session ID*/
-    rbus_AppendString(request, tableName);
+    rbus_AppendString(request, tableName);/*TODO: do we need to append the name as well as pass the name as the 1st arg to rbus_invokeRemoteMethod ?*/
     if(aliasName)
         rbus_AppendString(request, aliasName);
     else
@@ -2466,7 +2523,7 @@ rbusError_t rbusTable_removeRow(
 
     rtMessage_Create(&request);
     rbus_AppendInt32(request, 0);/*TODO: this should be the session ID*/
-    rbus_AppendString(request, rowName);
+    rbus_AppendString(request, rowName);/*TODO: do we need to append the name as well as pass the name as the 1st arg to rbus_invokeRemoteMethod ?*/
 
     if((err = rbus_invokeRemoteMethod(
         rowName,
@@ -2695,6 +2752,146 @@ rbusError_t  rbusEvent_Publish(
     rtMessage_Release(msg);
 
     return errOut == RTMESSAGE_BUS_SUCCESS ? RBUS_ERROR_SUCCESS: RBUS_ERROR_BUS_ERROR;
+}
+
+rbusError_t rbusMethod_InvokeInternal(
+    rbusHandle_t handle, 
+    char const* methodName, 
+    rbusObject_t inParams, 
+    rbusObject_t* outParams,
+    int timeout)
+{
+    (void)handle;
+    rbus_error_t err;
+    int returnCode = 0;
+    rtMessage request, response;
+
+    rtLog_Info("%s: %s", __FUNCTION__, methodName);
+
+    rtMessage_Create(&request);
+    rbus_AppendInt32(request, 0);/*TODO: this should be the session ID*/
+    rbus_AppendString(request, methodName); /*TODO: do we need to append the name as well as pass the name as the 1st arg to rbus_invokeRemoteMethod ?*/
+
+    rbusObject_appendToMessage(inParams, request);
+
+    if((err = rbus_invokeRemoteMethod(
+        methodName,
+        METHOD_RPC, 
+        request, 
+        timeout, 
+        &response)) != RTMESSAGE_BUS_SUCCESS)
+    {
+        rtLog_Info("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
+        if(err == RTMESSAGE_BUS_ERROR_REMOTE_TIMED_OUT)
+            return RBUS_ERROR_TIMEOUT;
+        else
+            return RBUS_ERROR_BUS_ERROR;
+    }
+
+    rbus_PopInt32(response, &returnCode);
+
+    if(returnCode == RBUS_ERROR_SUCCESS)
+    {
+        rbusObject_initFromMessage(outParams, response);
+    }
+
+    rtMessage_Release(response);
+
+    rtLog_Info("%s rbus_invokeRemoteMethod success response returnCode:%d", __FUNCTION__, returnCode);
+
+    return returnCode;
+}
+
+rbusError_t rbusMethod_Invoke(
+    rbusHandle_t handle, 
+    char const* methodName, 
+    rbusObject_t inParams, 
+    rbusObject_t* outParams)
+{
+    return rbusMethod_InvokeInternal(handle, methodName, inParams, outParams, 6000);
+}
+
+typedef struct _rbusMethodInvokeAsyncData_t
+{
+    rbusHandle_t handle;
+    char* methodName; 
+    rbusObject_t inParams; 
+    rbusMethodAsyncRespHandler_t callback;
+    int timeout;
+} rbusMethodInvokeAsyncData_t;
+
+static void* rbusMethod_InvokeAsyncThreadFunc(void *p)
+{
+    rbusError_t err;
+    rbusMethodInvokeAsyncData_t* data = p;
+    rbusObject_t outParams = NULL;
+
+    err = rbusMethod_InvokeInternal(
+        data->handle,
+        data->methodName, 
+        data->inParams, 
+        &outParams,
+        data->timeout);
+
+    data->callback(data->handle, data->methodName, err, outParams);
+
+    rbusObject_Release(data->inParams);
+    if(outParams)
+        rbusObject_Release(outParams);
+    free(data->methodName);
+    free(data);
+
+    return NULL;
+}
+
+rbusError_t rbusMethod_InvokeAsync(
+    rbusHandle_t handle, 
+    char const* methodName, 
+    rbusObject_t inParams, 
+    rbusMethodAsyncRespHandler_t callback, 
+    int timeout)
+{
+    pthread_t pid;
+    rbusMethodInvokeAsyncData_t* data;
+    int err = 0;
+
+    rbusObject_Retain(inParams);
+
+    data = malloc(sizeof(rbusMethodInvokeAsyncData_t));
+    data->handle = handle;
+    data->methodName = strdup(methodName);
+    data->inParams = inParams;
+    data->callback = callback;
+    data->timeout = timeout > 0 ? timeout : 6000;
+
+    if((err = pthread_create(&pid, NULL, rbusMethod_InvokeAsyncThreadFunc, data)) != 0)
+    {
+        rtLog_Error("%s pthread_create failed: err=%d", __FUNCTION__, err);
+        return RBUS_ERROR_BUS_ERROR;
+    }
+
+	if((err = pthread_detach(pid)) != 0)
+    {
+        rtLog_Error("%s pthread_detach failed: err=%d", __FUNCTION__, err);
+    }
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t rbusMethod_SendAsyncResponse(
+    rbusMethodAsyncHandle_t asyncHandle,
+    rbusError_t error,
+    rbusObject_t outParams)
+{
+    rtMessage response;
+
+    rtMessage_Create(&response);
+    rbus_AppendInt32(response, error);
+    if(outParams)
+        rbusObject_appendToMessage(outParams, response);
+    rbus_sendResponse(&asyncHandle->hdr, response);
+    free(asyncHandle);
+    return RBUS_ERROR_SUCCESS;
 }
 
 rbusError_t rbus_createSession(rbusHandle_t handle, uint32_t *pSessionId)

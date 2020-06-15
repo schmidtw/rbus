@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 
     char componentName[] = "EventProvider";
 
-    rbusDataElement_t dataElements[1] = {{"Device.Provider1.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler, NULL, NULL, NULL, NULL}}};
+    rbusDataElement_t dataElements[1] = {{"Device.Provider1.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler, NULL, NULL, NULL, NULL, NULL}}};
 
     printf("provider: start\n");
 

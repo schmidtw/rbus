@@ -50,19 +50,19 @@ rbusError_t SampleProvider_allTypesGetHandler(rbusHandle_t handle, rbusProperty_
 rbusError_t SampleProvider_allTypesSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts);
 
 rbusDataElement_t dataElements[TotalParams] = {
-    {"Device.DeviceInfo.SampleProvider.Manufacturer", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_DeviceGetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.DeviceInfo.SampleProvider.ModelName", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_DeviceGetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.DeviceInfo.SampleProvider.SoftwareVersion", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_DeviceGetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.SampleProvider.SampleData.IntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_SampleDataGetHandler, SampleProvider_SampleDataSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.SampleData.BoolData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_SampleDataGetHandler, SampleProvider_SampleDataSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.SampleData.UIntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_SampleDataGetHandler, SampleProvider_SampleDataSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.NestedObject1.TestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.SampleProvider.NestedObject1.AnotherTestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.SampleProvider.NestedObject2.TestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.SampleProvider.NestedObject2.AnotherTestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.SampleProvider.TestData.IntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.SampleProvider.TestData.BoolData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.SampleProvider.TestData.UIntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL}}
+    {"Device.DeviceInfo.SampleProvider.Manufacturer", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_DeviceGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.DeviceInfo.SampleProvider.ModelName", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_DeviceGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.DeviceInfo.SampleProvider.SoftwareVersion", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_DeviceGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.SampleData.IntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_SampleDataGetHandler, SampleProvider_SampleDataSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.SampleData.BoolData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_SampleDataGetHandler, SampleProvider_SampleDataSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.SampleData.UIntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_SampleDataGetHandler, SampleProvider_SampleDataSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.NestedObject1.TestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.NestedObject1.AnotherTestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.NestedObject2.TestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.NestedObject2.AnotherTestParam", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_NestedObjectsGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.TestData.IntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.TestData.BoolData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.TestData.UIntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL, NULL}}
 };
 
 rbusDataElement_t allTypeDataElements[14] = {

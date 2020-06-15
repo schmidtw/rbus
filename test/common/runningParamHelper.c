@@ -80,7 +80,7 @@ rbusError_t runningParamProvider_Init(rbusHandle_t handle, char* paramName)
 
     strncpy(gParamName, paramName, MAXPATH);
 
-    rbusDataElement_t dataElement = { paramName, RBUS_ELEMENT_TYPE_PROPERTY, {getRunningParamHandler, setRunningParamHandler, NULL, NULL, NULL}};
+    rbusDataElement_t dataElement = { paramName, RBUS_ELEMENT_TYPE_PROPERTY, {getRunningParamHandler, setRunningParamHandler, NULL, NULL, NULL, NULL}};
 
     rc = rbus_regDataElements(handle, 1, &dataElement);
     if(rc == RBUS_ERROR_SUCCESS)

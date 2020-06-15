@@ -421,11 +421,11 @@ int main(int argc, char *argv[])
     char componentName[] = "TableProvider1";
 
     rbusDataElement_t dataElements[5] = {
-        {"Device.Tables1.T1.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler1, tableRemoveRowHandler1, eventSubHandler}},
-        {"Device.Tables1.T1.{i}.Alias", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler1, setHandler1, NULL, NULL, NULL}},
-        {"Device.Tables1.T1.{i}.Data", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler1, setHandler1, NULL, NULL, NULL}},
-        {"Device.Tables1.T1.{i}.T2.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler2,  tableRemoveRowHandler2, NULL}},
-        {"Device.Tables1.T1.{i}.T2.{i}.Data", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler2, setHandler2, NULL, NULL, NULL}}
+        {"Device.Tables1.T1.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler1, tableRemoveRowHandler1, eventSubHandler, NULL}},
+        {"Device.Tables1.T1.{i}.Alias", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler1, setHandler1, NULL, NULL, NULL, NULL}},
+        {"Device.Tables1.T1.{i}.Data", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler1, setHandler1, NULL, NULL, NULL, NULL}},
+        {"Device.Tables1.T1.{i}.T2.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler2,  tableRemoveRowHandler2, NULL, NULL}},
+        {"Device.Tables1.T1.{i}.T2.{i}.Data", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler2, setHandler2, NULL, NULL, NULL, NULL}}
     };
 
     printf("provider: start\n");

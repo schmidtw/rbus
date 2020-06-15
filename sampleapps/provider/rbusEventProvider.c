@@ -111,10 +111,10 @@ int main(int argc, char *argv[])
     char* eventData[2] = { "Hello Earth", "Hello Mars" };
 
     rbusDataElement_t dataElements[4] = {
-        {"Device.Provider1.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler}},
-        {"Device.Provider1.Event2!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler}},
-        {"Device.Provider1.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler, NULL, NULL, NULL, NULL}},
-        {"Device.SampleProvider.SampleData2.StrData", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler, NULL, NULL, NULL, NULL}}
+        {"Device.Provider1.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler, NULL}},
+        {"Device.Provider1.Event2!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler, NULL}},
+        {"Device.Provider1.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.SampleProvider.SampleData2.StrData", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler, NULL, NULL, NULL, NULL, NULL}}
     };
 
     printf("provider: start\n");
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
     rc = rbus_regDataElements(handle, 4, dataElements);
     if(rc != RBUS_ERROR_SUCCESS)
     {
-        printf("provider: rbusEventProvider_Register failed: %d\n", rc);
+        printf("provider: rbus_regDataElements failed: %d\n", rc);
         goto exit1;
     }
 

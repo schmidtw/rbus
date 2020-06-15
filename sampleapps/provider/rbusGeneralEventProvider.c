@@ -75,8 +75,8 @@ int main(int argc, char *argv[])
     char* eventData[2] = { "Hello Earth", "Hello Mars" };
 
     rbusDataElement_t dataElements[2] = {
-        {"Device.Provider1.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler}},
-        {"Device.Provider1.Event2!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler}}
+        {"Device.Provider1.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler, NULL}},
+        {"Device.Provider1.Event2!", RBUS_ELEMENT_TYPE_EVENT, {NULL, NULL, NULL, NULL, eventSubHandler, NULL}}
     };
 
     printf("provider: start\n");
