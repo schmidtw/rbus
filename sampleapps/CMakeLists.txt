@@ -64,6 +64,14 @@ add_executable(rbusValueChangeConsumer consumer/rbusValueChangeConsumer.c)
 add_dependencies(rbusValueChangeConsumer rbus)
 target_link_libraries(rbusValueChangeConsumer rbus)
 
+add_executable(rbusMethodProvider provider/rbusMethodProvider.c)
+add_dependencies(rbusMethodProvider rbus)
+target_link_libraries(rbusMethodProvider rbus)
+
+add_executable(rbusMethodConsumer consumer/rbusMethodConsumer.c)
+add_dependencies(rbusMethodConsumer rbus)
+target_link_libraries(rbusMethodConsumer rbus)
+
 add_executable(rbusTR104MtaAgentApp provider/mta_proxy_tr104.c
 provider/mta_hal_tr104.c provider/mta_hal_tr104.h)
 add_dependencies(rbusTR104MtaAgentApp rbus)
@@ -76,6 +84,8 @@ install (TARGETS
     rbusTableConsumer
     rbusEventProvider
     rbusEventConsumer
+    rbusMethodProvider
+    rbusMethodConsumer
     rbusGeneralEventProvider
     rbusGeneralEventConsumer
     rbusValueChangeProvider

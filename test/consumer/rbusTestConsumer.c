@@ -35,6 +35,7 @@ int getDurationTables();
 int getDurationSubscribe();
 int getDurationSubscribeEx();
 int getDurationEvents();
+int getDurationMethods();
 
 void testValue(rbusHandle_t handle, int* countPass, int* countFail);
 void testValueChange(rbusHandle_t handle, int* countPass, int* countFail);
@@ -42,6 +43,7 @@ void testSubscribe(rbusHandle_t handle, int* countPass, int* countFail);
 void testSubscribeEx(rbusHandle_t handle, int* countPass, int* countFail);
 void testTables(rbusHandle_t handle, int* countPass, int* countFail);
 void testEvents(rbusHandle_t handle, int* countPass, int* countFail);
+void testMethods(rbusHandle_t handle, int* countPass, int* countFail);
 
 typedef int (*getDurationFunc_t)();
 typedef void (*runTestFunc_t)(rbusHandle_t handle, int* countPass, int* countFail);
@@ -64,6 +66,7 @@ typedef enum testType_t
     TestSubscribeEx,
     TestTables,
     TestEvents,
+    TestMethods,
     TestTypeMax
 }testType_t;
 
@@ -73,7 +76,8 @@ testInfo_t testList[TestTypeMax] = {
     { 0, "Subscribe", getDurationSubscribe, testSubscribe, 0, 0 },
     { 0, "SubscribeEx", getDurationSubscribeEx, testSubscribeEx, 0, 0 },
     { 0, "Tables", getDurationTables, testTables, 0, 0 },
-    { 0, "Events", getDurationEvents, testEvents, 0, 0 }
+    { 0, "Events", getDurationEvents, testEvents, 0, 0 },
+    { 0, "Methods", getDurationMethods, testMethods, 0, 0 },
 };
 
 void printUsage()

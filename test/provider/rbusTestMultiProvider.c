@@ -165,24 +165,24 @@ int main(int argc, char *argv[])
 
     rbusDataElement_t dataElements[5][2] = {
         {
-            {"Device.MultiProvider1.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL}},
-            {"Device.MultiProvider1.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler}}
+            {"Device.MultiProvider1.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL,NULL}},
+            {"Device.MultiProvider1.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler,NULL}}
         },
         {
-            {"Device.MultiProvider2.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL}},
-            {"Device.MultiProvider2.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler}}
+            {"Device.MultiProvider2.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL,NULL}},
+            {"Device.MultiProvider2.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler,NULL}}
         },
         {
-            {"Device.MultiProvider3.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL}},
-            {"Device.MultiProvider3.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler}}
+            {"Device.MultiProvider3.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL,NULL}},
+            {"Device.MultiProvider3.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler,NULL}}
         },
         {
-            {"Device.MultiProvider4.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL}},
-            {"Device.MultiProvider4.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler}}
+            {"Device.MultiProvider4.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL,NULL}},
+            {"Device.MultiProvider4.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler,NULL}}
         },
         {
-            {"Device.MultiProvider5.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL}},
-            {"Device.MultiProvider5.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler}}
+            {"Device.MultiProvider5.Param", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,setHandler,NULL,NULL,NULL,NULL}},
+            {"Device.MultiProvider5.Event!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL,eventSubHandler,NULL}}
         }
     };
 
