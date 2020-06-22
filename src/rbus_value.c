@@ -172,7 +172,7 @@ char* rbusValue_ToString(rbusValue_t v, char* buf, size_t buflen)
             n = v->d.bytes->posWrite;
             break;
         case RBUS_BYTES:
-            n = v->d.bytes->posWrite + 1;
+            n = (2 * v->d.bytes->posWrite) + 1;
             break;
         case RBUS_BOOLEAN:
             n = snprintf(p, 0, "%d", (int)v->d.b)+1;
@@ -224,7 +224,7 @@ char* rbusValue_ToString(rbusValue_t v, char* buf, size_t buflen)
             n = snprintf(p, 0, "FIXME TYPE %d", v->type)+1;
             break;
         }
-        p = malloc(n);
+        p = calloc(n, 1);
     }
     
     switch(v->type)
@@ -233,10 +233,12 @@ char* rbusValue_ToString(rbusValue_t v, char* buf, size_t buflen)
         strncpy(p, (char const* ) v->d.bytes->data, n);
         break;
     case RBUS_BYTES:
-        //FIXME: this needs to be base64 encoded
-        strncpy(p, (char const* ) v->d.bytes->data, n-1);
-        *(p+n-1) = '\0';
+    {
+        int i = 0;
+        for (i = 0; i < v->d.bytes->posWrite; i++)
+            sprintf (&p[i * 2], "%02X", v->d.bytes->data[i]);
         break;
+    }
     case RBUS_BOOLEAN:
         snprintf(p, n, "%d", (int)v->d.b);
         break;
@@ -981,13 +983,31 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         rbusValue_SetByte(value, tmpUC);
         break;
     case RBUS_INT8:
-        sscanf(pStringInput, "%c",&tmpI8);
-        rbusValue_SetInt8(value, tmpI8);
+    {
+        union tmpUX
+        {
+            int8_t i8[4];
+            int32_t i32;
+        };
+
+        union tmpUX x;
+        x.i32 = strtol (pStringInput, NULL, 0);
+        rbusValue_SetInt8(value, x.i8[0]);
         break;
+    }
     case RBUS_UINT8:
-        sscanf(pStringInput, "%c",&tmpUI8);
-        rbusValue_SetUInt8(value, tmpUI8);
+    {
+        union tmpUX
+        {
+            uint8_t i8[4];
+            int32_t i32;
+        };
+
+        union tmpUX x;
+        x.i32 = strtol (pStringInput, NULL, 0);
+        rbusValue_SetUInt8(value, x.i8[0]);
         break;
+    }
     case RBUS_INT16:
         tmpL = strtol (pStringInput, NULL, 0);
         if ((errno == ERANGE && (tmpL == LONG_MAX || tmpL == LONG_MIN)) || (tmpL > INT16_MAX) || (tmpL < INT16_MIN))

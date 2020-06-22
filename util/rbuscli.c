@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <inttypes.h>
@@ -69,6 +71,14 @@ rbusValueType_t getDataType_fromString(const char* pType)
 
     if (strncasecmp ("boolean",    pType, 4) == 0)
         rc = RBUS_BOOLEAN;
+    else if (strncasecmp("char",   pType, 4) == 0)
+        rc = RBUS_CHAR;
+    else if (strncasecmp("byte",   pType, 4) == 0)
+        rc = RBUS_BYTE;
+    else if (strncasecmp("int8",   pType, 4) == 0)
+        rc = RBUS_INT8;
+    else if (strncasecmp("uint8",   pType, 5) == 0)
+        rc = RBUS_UINT8;
     else if (strncasecmp("int16",  pType, 5) == 0)
         rc = RBUS_INT16;
     else if (strncasecmp("uint16", pType, 6) == 0)
@@ -81,24 +91,16 @@ rbusValueType_t getDataType_fromString(const char* pType)
         rc = RBUS_INT64;
     else if (strncasecmp("uint64", pType, 6) == 0)
         rc = RBUS_UINT64;
-    else if (strncasecmp("string", pType, 6) == 0)
-        rc = RBUS_STRING;
-    else if (strncasecmp("date_time", pType, 4) == 0)
-        rc = RBUS_DATETIME;
-    else if (strncasecmp("base64", pType, 6) == 0)
-        rc = RBUS_STRING;/*making base64 a string, since it's actually just a string*/
-    else if (strncasecmp("binary",    pType, 3) == 0)
-        rc = RBUS_BYTES;
-    else if (strncasecmp("float",  pType, 5) == 0)
+    else if (strncasecmp("single",  pType, 5) == 0)
         rc = RBUS_SINGLE;
     else if (strncasecmp("double", pType, 6) == 0)
         rc = RBUS_DOUBLE;
-    else if (strncasecmp("byte",   pType, 4) == 0)
-        rc = RBUS_BYTE;
-    else if (strncasecmp("reference",   pType, 4) == 0)
+    else if (strncasecmp("datetime", pType, 4) == 0)
+        rc = RBUS_DATETIME;
+    else if (strncasecmp("string", pType, 6) == 0)
         rc = RBUS_STRING;
-    else if (strncasecmp("event_dest_name",   pType, 5) == 0)
-        rc = RBUS_STRING;
+    else if (strncasecmp("bytes",    pType, 3) == 0)
+        rc = RBUS_BYTES;
 
     /* Risk handling, if the user types just int, lets consider int32; same for unsigned too  */
     else if (strncasecmp("int",  pType, 3) == 0)
@@ -109,102 +111,59 @@ rbusValueType_t getDataType_fromString(const char* pType)
     return rc;
 }
 
-int getLength_fromDataType(rbusValueType_t type)
-{
-    int length = 0;
-    if(type == RBUS_BOOLEAN)
-        length = sizeof (bool);
-    else if(type == RBUS_CHAR)
-        length = sizeof (char);
-    else if(type == RBUS_BYTE)
-        length = sizeof (unsigned char);
-    else if(type == RBUS_INT8)
-        length = sizeof (int8_t);
-    else if(type == RBUS_UINT8)
-        length = sizeof (uint8_t);
-    else if(type == RBUS_INT16)
-        length = sizeof (short);
-    else if(type == RBUS_UINT16)
-        length = sizeof (unsigned short);
-    else if(type == RBUS_INT32)
-        length = sizeof (int);
-    else if(type == RBUS_UINT32)
-        length = sizeof (unsigned int);
-    else if(type == RBUS_INT64)
-        length = sizeof (long long);
-    else if(type == RBUS_UINT64)
-        length = sizeof (unsigned long long);
-    else if(type == RBUS_STRING)
-        length = 1; // Caller of this menthod has to figure out the length from the input value
-    else if(type == RBUS_DATETIME)
-        length = 8; // FIXME
-    else if(type == RBUS_BYTES)
-        length = 8; // FIXME Caller of this menthod has to figure out the length from the input value
-    else if(type == RBUS_SINGLE)
-        length = sizeof(float);
-    else if(type == RBUS_DOUBLE)
-        length = sizeof(double);/*
-    else if(type == RBUS_REFERENCE)
-        length = 4;
-    else if(type == RBUS_EVENT_DEST_NAME)
-        length = 1; // Caller of this menthod has to figure out the length from the input value
-    */
-    return length;
-}
-
 char *getDataType_toString(rbusValueType_t type)
 {
     char *pTextData = "None";
     switch(type)
     {
-	case RBUS_BOOLEAN:
-	    pTextData = "boolean";
-	    break;
-	case RBUS_CHAR :
-	    pTextData = "char";
-	    break;
-	case RBUS_BYTE:
-	    pTextData = "byte";
-	    break;
-	case RBUS_INT8:
-	    pTextData = "int8";
-	    break;
-	case RBUS_UINT8:
-	    pTextData = "uint8";
-	    break;
-	case RBUS_INT16:
-	    pTextData = "int16";
-	    break;
-	case RBUS_UINT16:
-	    pTextData = "uint16";
-	    break;
-	case RBUS_INT32:
-	    pTextData = "int32";
-	    break;
-	case RBUS_UINT32:
-	    pTextData = "uint32";
-	    break;
-	case RBUS_INT64:
-	    pTextData = "int64";
-	    break;
-	case RBUS_UINT64:
-	    pTextData = "uint64";
-	    break;
-	case RBUS_STRING:
-	    pTextData = "string";
-	    break;
-	case RBUS_DATETIME:
-	    pTextData = "datetime";
-	    break;
-	case RBUS_BYTES:
-	    pTextData = "bytes";
-	    break;
-	case RBUS_SINGLE:
-	    pTextData = "float";
-	    break;
-	case RBUS_DOUBLE:
-	    pTextData = "double";
-	    break;
+    case RBUS_BOOLEAN:
+        pTextData = "boolean";
+        break;
+    case RBUS_CHAR :
+        pTextData = "char";
+        break;
+    case RBUS_BYTE:
+        pTextData = "byte";
+        break;
+    case RBUS_INT8:
+        pTextData = "int8";
+        break;
+    case RBUS_UINT8:
+        pTextData = "uint8";
+        break;
+    case RBUS_INT16:
+        pTextData = "int16";
+        break;
+    case RBUS_UINT16:
+        pTextData = "uint16";
+        break;
+    case RBUS_INT32:
+        pTextData = "int32";
+        break;
+    case RBUS_UINT32:
+        pTextData = "uint32";
+        break;
+    case RBUS_INT64:
+        pTextData = "int64";
+        break;
+    case RBUS_UINT64:
+        pTextData = "uint64";
+        break;
+    case RBUS_STRING:
+        pTextData = "string";
+        break;
+    case RBUS_DATETIME:
+        pTextData = "datetime";
+        break;
+    case RBUS_BYTES:
+        pTextData = "bytes";
+        break;
+    case RBUS_SINGLE:
+        pTextData = "float";
+        break;
+    case RBUS_DOUBLE:
+        pTextData = "double";
+        break;
     }
     return pTextData ;
 }
@@ -366,12 +325,15 @@ void validate_and_execute_get_cmd (int argc, char *argv[], bool isWildCard)
                 rbusValue_t val = rbusProperty_GetValue(next);
                 rbusValueType_t type = rbusValue_GetType(val);
                 char *pStrVal = rbusValue_ToString(val,NULL,0);
+
                 printf ("Parameter %2d:\n", i+1);
                 printf ("              Name  : %s\n", rbusProperty_GetName(next));
                 printf ("              Type  : %s\n", getDataType_toString(type));
                 printf ("              Value : %s\n", pStrVal);
+
                 if(pStrVal)
                     free(pStrVal);
+
                 next = rbusProperty_GetNext(next);
             }
             /* Free the memory */
@@ -516,9 +478,6 @@ void validate_and_execute_set_cmd (int argc, char *argv[])
                     /* Get Param Type */
                     rbusValueType_t type = getDataType_fromString(argv[loopCnt+3]);
 
-                    /* DEBUG */
-                    //printf ("Type as %s\n", getDataType_toString (type));
-
                     if (type == RBUS_NONE)
                     {
                         printf ("Invalid data type. Please see the help\n");
@@ -539,91 +498,6 @@ void validate_and_execute_set_cmd (int argc, char *argv[])
                         rbusProperty_SetNext(last, next);
                         last=next;
                     }
-#if 0
-                    if(type == RBUS_BOOLEAN)
-                    {
-                        bool tmp = false;
-                        if (0 == strncasecmp("true", argv[loopCnt+4], 4))
-                            tmp = true;
-                        else if (0 == strncasecmp("false", argv[loopCnt+4], 5))
-                            tmp = false;
-                        else if (0 == strncasecmp("1", argv[loopCnt+4], 1))
-                            tmp = true;
-                        else if (0 == strncasecmp("0", argv[loopCnt+4], 1))
-                            tmp = false;
-                        else
-                        {
-                            isInvalid = 1;
-                            break;
-                        }
-                        rbusValue_SetBoolean(setVal[index], tmp);
-                    }
-                    else if(type == RBUS_INT16)
-                    {
-                        rbusValue_SetInt16(setVal[index], (short) atoi(argv[loopCnt+4]));
-                    }
-                    else if(type == RBUS_UINT16)
-                    {
-                        rbusValue_SetUInt16(setVal[index], (unsigned short) atoi(argv[loopCnt+4]));
-                    }
-                    else if(type == RBUS_INT32)
-                    {
-                        rbusValue_SetInt32(setVal[index], atoi(argv[loopCnt+4]));
-                    }
-                    else if(type == RBUS_UINT32)
-                    {
-                        rbusValue_SetUInt32(setVal[index], (unsigned int) atoi(argv[loopCnt+4]));
-                    }
-                    else if(type == RBUS_INT64)
-                    {
-                        rbusValue_SetInt64(setVal[index], (long long) atoi(argv[loopCnt+4]));/*FIXME should it be atoll?*/
-                    }
-                    else if(type == RBUS_UINT64)
-                    {
-                        rbusValue_SetInt64(setVal[index], (unsigned long long) atoi(argv[loopCnt+4]));/*FIXME should it be atoll?*/
-                    }
-                    else if(type == RBUS_STRING)
-                    {
-                        rbusValue_SetString(setVal[index], argv[loopCnt+4]);
-                    }
-                    else if(type == RBUS_DATETIME)
-                    {
-                        //TODO must parse argv[loopCnt+4] into a struct timeval;
-                        //rbusValue_SetTime(setVal[index], argv[loopCnt+4]);
-                    }
-                    else if(type == RBUS_BYTES)
-                    {
-                        //FIXME how are bytes passed on command line ?
-                        rbusValue_SetBytes(setVal[index], (uint8_t*)argv[loopCnt+4], strlen(argv[loopCnt+4]));
-                    }
-                    else if(type == RBUS_SINGLE)
-                    {
-                        rbusValue_SetSingle(setVal[index], (float) atof(argv[loopCnt+4]));
-                    }
-                    else if(type == RBUS_DOUBLE)
-                    {
-                        rbusValue_SetSingle(setVal[index], atof(argv[loopCnt+4]));
-                    }
-                    else if(type == RBUS_BYTE)
-                    {
-                        //FIXME - how are bytes passed on command line (e.g. are they hex values that we need to parse ?)
-                        rbusValue_SetByte(setVal[index], (unsigned char)argv[loopCnt+4][0]);
-                    }
-#if 0   //mrollins switched all these types to be RBUS_STRING
-                    else if(type == RBUS_BASE64)
-                    {
-                        rbusValue_SetString(setVal[index], argv[loopCnt+4]);
-                    }
-                    else if(type == RBUS_REFERENCE)
-                    {
-                        rbusValue_SetString(setVal[index], argv[loopCnt+4]);//FIXME - what is a reference ?
-                    }
-                    else if(type == RBUS_EVENT_DEST_NAME)
-                    {
-                        rbusValue_SetString(setVal[index], argv[loopCnt+4]);//FIXME - do we need to add RBUS_EVENT_DEST_NAME type to rbusValue_t ?
-                    }
-#endif
-#endif
                 }
 
                 if (0 == isInvalid)
@@ -698,8 +572,6 @@ void validate_and_execute_set_cmd (int argc, char *argv[])
                 /* Get Param Type */
                 rbusValueType_t type = getDataType_fromString(argv[3]);
 
-                /* DEBUG */
-                //printf ("Type as %s\n", getDataType_toString (type));
                 if (type != RBUS_NONE)
                 {
                     rbusValue_t setVal;
@@ -707,87 +579,6 @@ void validate_and_execute_set_cmd (int argc, char *argv[])
                     /* Create Param w/ Name */
                     rbusValue_Init(&setVal);
                     rbusValue_SetFromString(setVal, type, argv[4]);
-#if 0
-                    if(type == RBUS_BOOLEAN)
-                    {
-                        bool tmp = false;
-                        if (0 == strncasecmp("true", argv[4], 4))
-                            tmp = true;
-                        else if (0 == strncasecmp("false", argv[4], 5))
-                            tmp = true;
-                        else if (0 == strncasecmp("1", argv[4], 1))
-                            tmp = true;
-                        else if (0 == strncasecmp("0", argv[4], 1))
-                            tmp = true;
-                        rbusValue_SetBoolean(setVal, tmp);
-                    }
-                    else if(type == RBUS_INT16)
-                    {
-                        rbusValue_SetInt16(setVal, (short) atoi(argv[4]));
-                    }
-                    else if(type == RBUS_UINT16)
-                    {
-                        rbusValue_SetUInt16(setVal, (unsigned short) atoi(argv[4]));
-                    }
-                    else if(type == RBUS_INT32)
-                    {
-                        rbusValue_SetInt32(setVal, atoi(argv[4]));
-                    }
-                    else if(type == RBUS_UINT32)
-                    {
-                        rbusValue_SetUInt32(setVal, (unsigned int) atoi(argv[4]));
-                    }
-                    else if(type == RBUS_INT64)
-                    {
-                        rbusValue_SetInt64(setVal, (long long) atoi(argv[4]));
-                    }
-                    else if(type == RBUS_UINT64)
-                    {
-                        rbusValue_SetUInt64(setVal, (unsigned long long) atoi(argv[4]));
-                    }
-                    else if(type == RBUS_STRING)
-                    {
-                        rbusValue_SetString(setVal, argv[4]);
-                    }
-                    else if(type == RBUS_DATETIME)
-                    {
-                        //TODO must parse argv[4] into a struct timeval;
-                        //rbusValue_SetTime(setVal, argv[4]);
-                    }
-                    else if(type == RBUS_BYTES)
-                    {
-                        //FIXME how are bytes passed on command line ?
-                        rbusValue_SetBytes(setVal, (uint8_t*)argv[4], strlen(argv[4]));
-                    }
-                    else if(type == RBUS_SINGLE)
-                    {
-                        rbusValue_SetSingle(setVal, (float) atof(argv[4]));
-                    }
-                    else if(type == RBUS_DOUBLE)
-                    {
-                        rbusValue_SetDouble(setVal, atof(argv[4]));
-                    }
-                    else if(type == RBUS_BYTE)
-                    {
-                        /*Was previous RBUS_BYTE, is this a single byte pass on command line ? how is it passed ?*/
-                        rbusValue_SetByte(setVal, (unsigned char)argv[4][0]);
-                    }
-#if 0 //mrollins switched all these types to be RBUS_STRING
-                    else if(type == RBUS_BASE64)
-                    {
-                        //FIXME base64 is really just a string -- does this work though ?
-                        rbusValue_SetString(setVal, argv[4]);
-                    }
-                    else if(type == RBUS_REFERENCE)
-                    {
-                        rbusValue_SetString(setVal, argv[4]);//FIXME what is a reference ?
-                    }
-                    else if(type == RBUS_EVENT_DEST_NAME)
-                    {
-                        rbusValue_SetString(setVal, argv[4]);//FIXME does it work as a RBUS_STRING ?
-                    }
-#endif
-#endif
                     /* Set Session ID & Commit value */
                     if (g_isInteractive)
                     {

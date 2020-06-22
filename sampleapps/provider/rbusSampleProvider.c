@@ -46,6 +46,8 @@ rbusError_t SampleProvider_SampleDataSetHandler(rbusHandle_t handle, rbusPropert
 rbusError_t SampleProvider_SampleDataGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts);
 rbusError_t SampleProvider_NestedObjectsGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts);
 rbusError_t SampleProvider_BuildResponseDataGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts);
+rbusError_t SampleProvider_allTypesGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts);
+rbusError_t SampleProvider_allTypesSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts);
 
 rbusDataElement_t dataElements[TotalParams] = {
     {"Device.DeviceInfo.SampleProvider.Manufacturer", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_DeviceGetHandler, NULL, NULL, NULL, NULL}},
@@ -61,6 +63,25 @@ rbusDataElement_t dataElements[TotalParams] = {
     {"Device.SampleProvider.TestData.IntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL}},
     {"Device.SampleProvider.TestData.BoolData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL}},
     {"Device.SampleProvider.TestData.UIntData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_BuildResponseDataGetHandler, NULL, NULL, NULL, NULL}}
+};
+
+rbusDataElement_t allTypeDataElements[16] = {
+    {"Device.SampleProvider.AllTypes.BoolData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.CharData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.ByteData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.Int8Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.UInt8Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.Int16Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.UInt16Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.Int32Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.UInt32Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.Int64Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.UInt64Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.SingleData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.DoubleData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.DateTimeData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.StringData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.BytesData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, NULL, NULL, NULL, NULL, NULL}}
 };
 
 typedef struct _rbus_sample_data {
@@ -304,6 +325,152 @@ rbusError_t SampleProvider_NestedObjectsGetHandler(rbusHandle_t handle, rbusProp
     return RBUS_ERROR_SUCCESS;
 }
 
+typedef struct sample_all_types_t {
+    bool m_bool;
+    char m_char;
+    unsigned char m_byte;
+    int8_t m_int8;
+    uint8_t m_uint8;
+    int16_t m_int16;
+    uint16_t m_uint16;
+    int32_t m_int32;
+    uint32_t m_uint32;
+    int64_t m_int64;
+    uint64_t m_uint64;
+    float m_float;
+    double m_double;
+    struct timeval m_timeval;
+    char m_string[251];
+    unsigned char m_bytes[16];
+} sampleDataTypes_t;
+
+sampleDataTypes_t gTestSampleVal = {
+            true,
+            'k',
+            0xd,
+            0xFF,
+            0xFF,
+            0xFFFF,
+            0xFFFF,
+            0xFFFFFFFF,
+            0xFFFFFFFF,
+            0xFFFFFFFFFFFFFFFF,
+            0xFFFFFFFFFFFFFFFF,
+            3.141592653589793f,
+            3.141592653589793,
+            {0},
+            "AllTypes",
+            0
+            };
+
+rbusError_t SampleProvider_allTypesSetHandler(rbusHandle_t handle, rbusProperty_t prop, rbusSetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+
+    char const* name = rbusProperty_GetName(prop);
+    rbusValue_t value = rbusProperty_GetValue(prop);
+    rbusValueType_t type = rbusValue_GetType(value);
+
+    if ((strcmp(name, "Device.SampleProvider.AllTypes.BoolData") == 0) && (type == RBUS_BOOLEAN))
+        gTestSampleVal.m_bool = rbusValue_GetBoolean(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.CharData") == 0)
+        gTestSampleVal.m_char = rbusValue_GetChar(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.ByteData") == 0)
+        gTestSampleVal.m_byte = rbusValue_GetByte(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int8Data") == 0)
+        gTestSampleVal.m_int8 = rbusValue_GetInt8(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt8Data") == 0)
+        gTestSampleVal.m_uint8 = rbusValue_GetUInt8(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int16Data") == 0)
+        gTestSampleVal.m_int16 = rbusValue_GetInt16(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt16Data") == 0)
+        gTestSampleVal.m_uint16 = rbusValue_GetUInt16(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int32Data") == 0)
+        gTestSampleVal.m_int32 = rbusValue_GetInt32(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt32Data") == 0)
+        gTestSampleVal.m_uint32 = rbusValue_GetUInt32(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int64Data") == 0)
+        gTestSampleVal.m_int64 = rbusValue_GetInt64(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt64Data") == 0)
+        gTestSampleVal.m_uint64 = rbusValue_GetUInt64(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.SingleData") == 0)
+        gTestSampleVal.m_float = rbusValue_GetSingle(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.DoubleData") == 0)
+        gTestSampleVal.m_double = rbusValue_GetDouble(value);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.StringData") == 0)
+    {
+        int len = 0;
+        char const* pTmp = NULL;
+        pTmp = rbusValue_GetString(value, &len);
+        strncpy (gTestSampleVal.m_string, pTmp, 250);
+    }
+    else
+        return RBUS_ERROR_INVALID_INPUT;
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t SampleProvider_allTypesGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+    char const* name;
+    rbusValue_t value;
+    name = rbusProperty_GetName(property);
+    if (!name)
+        return RBUS_ERROR_INVALID_INPUT;
+
+    printf("SampleProvider_allTypesGetHandler called for %s\n", name);
+
+    rbusValue_Init(&value);
+    if (strcmp(name, "Device.SampleProvider.AllTypes.BoolData") == 0)
+        rbusValue_SetBoolean(value, gTestSampleVal.m_bool);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.CharData") == 0)
+        rbusValue_SetChar(value, gTestSampleVal.m_char);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.ByteData") == 0)
+        rbusValue_SetByte(value, gTestSampleVal.m_byte);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int8Data") == 0)
+        rbusValue_SetInt8(value, gTestSampleVal.m_int8);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt8Data") == 0)
+        rbusValue_SetUInt8(value, gTestSampleVal.m_uint8);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int16Data") == 0)
+        rbusValue_SetInt16(value, gTestSampleVal.m_int16);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt16Data") == 0)
+        rbusValue_SetUInt16(value, gTestSampleVal.m_uint16);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int32Data") == 0)
+        rbusValue_SetInt32(value, gTestSampleVal.m_int32);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt32Data") == 0)
+        rbusValue_SetUInt32(value, gTestSampleVal.m_uint32);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int64Data") == 0)
+        rbusValue_SetInt64(value, gTestSampleVal.m_int64);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt64Data") == 0)
+        rbusValue_SetUInt64(value, gTestSampleVal.m_uint64);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.SingleData") == 0)
+        rbusValue_SetSingle(value, gTestSampleVal.m_float);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.DoubleData") == 0)
+        rbusValue_SetDouble(value, gTestSampleVal.m_double);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.DateTimeData") == 0)
+    {
+        gettimeofday(&gTestSampleVal.m_timeval, NULL);
+        rbusValue_SetTime(value, &gTestSampleVal.m_timeval);
+    }
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.StringData") == 0)
+        rbusValue_SetString(value, gTestSampleVal.m_string);
+    else if (strcmp(name, "Device.SampleProvider.AllTypes.BytesData") == 0)
+    {
+        int i;
+        for (i = 0; i < 16; i++)
+            gTestSampleVal.m_bytes[i] = rand() % 256;
+        rbusValue_SetBytes(value, gTestSampleVal.m_bytes, 16);
+    }
+
+    rbusProperty_SetValue(property, value);
+
+    rbusValue_Release(value);
+    return RBUS_ERROR_SUCCESS;
+}
+
 int main(int argc, char *argv[])
 {
     rbusError_t rc;
@@ -327,6 +494,12 @@ int main(int argc, char *argv[])
         goto exit1;
     }
 
+    rc = rbus_regDataElements(rbusHandle, 16, allTypeDataElements);
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        printf("provider: rbus_regDataElements failed: %d\n", rc);
+        goto exit1;
+    }
     /* Sample Case for Build Response APIs that are proposed */
     _prepare_object_for_future_query();
 
@@ -337,6 +510,7 @@ int main(int argc, char *argv[])
     }
 
     rbus_unregDataElements(rbusHandle, TotalParams, dataElements);
+    rbus_unregDataElements(rbusHandle, 16, allTypeDataElements);
 
     /* Sample Case for freeing the Response that was prebuilt */
     _release_object_for_future_query();
