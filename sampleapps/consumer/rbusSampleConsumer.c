@@ -218,6 +218,41 @@ int main(int argc, char *argv[])
         printf ("Failed to discover component array. Error Code = %s\n", "");
     }
 
+
+    {
+        int loop = 0;
+        struct timeval tv1, tv2;
+        char tmpBuff[25] = "";
+        rbusValue_t value;
+        printf ("Get 16 bytes of Data for 100 times n check the latency\n");
+        while (loop < 100)
+        {
+            loop++;
+
+            gettimeofday(&tv1, NULL);
+            rc = rbus_get(handle, "Device.SampleProvider.AllTypes.BytesData" ,&value);
+            gettimeofday(&tv2, NULL);
+            if(RBUS_ERROR_SUCCESS != rc)
+            {
+                printf ("Failed to get the Bytes Data\n");
+                continue;
+            }
+            rbusValue_Release(value);
+
+            strftime(tmpBuff, 25, "%T", localtime(&tv1.tv_sec));
+            printf ("StartTime : %s.%06ld\t", tmpBuff, tv1.tv_usec);
+
+            strftime(tmpBuff, 25, "%T", localtime(&tv2.tv_sec));
+            printf ("EndTime: %s.%06ld\t", tmpBuff, tv2.tv_usec);
+
+            /* As we expecting only millisecond latency, */
+            if(tv1.tv_usec > tv2.tv_usec)
+                tv2.tv_usec += 1000000;
+
+            printf ("Latency is, %f ms\n", (tv2.tv_usec - tv1.tv_usec)/1000.f);
+            usleep (250000);
+        }
+    }
     rbus_close(handle);
 exit1:
     printf("constumer: exit\n");
