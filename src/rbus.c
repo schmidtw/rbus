@@ -126,47 +126,42 @@ static void _parse_rbusData_to_value (char const* pBuff, rbusLegacyDataType_t le
         {
             case RBUS_LEGACY_STRING:
             {
-                rbusValue_SetString(value, pBuff);
+                rbusValue_SetFromString(value, RBUS_STRING, pBuff);
                 break;
             }
             case RBUS_LEGACY_INT:
             {
-                rbusValue_SetInt32(value, atoi(pBuff));
+                rbusValue_SetFromString(value, RBUS_INT32, pBuff);
                 break;
             }
             case RBUS_LEGACY_UNSIGNEDINT:
             {
-                rbusValue_SetUInt32(value, (unsigned int) atoi(pBuff));
+                rbusValue_SetFromString(value, RBUS_UINT32, pBuff);
                 break;
             }
             case RBUS_LEGACY_BOOLEAN:
             {
-                bool tmp = false;
-                if ((0 == strncasecmp("true", pBuff, 4)) || (0 == strncasecmp("1", pBuff, 1)))
-                    tmp = true;
-                else if ((0 == strncasecmp("false", pBuff, 5)) || (0 == strncasecmp("0", pBuff, 1)))
-                    tmp = false;
-                rbusValue_SetBoolean(value, tmp);
+                rbusValue_SetFromString(value, RBUS_BOOLEAN, pBuff);
                 break;
             }
             case RBUS_LEGACY_LONG:
             {
-                rbusValue_SetInt64(value, (long long) atoll(pBuff));
+                rbusValue_SetFromString(value, RBUS_INT64, pBuff);
                 break;
             }
             case RBUS_LEGACY_UNSIGNEDLONG:
             {
-                rbusValue_SetUInt64(value, (unsigned long long) atoll(pBuff));
+                rbusValue_SetFromString(value, RBUS_UINT64, pBuff);
                 break;
             }
             case RBUS_LEGACY_FLOAT:
             {
-                rbusValue_SetSingle(value, (float)atof(pBuff));
+                rbusValue_SetFromString(value, RBUS_SINGLE, pBuff);
                 break;
             }
             case RBUS_LEGACY_DOUBLE:
             {
-                rbusValue_SetDouble(value, atof(pBuff));
+                rbusValue_SetFromString(value, RBUS_DOUBLE, pBuff);
                 break;
             }
             case RBUS_LEGACY_BYTE:
@@ -175,19 +170,14 @@ static void _parse_rbusData_to_value (char const* pBuff, rbusLegacyDataType_t le
                 break;
             }
             case RBUS_LEGACY_DATETIME:
-            {/* FIXME : need to parse pBuff into a struct timeval
-                pParamValue->value = strdup(pBuff);
-                pParamValue->length = strlen(pBuff) + 1;
-                pParamValue->type = RBUS_DATETIME;
-            */
+            {
+                rbusValue_SetFromString(value, RBUS_DATETIME, pBuff);
                 break;
             }
             case RBUS_LEGACY_BASE64:
-            {/* FIXME
-                pParamValue->value = strdup(pBuff);
-                pParamValue->length = strlen(pBuff) + 1;
-                pParamValue->type = RBUS_BASE64;
-             */
+            {
+                rtLog_Warn("RBUS_LEGACY_BASE64_TYPE: Base64 type was never used in CCSP so far. So, Rbus did not support it till now. Since this is the first Base64 query, please report to get it fixed.");
+                rbusValue_SetString(value, pBuff);
                 break;
             }
             default:
