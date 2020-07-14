@@ -214,7 +214,11 @@ char* rbusValue_ToString(rbusValue_t v, char* buf, size_t buflen)
             n = snprintf(p, 0, "%.*f", DBL_DIG, v->d.f64)+1;
             break;
         case RBUS_DATETIME:
-            n = snprintf(p, 0, "%s", asctime(localtime(&v->d.tv.tv_sec)))+1;
+            {
+                char tmpBuff[40] = {0}; /* 27 bytes is good enough; */
+                strftime(tmpBuff, sizeof(tmpBuff), "%Y-%m-%d %T", localtime(&v->d.tv.tv_sec));
+                n=snprintf(p, 0, "%s.%06ld",tmpBuff, v->d.tv.tv_usec)+1;
+            }
             break;
         default:
             n = snprintf(p, 0, "FIXME TYPE %d", v->type)+1;
@@ -273,10 +277,12 @@ char* rbusValue_ToString(rbusValue_t v, char* buf, size_t buflen)
         snprintf(p, n, "%.*f", DBL_DIG, v->d.f64);
         break;
     case RBUS_DATETIME:
-        snprintf(p, n, "%s", asctime(localtime(&v->d.tv.tv_sec)));
-        if(p[strlen(p)-1]=='\n')/*asctime adds a '\n', so remove it*/
-            p[strlen(p)-1] = 0;
-        break;
+        {
+            char tmpBuff[40] = {0}; /* 27 bytes is good enough; */
+            strftime(tmpBuff, sizeof(tmpBuff), "%Y-%m-%d %T", localtime(&v->d.tv.tv_sec));
+            snprintf(p, n, "%s.%06ld", tmpBuff, v->d.tv.tv_usec);
+            break;
+        }
     case RBUS_NONE:
         
     default:
@@ -1085,13 +1091,71 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
             break;
         }
     case RBUS_DATETIME:
+        if(0 == strncmp(pStringInput,"0000-",5)) {
+            /* Only because the existing components uses all zeros (0000-00-00 00:00:00.000000)
+               as input which is not standard, but to not to break the backward compatibility,
+               we are using it as string.
+             */
+            rtLog_Warn("RBUS_DATETIME: Legacy Date Time type not supported. Converting to string data type");
+            rbusValue_SetString(value, pStringInput);
+        } else {
+            char *pRet = NULL;
+            char *pFound = NULL;
+            struct timeval tv = {0};
+            struct tm t = {0};
+
+            pFound = strstr(pStringInput,"T");
+
+            if(pFound)
+                pRet=(char *)strptime(pStringInput, "%Y-%m-%dT%H:%M:%S", &t);
+            else
+                pRet=(char *)strptime(pStringInput, "%Y-%m-%d %H:%M:%S", &t);
+
+            if(!pRet) {
+                rtLog_Info ("Invalid input string ");
+                return false;
+            }
+            t.tm_isdst = -1;
+
+            tv.tv_sec=(long)mktime(&t);
+            if(-1 == tv.tv_sec) {
+                /* Only because the existing components uses "9999-12-31 23:59:59" as input
+                   which is not standard, but to not to break the backward compatibility, we are
+                   using it as string.
+                 */
+                rtLog_Warn("RBUS_DATETIME: Legacy Date Time type not supported. Converting to string data type");
+                rbusValue_SetString(value, pStringInput);
+            } else {
+                pFound = strstr(pStringInput,".");
+                if(pFound) {
+                    int usLen = 0;
+
+                    pFound++;
+                    usLen = strlen(pFound);
+
+                    if(6!=usLen) {
+                        rtLog_Info("Invalid microsecond format. Defaulting it to zero");
+                    } else {
+                        while(usLen--) {
+                            if(!isdigit((int)pFound[usLen])) {
+                                rtLog_Info("Invalid microsecond format. Defaulting it to zero");
+                            }
+                        }
+                        if(usLen < 0)
+                            sscanf(pFound,"%ld",&tv.tv_usec);
+                    }
+                }
+                rbusValue_SetTime(value, &tv);
+            }
+        }
+        break;
     case RBUS_PROPERTY:
     case RBUS_OBJECT:
         rtLog_Info ("Not Implemented yet.."); //FIXME
     default:
         return false;
     }
-    return false;
+    return true;
 }
 
 void rbusValue_fwrite(rbusValue_t value, int depth, FILE* fout)

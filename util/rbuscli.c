@@ -63,47 +63,6 @@ void show_menu()
     return;
 }
 
-char* getDataType_toString (rbusValueType_t type)
-{
-    char* pTextData = "None";
-
-    if(type == RBUS_BOOLEAN)
-        pTextData = "boolean";
-    else if(type == RBUS_INT16)
-        pTextData = "int16";
-    else if(type == RBUS_UINT16)
-        pTextData = "uint16";
-    else if(type == RBUS_INT32)
-        pTextData = "int32";
-    else if(type == RBUS_UINT32)
-        pTextData = "uint32";
-    else if(type == RBUS_INT64)
-        pTextData = "int64";
-    else if(type == RBUS_UINT64)
-        pTextData = "uint64";
-    else if(type == RBUS_STRING)
-        pTextData = "string";
-    else if(type == RBUS_DATETIME)
-        pTextData = "date_time";
-    else if(type == RBUS_BYTES)
-        pTextData = "binary";
-    else if(type == RBUS_SINGLE)
-        pTextData = "float";
-    else if(type == RBUS_DOUBLE)
-        pTextData = "double";
-    else if(type == RBUS_BYTE)
-        pTextData = "byte";/*
-    else if(type == RBUS_BASE64)
-        pTextData = "base64";
-    else if(type == RBUS_REFERENCE)
-        pTextData = "reference";
-    else if(type == RBUS_EVENT_DEST_NAME)
-        pTextData = "event_dest_name";
-    */
-    return pTextData;
-}
-
-
 rbusValueType_t getDataType_fromString(const char* pType)
 {
     rbusValueType_t rc = RBUS_NONE;
@@ -191,6 +150,63 @@ int getLength_fromDataType(rbusValueType_t type)
         length = 1; // Caller of this menthod has to figure out the length from the input value
     */
     return length;
+}
+
+char *getDataType_toString(rbusValueType_t type)
+{
+    char *pTextData = "None";
+    switch(type)
+    {
+	case RBUS_BOOLEAN:
+	    pTextData = "boolean";
+	    break;
+	case RBUS_CHAR :
+	    pTextData = "char";
+	    break;
+	case RBUS_BYTE:
+	    pTextData = "byte";
+	    break;
+	case RBUS_INT8:
+	    pTextData = "int8";
+	    break;
+	case RBUS_UINT8:
+	    pTextData = "uint8";
+	    break;
+	case RBUS_INT16:
+	    pTextData = "int16";
+	    break;
+	case RBUS_UINT16:
+	    pTextData = "uint16";
+	    break;
+	case RBUS_INT32:
+	    pTextData = "int32";
+	    break;
+	case RBUS_UINT32:
+	    pTextData = "uint32";
+	    break;
+	case RBUS_INT64:
+	    pTextData = "int64";
+	    break;
+	case RBUS_UINT64:
+	    pTextData = "uint64";
+	    break;
+	case RBUS_STRING:
+	    pTextData = "string";
+	    break;
+	case RBUS_DATETIME:
+	    pTextData = "datetime";
+	    break;
+	case RBUS_BYTES:
+	    pTextData = "bytes";
+	    break;
+	case RBUS_SINGLE:
+	    pTextData = "float";
+	    break;
+	case RBUS_DOUBLE:
+	    pTextData = "double";
+	    break;
+    }
+    return pTextData ;
 }
 
 void execute_discover_component_cmd(int argc, char* argv[])
@@ -348,94 +364,14 @@ void validate_and_execute_get_cmd (int argc, char *argv[], bool isWildCard)
             for (i = 0; i < numOfOutVals; i++)
             {
                 rbusValue_t val = rbusProperty_GetValue(next);
-
                 rbusValueType_t type = rbusValue_GetType(val);
+                char *pStrVal = rbusValue_ToString(val,NULL,0);
                 printf ("Parameter %2d:\n", i+1);
                 printf ("              Name  : %s\n", rbusProperty_GetName(next));
-                if(type == RBUS_BOOLEAN)
-                {
-
-                    printf ("              Type  : %s\n", "boolean");
-                    printf ("              Value : %s\n", rbusValue_GetBoolean(val) ? "true" : "false");
-                }
-                else if(type == RBUS_INT16)
-                {
-                    printf ("              Type  : %s\n", "int16");
-                    printf ("              Value : %d\n", rbusValue_GetInt16(val));
-                }
-                else if(type == RBUS_UINT16)
-                {
-                    printf ("              Type  : %s\n", "uint16");
-                    printf ("              Value : %u\n", rbusValue_GetUInt16(val));
-                }
-                else if(type == RBUS_INT32)
-                {
-                    printf ("              Type  : %s\n", "int32");
-                    printf ("              Value : %d\n", rbusValue_GetInt32(val));
-                }
-                else if(type == RBUS_UINT32)
-                {
-                    printf ("              Type  : %s\n", "uint32");
-                    printf ("              Value : %u\n", rbusValue_GetUInt32(val));
-                }
-                else if(type == RBUS_INT64)
-                {
-                    printf ("              Type  : %s\n", "int64");
-                    printf ("              Value : %" PRId64 "\n", rbusValue_GetInt64(val));
-                }
-                else if(type == RBUS_UINT64)
-                {
-                    printf ("              Type  : %s\n", "uint64");
-                    printf ("              Value : %" PRIu64 "\n", rbusValue_GetUInt64(val));
-                }
-                else if(type == RBUS_STRING)
-                {
-                    printf ("              Type  : %s\n", "string");
-                    printf ("              Value : %s\n", rbusValue_GetString(val, NULL));
-                }
-                else if(type == RBUS_DATETIME) /* FIXME: print this data value */
-                {
-                    printf ("              Type  : %s\n", "date_time");
-                    printf ("              Value : %s\n", "");
-                }
-                else if(type == RBUS_BYTES) /* FIXME: print this data value */
-                {
-                    printf ("              Type  : %s\n", "binary");
-                    printf ("              Value : ");
-                }
-                else if(type == RBUS_SINGLE)
-                {
-                    printf ("              Type  : %s\n", "float");
-                    printf ("              Value : %f\n", rbusValue_GetSingle(val));
-                }
-                else if(type == RBUS_DOUBLE)
-                {
-                    printf ("              Type  : %s\n", "double");
-                    printf ("              Value : %f\n", rbusValue_GetDouble(val));
-                }
-                else if(type == RBUS_BYTE) /* FIXME: print this data value */
-                {
-                    printf ("              Type  : %s\n", "byte");
-                    printf ("              Value : 0x%x\n", rbusValue_GetByte(val));
-                }
-#if 0   //mrollins switched all these types to be RBUS_STRING
-                else if(type == RBUS_BASE64) /* FIXME: print this data value */
-                {
-                    printf ("              Type  : %s\n", "base64");
-                    printf ("              Value : %s\n", "");
-                }
-
-                else if(type == RBUS_REFERENCE)
-                {
-                    printf ("              Type  : %s\n", "reference");
-                    /* No data to be printed for this data type.. */
-                }
-                else if(type == RBUS_EVENT_DEST_NAME) /* FIXME: print this data value */
-                {
-                    printf ("              Type  : %s\n", "event_dest_name");
-                    printf ("              Value : %s\n", "");
-                }
-#endif
+                printf ("              Type  : %s\n", getDataType_toString(type));
+                printf ("              Value : %s\n", pStrVal);
+                if(pStrVal)
+                    free(pStrVal);
                 next = rbusProperty_GetNext(next);
             }
             /* Free the memory */

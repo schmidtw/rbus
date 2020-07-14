@@ -179,6 +179,7 @@ void rbusValue_Copy(rbusValue_t dest, rbusValue_t source);
  *         Parameters buf and buflen are optional and allow the caller to pass in a buffer 
  *          to write the string to.  If parameter buf is NULL, this method will allocate a buffer
  *          to write the string to and the caller should call free to deallocate the buffer.
+ *          For DateTime datatype, ISO-8601 format (YYYY-MM-DD HH:MM:SS.mmmmmm) will be used for printing.
  *  @param value the value to convert to a string
  *  @param buf optional buffer to write the string to
  *  @param buflen the length of buf if buf was supplied, otherwise ignored
