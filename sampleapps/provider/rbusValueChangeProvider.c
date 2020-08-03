@@ -30,7 +30,7 @@
 
 //TODO handle filter matching
 
-int runtime = 30;
+int runtime = 70;
 
 rbusError_t getHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
@@ -38,22 +38,33 @@ rbusError_t getHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHand
     (void)handle;
     (void)opts;
 
-    if(strcmp(name, "Device.Provider1.Param1") == 0)
+    /*fake a value change every 'myfreq' times this function is called*/
+    static int32_t mydata = 0;  /*the actual value to send back*/
+    static int32_t mydelta = 1; /*how much to change the value by*/
+    static int32_t mycount = 0; /*number of times this function called*/
+    static int32_t myfreq = 2;  /*number of times this function called before changing value*/
+    static int32_t mymin = 0, mymax=7; /*keep value between mymin and mymax*/
+
+    rbusValue_t value;
+
+    mycount++;
+
+    if((mycount % myfreq) == 0) 
     {
-        static int32_t mydata = 0;
-        rbusValue_t value;
-
-        mydata++;
-
-        printf("Called get handler for [%s] val=[%d]\n", name, mydata);
-
-        rbusValue_Init(&value);
-        rbusValue_SetInt32(value, mydata/3);/*fake a value change every 3rd call to this function*/
-
-        rbusProperty_SetValue(property, value);
-
-        rbusValue_Release(value);
+        mydata += mydelta;
+        if(mydata == mymax)
+            mydelta = -1;
+        else if(mydata == mymin)
+            mydelta = 1;
     }
+
+    printf("Called get handler for [%s] val=[%d]\n", name, mydata);
+
+    rbusValue_Init(&value);
+    rbusValue_SetInt32(value, mydata);
+    rbusProperty_SetValue(property, value);
+    rbusValue_Release(value);
+
     return RBUS_ERROR_SUCCESS;
 }
 

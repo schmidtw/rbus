@@ -825,6 +825,19 @@ void rbusValue_Encode(rbusValue_t value, rbusBuffer_t buff)
     }
 }
 
+#define RETURN_COMPARE_VALUE(TYPE,FUNC) \
+{ \
+    TYPE t1, t2; \
+    t1 = (FUNC)(v1); \
+    t2 = (FUNC)(v2); \
+    if(t1==t2) \
+        return 0; \
+    else if(t1<t2) \
+        return -1; \
+    else \
+        return 1; \
+}
+
 int rbusValue_Compare(rbusValue_t v1, rbusValue_t v2)
 {
     if(v1 == v2)
@@ -836,42 +849,81 @@ int rbusValue_Compare(rbusValue_t v1, rbusValue_t v2)
     switch(v1->type)
     {
     case RBUS_STRING:
+        return strcmp((char const*)v1->d.bytes->data, (char const*)v2->d.bytes->data);
     case RBUS_BYTES:
-        if(v1->d.bytes->posWrite != v2->d.bytes->posWrite)
-        {
-            return 1;
-        }
-        return memcmp(v1->d.bytes->data, v2->d.bytes->data, v1->d.bytes->posWrite);
+    {
+        int c = memcmp(v1->d.bytes->data, v2->d.bytes->data, v1->d.bytes->posWrite);
+        if(v1->d.bytes->posWrite < v2->d.bytes->posWrite && c == 0)
+            c = -1;
+        else if(v1->d.bytes->posWrite > v2->d.bytes->posWrite && c == 0)
+            c = 1;
+        return c;
+    }
     case RBUS_NONE:
         return 0;
     case RBUS_INT32:
-        return rbusValue_GetInt32(v1) == rbusValue_GetInt32(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(int32_t, rbusValue_GetInt32);
     case RBUS_UINT32:
-        return rbusValue_GetUInt32(v1) == rbusValue_GetUInt32(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(uint32_t, rbusValue_GetUInt32);
     case RBUS_BOOLEAN:
-        return rbusValue_GetBoolean(v1) == rbusValue_GetBoolean(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(bool, rbusValue_GetBoolean);
     case RBUS_CHAR:
-        return rbusValue_GetChar(v1) == rbusValue_GetChar(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(char, rbusValue_GetChar);
     case RBUS_BYTE:
-        return rbusValue_GetByte(v1) == rbusValue_GetByte(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(unsigned char, rbusValue_GetByte);
     case RBUS_INT8:
-        return rbusValue_GetInt8(v1) == rbusValue_GetInt8(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(int8_t, rbusValue_GetInt8);
     case RBUS_UINT8:
-        return rbusValue_GetUInt8(v1) == rbusValue_GetUInt8(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(uint8_t, rbusValue_GetUInt8);
     case RBUS_INT16:
-        return rbusValue_GetInt16(v1) == rbusValue_GetInt16(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(int16_t, rbusValue_GetInt16);
     case RBUS_UINT16:
-        return rbusValue_GetUInt16(v1) == rbusValue_GetUInt16(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(uint16_t, rbusValue_GetUInt16);
     case RBUS_INT64:
-        return rbusValue_GetInt64(v1) == rbusValue_GetInt64(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(int64_t, rbusValue_GetInt64);
     case RBUS_UINT64:
-        return rbusValue_GetUInt64(v1) == rbusValue_GetUInt64(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(uint64_t, rbusValue_GetUInt64);
     case RBUS_SINGLE:
-        return rbusValue_GetSingle(v1) == rbusValue_GetSingle(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(float, rbusValue_GetSingle);
     case RBUS_DOUBLE:
-        return rbusValue_GetDouble(v1) == rbusValue_GetDouble(v2) ? 0 : 1;
+        RETURN_COMPARE_VALUE(double, rbusValue_GetDouble);
     case RBUS_DATETIME:
+    {
         return memcmp(rbusValue_GetTime(v1), rbusValue_GetTime(v2), sizeof(struct timeval));
+#if 0 /* FIXME: Remove the above timeval struct & use rbusDateTime_t when we bring-in rbusDateTime_t
+        if(memcmp(rbusValue_GetTime(v1), rbusValue_GetTime(v2), sizeof(rbusDateTime_t)))
+            return 0;
+
+        /*apply timezone and diff the times*/
+        rbusDateTime_t dt1 = *rbusValue_GetTime(v1);
+        rbusDateTime_t dt2 = *rbusValue_GetTime(v2);
+
+        dt1.m_time.tm_hour += (dt1.m_isWest ? dt1.m_tz.m_tzhour * -1 : dt1.m_tz.m_tzhour);
+        dt1.m_time.tm_min += (dt1.m_isWest ? dt1.m_tz.m_tzmin * -1 : dt1.m_tz.m_tzmin);
+        if(dt1.m_time.tm_min < 0)
+            dt1.m_time.tm_min += 60;
+        if(dt1.m_time.tm_min >= 60)
+            dt1.m_time.tm_min -= 60;
+
+        dt2.m_time.tm_hour += (dt2.m_isWest ? dt2.m_tz.m_tzhour * -1 : dt2.m_tz.m_tzhour);
+        dt2.m_time.tm_min += (dt2.m_isWest ? dt2.m_tz.m_tzmin * -1 : dt2.m_tz.m_tzmin);
+        if(dt2.m_time.tm_min < 0)
+            dt2.m_time.tm_min += 60;
+        if(dt2.m_time.tm_min >= 60)
+            dt2.m_time.tm_min -= 60;
+
+        time_t t1 = mktime(&dt1.m_time);
+        time_t t2 = mktime(&dt2.m_time);
+        double diffSecs = difftime(t1, t2);
+
+        if(diffSecs == 0)
+            return 0;
+        else if(diffSecs < 0)
+            return -1;
+        else
+            return 1;
+#endif
+    }
     case RBUS_PROPERTY:
         if(rbusValue_GetProperty(v1) && rbusValue_GetProperty(v2))
             return rbusProperty_Compare(rbusValue_GetProperty(v1), rbusValue_GetProperty(v2));

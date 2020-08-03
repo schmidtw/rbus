@@ -118,6 +118,7 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
         for(i=0; i < rtVector_Size(vcparams); ++i)
         {
             rbusProperty_t property;
+            rbusValue_t newVal, oldVal;
 
             ValueChangeRecord* rec = (ValueChangeRecord*)rtVector_At(vcparams, i);
             if(!rec)
@@ -140,33 +141,117 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
             char* sValue = rbusValue_ToString(rbusProperty_GetValue(property), NULL, 0);
             rtLog_Debug("%s: %s=%s", __FUNCTION__, rbusProperty_GetName(property), sValue);
             free(sValue);
-            
-            if(rbusValue_Compare(rbusProperty_GetValue(property), rbusProperty_GetValue(rec->property)))
+
+            newVal = rbusProperty_GetValue(property);
+            oldVal = rbusProperty_GetValue(rec->property);
+
+            if(rbusValue_Compare(newVal, oldVal))
             {
-                rbusEvent_t event;
-                rbusObject_t data;
+                rbusSubscription_t* subscription;
+                rtListItem li;
 
-                rbusObject_Init(&data, NULL);
-                rbusObject_SetValue(data, "value", rbusProperty_GetValue(property));
-                rbusObject_SetValue(data, "oldValue", rbusProperty_GetValue(rec->property));
+                rtLog_Info("%s: value change detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
 
-                rtLog_Info ("%s: value change detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
+                /*
+                    mrollins: I added a 'filter=true|false' property to the event data when a filter it triggered.
+                    This would let the consumer know if their filter got triggered by the property's value crossing
+                    into the threshold (filter=true) or out of the threshold (filter=false). 
+                    Although useful, it creates complication if multiple consumers subscribe with different filters.
+                    When we publish below with rbusEvent_Publish, all subscribers to the property will get an event.  
+                    But we add this 'filter' property to the event data if a filter was triggered and this would confuse any
+                    additional subscriber on this property which had a filter that wasn't triggered or triggered in the opposite way.
 
-                event.name = rbusProperty_GetName(rec->property);
-                event.data = data;
-                event.type = RBUS_EVENT_VALUE_CHANGED;
+                    Example fail case: consumer A has filter 1 (val > 0), and consumer B has filter 2 (val < 0).  
+                    Now assume filter 1 gets crossed into (val goes from 0 to 1).
+                    We publish the event with a 'filter=true' (meaning it crossed into). 
+                    Consumer A gets the correct event.  Consumer B gets the same event with 'filter=true' and believes
+                    that the val went below 0 -- which is wrong. 
 
-                result = rbusEvent_Publish(rec->handle, &event);
-
-                rbusProperty_SetValue(rec->property, rbusProperty_GetValue(property));
-
-                rbusObject_Release(data);
-                rbusProperty_Release(property);
-
-                if(result != RBUS_ERROR_SUCCESS)
+                    Note that this could be fixed by publishing to specific subscribers from here; however, if autoPublish is
+                    false, we don't have anything in the API to allow a provider to know about subscribers and to publish to 
+                    specific providers.
+                */
+                rtList_GetFront(rec->node->subscriptions, &li);
+                while(li)
                 {
-                    rtLog_Warn("%s: rbusEvent_Publish failed with result=%d", __FUNCTION__, result);
+                    bool publish = true;
+                    rbusValue_t filterResult = NULL;
+
+                    rtListItem_GetData(li, (void**)&subscription);
+
+                    /* if the subscriber has a filter we check the filter to determine if we publish.
+                       if the subscriber does not have a filter, we publish always*/
+                    if(subscription->filter)
+                    {
+                        /*We publish an event only when the value crosses the filter threshold boundary.
+                          When the value crosses into the threshold we publish a single event signally the filter started matching.
+                          When the value crosses out of the threshold we publish a single event signally the filter stopped matching.
+                          We do not publish continuous events while the filter continues to match. The consumer can read the 'filter'
+                          property from the event data to determine if the filter has started or stopped matching.  If the consumer
+                          wants to get continuous value-change events, they can unsubscribe the filter and resubscribe without a filter*/
+
+                        int newResult = rbusFilter_Apply(subscription->filter, newVal);
+                        int oldResult = rbusFilter_Apply(subscription->filter, oldVal);
+
+                        if(newResult != oldResult)
+                        {
+                            rtLog_Info("%s: filter matched for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
+                            /*set 'filter' to true/false implying that either the filter has started or stopped matching*/
+                            rbusValue_Init(&filterResult);
+                            rbusValue_SetBoolean(filterResult, newResult != 0);
+                        }
+                        else
+                        {
+                            publish =  false;
+                        }
+                    }
+                    rtListItem_GetNext(li, &li);
+
+                    if(publish)
+                    {
+                        rbusEvent_t event = {0};
+                        rbusObject_t data;
+
+                        rbusObject_Init(&data, NULL);
+                        rbusObject_SetValue(data, "value", newVal);
+                        rbusObject_SetValue(data, "oldValue", oldVal);
+                        if(filterResult)
+                        {
+                            rbusObject_SetValue(data, "filter", filterResult);
+                            rbusValue_Release(filterResult);
+                        }
+
+                        rtLog_Info ("%s: value change detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
+
+                        event.name = rbusProperty_GetName(rec->property);
+                        event.data = data;
+                        event.type = RBUS_EVENT_VALUE_CHANGED;
+
+                        result = rbusEvent_Publish(rec->handle, &event);
+
+                        rbusObject_Release(data);
+
+                        if(result != RBUS_ERROR_SUCCESS)
+                        {
+                            rtLog_Warn("%s: rbusEvent_Publish failed with result=%d", __FUNCTION__, result);
+                        }
+
+                        /*
+                            Break out of the node's subscriptions loop so that we only publish 1 event for this property.
+                                
+                            We only publish 1 time, even though there could be multiple subscribers whose filters get triggered.
+                            If there are multiple providers with different filters then it can be a problem because only the first 
+                            consumer who's filter triggered will have the corrent 'filter' property in the event data.  The other 
+                            subscribers with different filters will get confused.   Right now we are just assuming only one subscriber
+                            per property, so we may have to come back and fix the code to handle multiple subscribers correctly at some point.
+                        */
+                        break;
+                    }
                 }
+            
+                /*update the record's property with new value*/
+                rbusProperty_SetValue(rec->property, rbusProperty_GetValue(property));
+                rbusProperty_Release(property);
             }
             else
             {

@@ -66,20 +66,20 @@ rbusDataElement_t dataElements[TotalParams] = {
 };
 
 rbusDataElement_t allTypeDataElements[14] = {
-    {"Device.SampleProvider.AllTypes.BoolData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.CharData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.ByteData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.Int16Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.UInt16Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.Int32Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.UInt32Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.Int64Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.UInt64Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.SingleData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.DoubleData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.DateTimeData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.StringData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.BytesData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, NULL, NULL, NULL, NULL}}
+    {"Device.SampleProvider.AllTypes.BoolData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.CharData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.ByteData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.Int16Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.UInt16Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.Int32Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.UInt32Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.Int64Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.UInt64Data", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.SingleData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.DoubleData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.DateTimeData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, NULL, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.StringData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
+    {"Device.SampleProvider.AllTypes.BytesData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, NULL, NULL, NULL, NULL, NULL}}
 };
 
 typedef struct _rbus_sample_data {
