@@ -111,10 +111,11 @@ rbusError_t setHandler(rbusHandle_t handle, rbusProperty_t property, rbusSetHand
     return RBUS_ERROR_BUS_ERROR;
 }
 
-rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusEventFilter_t* filter, bool* autoPublish)
+rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
 {
     (void)handle;
     (void)filter;
+    (void)interval;
     (void)autoPublish;
 
     if(strcmp(eventName, "Device.MultiProvider1.Event!") == 0)

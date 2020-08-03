@@ -78,6 +78,7 @@
 #include <rbus_value.h>
 #include <rbus_property.h>
 #include <rbus_object.h>
+#include <rbus_filter.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -204,62 +205,6 @@ typedef enum
     RBUS_EVENT_ACTION_UNSUBSCRIBE
 } rbusEventSubAction_t;
 
-/// @brief rbusEventFilterType_t indicates the type of event.
-typedef enum
-{
-    //Keep these values suitable for bitmasks (1, 2, 4, 8..)
-    RBUS_EVENT_TYPE_ON_CHANGE             = 1,
-    RBUS_EVENT_TYPE_ON_INTERVAL           = 2,
-    RBUS_EVENT_TYPE_IMMEDIATE             = 4
-} rbusEventFilterType_t;
-
-/// @brief rbus_ThresholdType_t The threshold type for "OnChange" event type
-typedef enum
-{
-    //Keep these values suitable for bitmasks (1, 2, 4, 8..)
-    RBUS_THRESHOLD_ON_CHANGE_ANY               = 1,
-    RBUS_THRESHOLD_ON_CHANGE_GREATER_THAN      = 2,
-    RBUS_THRESHOLD_ON_CHANGE_LESS_THAN         = 4,
-    RBUS_THRESHOLD_ON_CHANGE_EQUALS            = 8
-} rbus_ThresholdType_t;
-
-/// @brief rbus_Threshold_t thresholds that can be used during subscription
-typedef struct
-{
-    rbus_ThresholdType_t    type;       /**< type of threshold                */
-    rbusValue_t             value;      /**< value to be checked against
-                                             (Value is event specific. The type
-                                             of value will be same as that
-                                             of the event parameter for which
-                                             the event is raised. So, it is
-                                             void* here)                      */
-} rbus_Threshold_t;
-
-/// @brief rbusEventFilter_t Filter that can be used for event subscription
-typedef struct
-{
-    rbusEventFilterType_t   eventType;  /**< Event type.
-                                             If the type is "EVENT_ON_INTERVAL",
-                                                                use "interval"
-                                             If the type is "EVENT_ON_CHANGE",
-                                                                use "threshold"
-                                        */
-    union
-    {
-        int                 interval;   /**< Total interval period after which
-                                             the event needs to be fired. Should
-                                             be in multiples of minInterval
-                                        */
-        rbus_Threshold_t    threshold;  /**< Threshold to be checked against
-                                             before firing an event when there
-                                             is a "change" in value
-                                        */
-    } filter;                           /**< Event filter. Would either be an
-                                             interval based filter or threshold
-                                             based filter
-                                        */
-} rbusEventFilter_t;
-
 /**
  * @enum        rbusEventType_t
  * @brief       The type of events which can be subscribed to or published
@@ -284,15 +229,20 @@ typedef struct
     char const*     name;       /**< Fully qualified event name */
     rbusEventType_t type;       /**< The type of event */
     rbusObject_t    data;       /**< The data for the event */
+    rbusFilter_t  filter;       /**< Optional filter that was applied by provider*/
 } rbusEvent_t;
 
 
 /// @brief rbusEventSubscription_t
 typedef struct _rbusEventSubscription
 {
-    char const*         eventName; /** Fully qualified event name */
-    rbusEventFilter_t*  filter;     /** Optional filter that the client would like 
+    char const*         eventName;  /** Fully qualified event name */
+    rbusFilter_t        filter;     /** Optional filter that the client would like 
                                         the sender to apply before sending the event
+                                      */
+    int32_t             interval;   /**< Total interval period after which
+                                         the event needs to be fired. Should
+                                         be in multiples of minInterval
                                       */
     uint32_t            duration;   /** Optional maximum duration in seconds until which 
                                         the subscription should be in effect. Beyond this 
@@ -301,7 +251,7 @@ typedef struct _rbusEventSubscription
                                         the rbusEvent_Unsubscribe API to be called explicitly.
                                       */
     void*               handler     /** fixme rbusEventHandler_t internal*/;
-    void*               userData;  /** The userData set when subscribing to the event. */
+    void*               userData;   /** The userData set when subscribing to the event. */
     rbusHandle_t        handle;     /** Private use only: The rbus handle associated with this subscription */
 } rbusEventSubscription_t;
 
@@ -489,7 +439,9 @@ typedef rbusError_t (*rbusMethodHandler_t)(
  *          rbusHandle_t handle,
  *          rbusEventSubAction_t action,
  *          char const* eventName,
- *          rbusEventFilter_t* filter)
+ *          rbusFilter_t filter,
+ *          int interval,
+ *          bool* autoPublish)
  *  @brief An event subcribe callback handler.
  *
  * A provider will receive this callback when the first client subscribes
@@ -503,6 +455,9 @@ typedef rbusError_t (*rbusMethodHandler_t)(
  *  @param      filter          an the filter the subscriber would like the provider to
  *                              use to decide when the event can be sent.  This can be NULL
  *                              if no filter was specified by the client. 
+ *  @param      interval        if non-zero, indicates that the event should be publish
+ *                              repeatedly every 'interval' seconds.  if a filter is 
+ *                              also provided, it would publish only when the filter is triggered
  *  @param      autoPublish     output parameter used to disable the default behaviour
  *                              where rbus automatically publishing events for provider
  *                              data elements.  Providers can set autoPublish to false
@@ -514,7 +469,8 @@ typedef rbusError_t (* rbusEventSubHandler_t)(
     rbusHandle_t handle,
     rbusEventSubAction_t action,
     char const* eventName,
-    rbusEventFilter_t* filter,
+    rbusFilter_t filter,
+    int32_t interval,
     bool* autoPublish
 );
 

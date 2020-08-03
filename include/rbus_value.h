@@ -308,6 +308,9 @@ void rbusValue_SetObject(rbusValue_t value, struct _rbusObject* object);
  */
 bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char* str);
 
+/** @fn void rbusValue_fwrite(rbusValue_t obj, int depth, FILE* fout)
+ *  @brief A debug utility function to write the value as a string to a file stream.
+ */
 void rbusValue_fwrite(rbusValue_t obj, int depth, FILE* fout);
 
 #ifdef __cplusplus

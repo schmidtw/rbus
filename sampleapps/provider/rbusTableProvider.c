@@ -391,10 +391,11 @@ rbusError_t setHandler2(rbusHandle_t handle, rbusProperty_t property, rbusSetHan
     }
 }
 
-rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusEventFilter_t* filter, bool* autoPublish)
+rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
 {
     (void)handle;
     (void)filter;
+    (void)interval;
     (void)autoPublish;
     printf(
         "eventSubHandler called:\n" \

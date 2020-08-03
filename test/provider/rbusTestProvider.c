@@ -528,10 +528,11 @@ rbusError_t resetTablesSetHandler(rbusHandle_t handle, rbusProperty_t property, 
     return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusEventFilter_t* filter, bool* autoPublish)
+rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
 {
     (void)handle;
     (void)filter;
+    (void)interval;
     (void)autoPublish;
 
     printf(
@@ -601,24 +602,98 @@ rbusError_t setValueHandler(rbusHandle_t handle, rbusProperty_t property, rbusSe
     return RBUS_ERROR_SUCCESS;
 }
 
-rbusError_t getHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+rbusError_t getVCHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
     static uint32_t count = 0;
     (void)handle;
     (void)opts;
 
-    if(strcmp(rbusProperty_GetName(property), "Device.TestProvider.Param1") == 0)
-    {
-        char buff[100];
-        snprintf(buff, 100, "value %d", count++/3);//fake a value change every 3rd time the getHandler is called
-        printf("Called get handler for [%s=%s]\n", rbusProperty_GetName(property), buff);
+    char buff[100];
+    snprintf(buff, 100, "value %d", count++/2);//fake a value change every 3rd time the getHandler is called
+    printf("Called get handler for [%s=%s]\n", rbusProperty_GetName(property), buff);
 
-        rbusValue_t value;
-        rbusValue_Init(&value);
-        rbusValue_SetString(value, buff);
-        rbusProperty_SetValue(property, value);
-        rbusValue_Release(value);
+    rbusValue_t value;
+    rbusValue_Init(&value);
+    rbusValue_SetString(value, buff);
+    rbusProperty_SetValue(property, value);
+    rbusValue_Release(value);
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t getVCIntHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+    char const* name = rbusProperty_GetName(property);
+    int index = atoi(&name[strlen(name)-1]);
+
+    /*fake a value change every 'myfreq' times this function is called*/
+    static int32_t mydata[6] = {0,0,0,0,0,0};  /*the actual value to send back*/
+    static int32_t mydelta[6] = {1,1,1,1,1,1}; /*how much to change the value by*/
+    static int32_t mycount[6] = {0,0,0,0,0,0}; /*number of times this function called*/
+    static int32_t myfreq = 2;  /*number of times this function called before changing value*/
+    static int32_t mymin = 0, mymax=5; /*keep value between mymin and mymax*/
+
+    rbusValue_t value;
+
+    mycount[index]++;
+    if((mycount[index] % myfreq) == 0) 
+    {
+        mydata[index] += mydelta[index];
+        if(mydata[index] == mymax)
+            mydelta[index] = -1;
+        else if(mydata[index] == mymin)
+            mydelta[index] = 1;
     }
+
+    rbusValue_Init(&value);
+    rbusValue_SetInt32(value, mydata[index]);
+    rbusProperty_SetValue(property, value);
+    rbusValue_Release(value);
+
+    printf("getVCIntHandler [%s]=[%d]\n", name, mydata[index]);
+
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t getVCStrHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+    char const* name = rbusProperty_GetName(property);
+    int index = atoi(&name[strlen(name)-1]);
+
+    /*fake a value change every 'myfreq' times this function is called*/
+    static int32_t mydata[6] = {0,0,0,0,0,0};  /*the actual value to send back*/
+    static int32_t mydelta[6] = {1,1,1,1,1,1}; /*how much to change the value by*/
+    static int32_t mycount[6] = {0,0,0,0,0,0}; /*number of times this function called*/
+    static int32_t myfreq = 2;  /*number of times this function called before changing value*/
+    static int32_t mymin = 0, mymax=5; /*keep value between mymin and mymax*/
+
+    static char* values[6] = {
+        "aaaa", "bbbb", "cccc", "dddd", "eeee", "ffff"
+    };
+
+    rbusValue_t value;
+
+    mycount[index]++;
+    if((mycount[index] % myfreq) == 0) 
+    {
+        mydata[index] += mydelta[index];
+        if(mydata[index] == mymax)
+            mydelta[index] = -1;
+        else if(mydata[index] == mymin)
+            mydelta[index] = 1;
+    }
+
+    rbusValue_Init(&value);
+    rbusValue_SetString(value, values[mydata[index]]);
+    rbusProperty_SetValue(property, value);
+    rbusValue_Release(value);
+
+    printf("getVCStrHandler [%s]=[%s]\n", name, values[mydata[index]]);
+
     return RBUS_ERROR_SUCCESS;
 }
 
@@ -742,12 +817,25 @@ int main(int argc, char *argv[])
     char componentName[] = "TestProvider";
     int eventCounts[2]={0,0};
     int j;
-    #define numDataElems 14
+    #define numDataElems 26
 
     rbusDataElement_t dataElement[numDataElems] = {
         {"Device.TestProvider.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler, NULL}},
         {"Device.TestProvider.Event2!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler, NULL}},
-        {"Device.TestProvider.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler,NULL,NULL,NULL,NULL, NULL}},
+        /*testing value-change filter for Int32 and Strings only, for now*/
+        {"Device.TestProvider.VCParam", RBUS_ELEMENT_TYPE_PROPERTY, {getVCHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamInt0", RBUS_ELEMENT_TYPE_PROPERTY, {getVCIntHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamInt1", RBUS_ELEMENT_TYPE_PROPERTY, {getVCIntHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamInt2", RBUS_ELEMENT_TYPE_PROPERTY, {getVCIntHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamInt3", RBUS_ELEMENT_TYPE_PROPERTY, {getVCIntHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamInt4", RBUS_ELEMENT_TYPE_PROPERTY, {getVCIntHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamInt5", RBUS_ELEMENT_TYPE_PROPERTY, {getVCIntHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamStr0", RBUS_ELEMENT_TYPE_PROPERTY, {getVCStrHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamStr1", RBUS_ELEMENT_TYPE_PROPERTY, {getVCStrHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamStr2", RBUS_ELEMENT_TYPE_PROPERTY, {getVCStrHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamStr3", RBUS_ELEMENT_TYPE_PROPERTY, {getVCStrHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamStr4", RBUS_ELEMENT_TYPE_PROPERTY, {getVCStrHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.TestProvider.VCParamStr5", RBUS_ELEMENT_TYPE_PROPERTY, {getVCStrHandler,NULL,NULL,NULL,NULL, NULL}},
         {"Device.TestProvider.Table1.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler, NULL}},
         {"Device.TestProvider.Table1.{i}.Table2.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler, NULL}},
         {"Device.TestProvider.Table1.{i}.Table2.{i}.Table3.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler, NULL}},

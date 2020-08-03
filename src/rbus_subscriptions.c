@@ -29,13 +29,17 @@ struct _rbusSubscriptions
     rtList subList;
 };
 
-int subscriptionKeyCompare(rbusSubscription_t* subscription, char const* listener, char const* eventName, void* filter)
+int subscriptionKeyCompare(rbusSubscription_t* subscription, char const* listener, char const* eventName, rbusFilter_t filter)
 {
     int rc;
     rc = strcmp(subscription->listener, listener);
     if(rc == 0)
     {
         rc = strcmp(subscription->eventName, eventName);
+
+        /*currently, rbus-core doesn't allow a consumer to subscribe to the same event more then once
+          so the eventName alone is the key.  If we update rbus-core to allow different filters on the
+          same event, then we need to update the code below to use filter as part of key */
         (void)filter;
         /* TODO compare filter
         if(rc == 0)
@@ -65,6 +69,8 @@ void subscriptionFree(void* p)
         rtList_Destroy(sub->instances, NULL);
     free(sub->eventName);
     free(sub->listener);
+    if(sub->filter)
+        rbusFilter_Release(sub->filter);
     free(sub);
 }
 
@@ -86,7 +92,7 @@ void rbusSubscriptions_destroy(rbusSubscriptions_t subscriptions)
 void rbusSubscriptions_onSubscriptionCreated(rbusSubscription_t* sub, elementNode* node);
 
 /*add a new subscription*/
-rbusSubscription_t* rbusSubscriptions_addSubscription(rbusSubscriptions_t subscriptions, char const* listener, char const* eventName, void* filter, bool autoPublish, elementNode* registryElem)
+rbusSubscription_t* rbusSubscriptions_addSubscription(rbusSubscriptions_t subscriptions, char const* listener, char const* eventName, rbusFilter_t filter, int32_t interval, int32_t duration, bool autoPublish, elementNode* registryElem)
 {
     rbusSubscription_t* sub;
     TokenChain* tokens;
@@ -102,7 +108,9 @@ rbusSubscription_t* rbusSubscriptions_addSubscription(rbusSubscriptions_t subscr
 
     sub->listener = strdup(listener);
     sub->eventName = strdup(eventName);
-    sub->filter = filter;//TODO
+    sub->filter = filter;
+    sub->interval = interval;
+    sub->duration = duration;
     sub->autoPublish = autoPublish;
     sub->element = registryElem;
     sub->tokens = tokens;
@@ -114,7 +122,7 @@ rbusSubscription_t* rbusSubscriptions_addSubscription(rbusSubscriptions_t subscr
 }
 
 /*get an existing subscription by searching for its unique key [eventName, listener, filter]*/
-rbusSubscription_t* rbusSubscriptions_getSubscription(rbusSubscriptions_t subscriptions, char const* listener, char const* eventName, void* filter)
+rbusSubscription_t* rbusSubscriptions_getSubscription(rbusSubscriptions_t subscriptions, char const* listener, char const* eventName, rbusFilter_t filter)
 {
     rtListItem item;
     rbusSubscription_t* sub;
@@ -157,6 +165,7 @@ void rbusSubscriptions_removeSubscription(rbusSubscriptions_t subscriptions, rbu
 /*  called after a new subscription is created 
  *  we go through the element tree and check to see if the 
  *  new subscription matches any existing instance nodes
+ *  e.g. if subscribing to Foo.*.Prop, this will find all instances of Prop 
  */
 void rbusSubscriptions_onSubscriptionCreated(rbusSubscription_t* sub, elementNode* node)
 {

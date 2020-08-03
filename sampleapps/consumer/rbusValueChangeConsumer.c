@@ -28,7 +28,7 @@
 #include <getopt.h>
 #include <rbus.h>
 
-int runtime = 24;
+int runtime = 60;
 
 static void eventReceiveHandler(
     rbusHandle_t handle,
@@ -39,6 +39,7 @@ static void eventReceiveHandler(
 
     rbusValue_t newValue = rbusObject_GetValue(event->data, "value");
     rbusValue_t oldValue = rbusObject_GetValue(event->data, "oldValue");
+    rbusValue_t filter = rbusObject_GetValue(event->data, "filter");
 
     printf("Consumer receiver ValueChange event for param %s\n", event->name);
 
@@ -48,7 +49,11 @@ static void eventReceiveHandler(
     if(oldValue)
         printf("  Old Value: %d\n", rbusValue_GetInt32(oldValue));
 
-    printf("My user data: %s\n", (char*)subscription->userData);
+    if(filter)
+        printf("  filter: %d\n", rbusValue_GetBoolean(filter));
+
+    if(subscription->userData)
+        printf("User data: %s\n", (char*)subscription->userData);
 }
 
 int main(int argc, char *argv[])
@@ -58,6 +63,9 @@ int main(int argc, char *argv[])
 
     int rc = RBUS_ERROR_SUCCESS;
     rbusHandle_t handle;
+    rbusFilter_t filter;
+    rbusValue_t filterValue;
+    rbusEventSubscription_t subscription = {"Device.Provider1.Param1", NULL, 0, 0, eventReceiveHandler, NULL, 0};
 
     rc = rbus_open(&handle, "EventConsumer");
     if(rc != RBUS_ERROR_SUCCESS)
@@ -66,14 +74,36 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    // subscribe to ValueChanged on "Device.Provider1.Param1"
+    /* subscribe to all value change events on property "Device.Provider1.Param1" */
     rc = rbusEvent_Subscribe(
         handle,
         "Device.Provider1.Param1",
         eventReceiveHandler,
         "My User Data");
 
-    sleep(runtime);
+    sleep(10);
+
+    rbusEvent_Unsubscribe(
+        handle,
+        "Device.Provider1.Param1");
+
+    /* subscribe using filter to value change events on property "Device.Provider1.Param1"
+       setting filter to: value >= 5.
+     */
+
+    rbusValue_Init(&filterValue);
+    rbusValue_SetInt32(filterValue, 5);
+
+    rbusFilter_InitRelation(&filter, RBUS_FILTER_OPERATOR_GREATER_THAN_OR_EQUAL, filterValue);
+
+    subscription.filter = filter;
+
+    rc = rbusEvent_SubscribeEx(handle, &subscription, 1);
+
+    rbusValue_Release(filterValue);
+    rbusFilter_Release(filter);
+
+    sleep(runtime-10);
 
     rbus_close(handle);
     return rc;

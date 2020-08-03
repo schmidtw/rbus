@@ -34,11 +34,12 @@ int loopFor = 30;
 int subscribed1 = 0;
 int subscribed2 = 0;
 
-rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusEventFilter_t* filter, bool* autoPublish)
+rbusError_t eventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
 {
     (void)handle;
     (void)filter;
     (void)autoPublish;
+    (void)interval;
 
     printf(
         "eventSubHandler called:\n" \

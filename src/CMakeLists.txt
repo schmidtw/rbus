@@ -33,6 +33,7 @@ add_library(
     rbus_property.c
     rbus_object.c
     rbus_buffer.c
+    rbus_filter.c
     rbus_element.c
     rbus_valuechange.c
     rbus_subscriptions.c
