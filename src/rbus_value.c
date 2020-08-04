@@ -17,6 +17,7 @@
  * limitations under the License.
 */
 
+#define _GNU_SOURCE 1
 #include <stdio.h>
 #include <ctype.h>
 #include <assert.h>
@@ -947,8 +948,6 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
     bool tmpB = false;
     char tmpC = 0;
     unsigned char tmpUC = 0;
-    int8_t tmpI8 = 0;
-    uint8_t tmpUI8 = 0;
     float tmpF = 0.0f;
     double tmpD = 0.0f;
     long tmpL = 0;
