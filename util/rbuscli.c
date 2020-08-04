@@ -164,6 +164,11 @@ char *getDataType_toString(rbusValueType_t type)
     case RBUS_DOUBLE:
         pTextData = "double";
         break;
+    case RBUS_PROPERTY:
+    case RBUS_OBJECT:
+    case RBUS_NONE:
+        pTextData = "unknown";
+        break;
     }
     return pTextData ;
 }
