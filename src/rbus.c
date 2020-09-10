@@ -930,12 +930,16 @@ void _get_recursive_wildcard_handler(elementNode* wildQueryElemNode, rbusHandle_
         {
             if((child->type == RBUS_ELEMENT_TYPE_PROPERTY) && (child->cbTable.getHandler))
             {
+                rbusError_t result;
                 rbusProperty_t tmpProperties;
                 rbusProperty_Init(&tmpProperties, child->fullName, NULL);
-                child->cbTable.getHandler(handle, tmpProperties, &options);
-                rbusProperty_PushBack(properties, tmpProperties);
+                result = child->cbTable.getHandler(handle, tmpProperties, &options);
+                if (result == RBUS_ERROR_SUCCESS)
+                {
+                    rbusProperty_PushBack(properties, tmpProperties);
+                    *pCount += 1;
+                }
                 rbusProperty_Release(tmpProperties);
-                *pCount += 1;
             }
 
             /*recurse into children that are not row templates*/
@@ -1253,7 +1257,7 @@ static void _table_add_row_callback_handler (rbusHandle_t handle, rtMessage requ
 
                     rbusValue_SetString(rowNameVal, rowElem->fullName);
                     rbusValue_SetUInt32(instNumVal, instNum);
-                    rbusValue_SetString(aliasVal, aliasName);
+                    rbusValue_SetString(aliasVal, aliasName ? aliasName : "");
 
                     rbusObject_Init(&data, NULL);
                     rbusObject_SetValue(data, "rowName", rowNameVal);
@@ -2494,7 +2498,6 @@ rbusError_t rbusTable_addRow(
         &response)) != RTMESSAGE_BUS_SUCCESS)
     {
         rtLog_Info("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-        rtMessage_Release(response);
         return RBUS_ERROR_BUS_ERROR;
     }
 
@@ -2533,7 +2536,6 @@ rbusError_t rbusTable_removeRow(
         &response)) != RTMESSAGE_BUS_SUCCESS)
     {
         rtLog_Info("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-        rtMessage_Release(response);
         return RBUS_ERROR_BUS_ERROR;
     }
 
