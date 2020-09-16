@@ -344,7 +344,8 @@ rbusError_t getHandler2(rbusHandle_t handle, rbusProperty_t property, rbusGetHan
 
     rbusValue_Init(&value);
 
-    if(propertyNameEquals(name, "Data"))
+    if((propertyNameEquals(name, "Data")) ||
+       (propertyNameEquals(name, "AnotherData")))
     {
         rbusValue_SetString(value, t2->data);
     }
@@ -420,12 +421,13 @@ int main(int argc, char *argv[])
 
     char componentName[] = "TableProvider1";
 
-    rbusDataElement_t dataElements[5] = {
+    static rbusDataElement_t dataElements[6] = {
         {"Device.Tables1.T1.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler1, tableRemoveRowHandler1, eventSubHandler, NULL}},
         {"Device.Tables1.T1.{i}.Alias", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler1, setHandler1, NULL, NULL, NULL, NULL}},
         {"Device.Tables1.T1.{i}.Data", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler1, setHandler1, NULL, NULL, NULL, NULL}},
         {"Device.Tables1.T1.{i}.T2.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler2,  tableRemoveRowHandler2, NULL, NULL}},
-        {"Device.Tables1.T1.{i}.T2.{i}.Data", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler2, setHandler2, NULL, NULL, NULL, NULL}}
+        {"Device.Tables1.T1.{i}.T2.{i}.Data", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler2, setHandler2, NULL, NULL, NULL, NULL}},
+        {"Device.Tables1.T1.{i}.T2.{i}.AnotherData", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler2, NULL, NULL, NULL, NULL, NULL}}
     };
 
     printf("provider: start\n");
@@ -439,7 +441,7 @@ int main(int argc, char *argv[])
         goto exit2;
     }
 
-    rc = rbus_regDataElements(handle, 5, dataElements);
+    rc = rbus_regDataElements(handle, 6, dataElements);
     if(rc != RBUS_ERROR_SUCCESS)
     {
         printf("provider: rbusEventProvider_Register failed: %d\n", rc);
@@ -453,7 +455,7 @@ int main(int argc, char *argv[])
         runtime--;
     }
 
-    rbus_unregDataElements(handle, 5, dataElements);
+    rbus_unregDataElements(handle, 6, dataElements);
 exit1:
     rbus_close(handle);
 exit2:
