@@ -1006,7 +1006,7 @@ void _get_callback_wildcard_handler(rbusHandle_t handle, const char* pParameterN
         }
         rtMessage_Release(eResponse);
 
-        rtLog_Info ("We have identified %d entries that are matching the request and got the value. Lets return it.", numOfGets);
+        rtLog_Debug("We have identified %d entries that are matching the request and got the value. Lets return it.", numOfGets);
 
         rtMessage_Create(response);
         if (numOfGets > 0)
@@ -1079,7 +1079,7 @@ static void _get_callback_handler (rbusHandle_t handle, rtMessage request, rtMes
             int length = strlen(parameterName) - 1;
             if (parameterName[length] == '.')
             {
-                rtLog_Info ("handle the wildcard request..");
+                rtLog_Debug("handle the wildcard request..");
 #if 1
                 el = retrieveInstanceElement(ci->elementRoot, parameterName);
                 if (el != NULL)
@@ -1092,7 +1092,7 @@ static void _get_callback_handler (rbusHandle_t handle, rtMessage request, rtMes
                     rbusValue_SetString(xtmp, "tmpValue");
                     rbusProperty_Init(&xproperties, "tmpProp", xtmp);
                     _get_recursive_wildcard_handler(el, handle, pCompName, xproperties, &count);
-                    rtLog_Info ("We have identified %d entries that are matching the request and got the value. Lets return it.", count);
+                    rtLog_Debug("We have identified %d entries that are matching the request and got the value. Lets return it.", count);
 
                     rtMessage_Create(response);
                     if (count > 0)
@@ -1206,7 +1206,7 @@ static void _table_add_row_callback_handler (rbusHandle_t handle, rtMessage requ
     if(err != RT_OK || (aliasName && strlen(aliasName)==0))
         aliasName = NULL;
 
-    rtLog_Info("%s table [%s] alias [%s] err [%d]", __FUNCTION__, tableName, aliasName, err);
+    rtLog_Debug("%s table [%s] alias [%s] err [%d]", __FUNCTION__, tableName, aliasName, err);
 
     elementNode* tableRegElem = retrieveElement(ci->elementRoot, tableName);
     elementNode* tableInstElem = retrieveInstanceElement(ci->elementRoot, tableName);
@@ -1223,7 +1223,7 @@ static void _table_add_row_callback_handler (rbusHandle_t handle, rtMessage requ
             {
                 elementNode* rowElem;
 
-                rtLog_Info("%s tableAddRowHandler success table [%s] alias [%s]", __FUNCTION__, tableName, aliasName);
+                rtLog_Debug("%s tableAddRowHandler success table [%s] alias [%s]", __FUNCTION__, tableName, aliasName);
 
                 rowElem = instantiateTableRow(tableInstElem, instNum, aliasName);
 
@@ -1304,7 +1304,7 @@ static void _table_remove_row_callback_handler (rbusHandle_t handle, rtMessage r
     rbus_PopInt32(request, &sessionId);
     rbus_PopString(request, &rowName);
 
-    rtLog_Info("%s row [%s]", __FUNCTION__, rowName);
+    rtLog_Debug("%s row [%s]", __FUNCTION__, rowName);
 
     /*get the element for the row */
     elementNode* rowRegElem = retrieveElement(ci->elementRoot, rowName);
@@ -1443,7 +1443,7 @@ rbusError_t rbus_open(rbusHandle_t* handle, char *componentName)
 
     *handle = NULL;
 
-    rtLog_SetLevel(RT_LOG_INFO);
+    rtLog_SetLevel(RT_LOG_WARN);
     /*
         Per spec: If a component calls this API more than once, any previous busHandle 
         and all previous data element registrations will be canceled.
@@ -1493,7 +1493,7 @@ rbusError_t rbus_open(rbusHandle_t* handle, char *componentName)
         {
             rbusHandle_t tmpHandle = &comp_array[foundIndex];
 
-            rtLog_Info("<%s>: rbus_openBrokerConnection() Success!", __FUNCTION__);
+            rtLog_Info("Bus registration successfull!");
             rtLog_Debug("<%s>: Try rbus_registerObj() for component base object [%s]!", __FUNCTION__, componentName);
 
             if((err = rbus_registerObj(componentName, _callback_handler, tmpHandle)) != RTMESSAGE_BUS_SUCCESS)
@@ -1633,7 +1633,7 @@ rbusError_t rbus_close(rbusHandle_t handle)
             }
             else
             {
-                rtLog_Info("<%s>: rbus_closeBrokerConnection() Success!!", __FUNCTION__);
+                rtLog_Info("Bus unregistration Successfull!");
             }
         }
     }
@@ -2653,7 +2653,7 @@ rbusError_t  rbusEvent_Publish(
 
     if(!el)
     {
-        rtLog_Info("rbusEvent_Publish failed: retrieveElement return NULL for %s", eventData->name);
+        rtLog_Warn("rbusEvent_Publish failed: retrieveElement return NULL for %s", eventData->name);
         return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
     }
 
@@ -2687,7 +2687,7 @@ rbusError_t  rbusEvent_Publish(
         {
             if(errOut == RTMESSAGE_BUS_SUCCESS)
                 errOut = err;
-            rtLog_Info("rbusEvent_Publish faild: rbus_publishSubscriberEvent return error %d", err);
+            rtLog_Warn("rbusEvent_Publish faild: rbus_publishSubscriberEvent return error %d", err);
         }
         rtListItem_GetNext(listItem, &listItem);
     }
@@ -2813,7 +2813,7 @@ rbusError_t rbus_closeSession(rbusHandle_t handle, uint32_t sessionId)
 
 rbusStatus_t rbus_checkStatus(void)
 {
-    rtLog_SetLevel(RT_LOG_INFO);
+    rtLog_SetLevel(RT_LOG_WARN);
     rbuscore_bus_status_t busStatus = rbuscore_checkBusStatus();
 
     return (rbusStatus_t) busStatus;
