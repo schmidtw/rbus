@@ -739,6 +739,7 @@ static int _event_subscribe_callback_handler(char const* object,  char const* ev
         if(!subscription)
         {
             rtLog_Warn("%s: subscription null", __FUNCTION__);
+            //rbusFilter_Release(filter);
             return 0;
         }
 
@@ -1675,6 +1676,12 @@ rbusError_t rbus_close(rbusHandle_t handle)
         ci->eventSubs = NULL;
     }
 
+    if(ci->subscriptions != NULL)
+    {
+        rbusSubscriptions_destroy(ci->subscriptions);
+        ci->subscriptions = NULL;
+    }
+
     rbusValueChange_Close(handle);//called before freeAllElements below
 
     if(ci->elementRoot)
@@ -1683,13 +1690,6 @@ rbusError_t rbus_close(rbusHandle_t handle)
         //free(ci->elementRoot); valgrind reported this and I saw that freeAllElements actually frees this . leaving comment so others won't wonder why this is gone
         ci->elementRoot = NULL;
     }
-
-    if(ci->subscriptions != NULL)
-    {
-        rbusSubscriptions_destroy(ci->subscriptions);
-        ci->subscriptions = NULL;
-    }
-
 
     if((err = rbus_unregisterObj(ci->componentName)) != RTMESSAGE_BUS_SUCCESS) //FIXME: shouldn't rbus_closeBrokerConnection be called even if this fails ?
     {
@@ -1816,8 +1816,8 @@ rbusError_t rbus_unregDataElements(
 
 /*      TODO: we need to remove all instance elements that this registration element instantiated
         rbusValueChange_RemoveParameter(handle, NULL, name);
-*/
         removeElement(&(ci->elementRoot), name);
+*/
     }
     return RBUS_ERROR_SUCCESS;
 }
