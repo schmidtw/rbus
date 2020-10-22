@@ -1813,6 +1813,11 @@ rbusError_t rbus_regDataElements(
         char* name = elements[i].name;
         rbus_error_t err = RTMESSAGE_BUS_SUCCESS;
 
+        if((!name) || (0 == strlen(name))) {
+            rc = RBUS_ERROR_INVALID_INPUT;
+            break ;
+        }
+
         rtLog_Debug("rbus_getDataElements: %s", name);
 
         if(ci->elementRoot == NULL)
