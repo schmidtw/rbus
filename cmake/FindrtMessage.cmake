@@ -21,7 +21,7 @@
 find_package(PkgConfig)
 
 find_library(RTMESSAGE_LIBRARIES NAMES rtMessage)
-find_path(RTMESSAGE_INCLUDE_DIRS NAMES rtMessage.h PATH_SUFFIXES rbus-core )
+find_path(RTMESSAGE_INCLUDE_DIRS NAMES rtMessage.h PATH_SUFFIXES rtmessage rtMessage )
 
 set(RTMESSAGE_LIBRARIES ${RTMESSAGE_LIBRARIES} CACHE PATH "Path to rtMessage library")
 set(RTMESSAGE_INCLUDE_DIRS ${RTMESSAGE_INCLUDE_DIRS} )

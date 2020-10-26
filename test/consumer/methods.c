@@ -240,6 +240,7 @@ void testMethods(rbusHandle_t handle, int* countPass, int* countFail)
         printf("consumer: rbusMethod_InvokeAsync(%s) %s\n", "Device.TestProvider.Table1.[method1].MethodAsync2()",
             err == RBUS_ERROR_SUCCESS ? "success" : "fail");
         TEST(err == RBUS_ERROR_SUCCESS);
+        rbusObject_Release(inParams2);
     }
     sleep(5);
     TEST(asyncCount == 5);

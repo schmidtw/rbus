@@ -711,13 +711,13 @@ static void* asyncMethodFunc(void *p)
     rbusValue_t value;
     rbusError_t err;
     char buff[256];
+    char* str;
 
     printf("%s enter\n", __FUNCTION__);
 
     sleep(3);
 
     data = p;
-
 
     rbusObject_Init(&outParams, NULL);
 
@@ -727,7 +727,9 @@ static void* asyncMethodFunc(void *p)
     rbusValue_Release(value);
 
     rbusValue_Init(&value);
-    snprintf(buff, 255, "Async Method Response inParams=%s\n", rbusValue_ToString(rbusObject_GetValue(data->inParams, "param1"), NULL, 0));
+    str = rbusValue_ToString(rbusObject_GetValue(data->inParams, "param1"), NULL, 0);
+    snprintf(buff, 255, "Async Method Response inParams=%s\n", str);
+    free(str);
     rbusValue_SetString(value, buff);
     rbusObject_SetValue(outParams, "value", value);
     rbusValue_Release(value);

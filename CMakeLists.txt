@@ -32,6 +32,11 @@ find_package(PkgConfig REQUIRED)
 find_package(rbus-core REQUIRED)
 find_package(rtMessage REQUIRED)
 
+if (BUILD_FOR_DESKTOP)
+  message("Building for desktop")
+  include_directories(${CMAKE_INSTALL_PREFIX}/include)
+endif (BUILD_FOR_DESKTOP)
+
 if (CMAKE_VERSION VERSION_LESS "3.1")
   message("CMAKE ${CMAKE_CXX_COMPILER_ID}")
   if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

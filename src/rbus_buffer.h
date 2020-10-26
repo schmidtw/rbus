@@ -38,7 +38,7 @@ typedef struct _rbusBuffer
 char const* rbusValueType_ToDebugString(rbusValueType_t type);
 
 /*GetV,GetL,SetTLV are temporary until we are able to switch to Decode/Encode*/
-void const* rbusValue_GetV(rbusValue_t v);
+uint8_t const* rbusValue_GetV(rbusValue_t v);
 uint32_t rbusValue_GetL(rbusValue_t v);
 void rbusValue_SetTLV(rbusValue_t v, rbusValueType_t type, uint32_t length, void const* value);
 

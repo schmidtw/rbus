@@ -19,7 +19,6 @@
 
 #include <stdlib.h>
 #include <rtRetainable.h>
-#include <rbus_marshalling.h>
 #include "rbus_filter.h"
 
 typedef struct _rbusFilter_LogicExpression* rbusFilter_LogicExpression_t;
@@ -56,7 +55,8 @@ void rbusFilter_InitRelation(rbusFilter_t* filter, rbusFilter_RelationOperator_t
     (*filter)->e.relation.op = op;
     (*filter)->e.relation.value = value;
     (*filter)->retainable.refCount = 1;
-    rbusValue_Retain(value);
+    if((*filter)->e.relation.value)
+        rbusValue_Retain((*filter)->e.relation.value);
 }
 
 void rbusFilter_InitLogic(rbusFilter_t* filter, rbusFilter_LogicOperator_t op, rbusFilter_t left, rbusFilter_t right)
