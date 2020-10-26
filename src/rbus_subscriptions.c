@@ -109,6 +109,8 @@ rbusSubscription_t* rbusSubscriptions_addSubscription(rbusSubscriptions_t subscr
     sub->listener = strdup(listener);
     sub->eventName = strdup(eventName);
     sub->filter = filter;
+    if(sub->filter)
+        rbusFilter_Retain(sub->filter);
     sub->interval = interval;
     sub->duration = duration;
     sub->autoPublish = autoPublish;

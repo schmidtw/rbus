@@ -634,7 +634,7 @@ void rbusValue_SetObject(rbusValue_t v, struct _rbusObject* object)
         rbusObject_Retain(v->d.object);
 }
 
-void const* rbusValue_GetV(rbusValue_t v)
+uint8_t const* rbusValue_GetV(rbusValue_t v)
 {
     switch(v->type)
     {
@@ -642,7 +642,7 @@ void const* rbusValue_GetV(rbusValue_t v)
     case RBUS_BYTES:
         return v->d.bytes->data;
     default:
-        return &v->d.b;
+        return (uint8_t const*)&v->d.b;
     }
 }
 
