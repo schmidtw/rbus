@@ -37,6 +37,7 @@ int getDurationSubscribeEx();
 int getDurationEvents();
 int getDurationMethods();
 int getDurationFilter();
+int getDurationPartialPath();
 
 void testValue(rbusHandle_t handle, int* countPass, int* countFail);
 void testValueChange(rbusHandle_t handle, int* countPass, int* countFail);
@@ -46,6 +47,7 @@ void testTables(rbusHandle_t handle, int* countPass, int* countFail);
 void testEvents(rbusHandle_t handle, int* countPass, int* countFail);
 void testMethods(rbusHandle_t handle, int* countPass, int* countFail);
 void testFilter(rbusHandle_t handle, int* countPass, int* countFail);
+void testPartialPath(rbusHandle_t handle, int* countPass, int* countFail);
 
 typedef int (*getDurationFunc_t)();
 typedef void (*runTestFunc_t)(rbusHandle_t handle, int* countPass, int* countFail);
@@ -70,6 +72,7 @@ typedef enum testType_t
     TestEvents,
     TestMethods,
     TestFilter,
+    TestPartialPath,
     TestTypeMax
 }testType_t;
 
@@ -82,6 +85,7 @@ testInfo_t testList[TestTypeMax] = {
     { 0, "Events", getDurationEvents, testEvents, 0, 0 },
     { 0, "Methods", getDurationMethods, testMethods, 0, 0 },
     { 0, "Filter", getDurationFilter, testFilter, 0, 0 },
+    { 0, "PartialPath", getDurationPartialPath, testPartialPath, 0, 0 },
 };
 
 void printUsage()

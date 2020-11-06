@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <rbus.h>
 #include <rtList.h>
+#include <rtLog.h>
 #include "../common/runningParamHelper.h"
 #include "../common/testValueHelper.h"
 
@@ -807,6 +808,290 @@ static rbusError_t methodHandler(rbusHandle_t handle, char const* methodName, rb
     return RBUS_ERROR_BUS_ERROR;
 }
 
+rbusError_t ppTableAddRowHandler(
+    rbusHandle_t handle,
+    char const* tableName,
+    char const* aliasName,
+    uint32_t* instNum)
+{
+    (void)handle;
+    (void)aliasName;
+
+    if(!strcmp(tableName, "Device.TestProvider.PartialPath1"))
+    {
+        static int instanceNumber = 1;
+        *instNum = instanceNumber++;
+    }
+    else if(!strcmp(tableName, "Device.TestProvider.PartialPath1.1.SubTable"))
+    {
+        static int instanceNumber = 1;
+        *instNum = instanceNumber++;
+    }
+    else if(!strcmp(tableName, "Device.TestProvider.PartialPath1.2.SubTable"))
+    {
+        static int instanceNumber = 1;
+        *instNum = instanceNumber++;
+    }
+
+    printf("partialPatTableAddRowHandler table=%s instNum=%d\n", tableName, *instNum); 
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t ppTableRemRowHandler(
+    rbusHandle_t handle,
+    char const* rowName)
+{
+    (void)handle;
+    (void)rowName;
+    return RBUS_ERROR_SUCCESS;
+}
+
+/*
+    For testing partial path queries we create the following data model:
+
+        "Device.TestProvider.PartialPath1.1.Param1"
+        "Device.TestProvider.PartialPath1.1.Param2"
+        "Device.TestProvider.PartialPath1.1.SubObject1.Param3"
+        "Device.TestProvider.PartialPath1.1.SubObject1.Param4"
+        "Device.TestProvider.PartialPath1.1.SubTable.1.Param5"
+        "Device.TestProvider.PartialPath1.1.SubTable.1.SubObject2.Param6"
+        "Device.TestProvider.PartialPath1.1.SubTable.1.SubObject2.Param7"
+        "Device.TestProvider.PartialPath1.2.Param1"
+        "Device.TestProvider.PartialPath1.2.Param2"
+        "Device.TestProvider.PartialPath1.2.SubObject1.Param3"
+        "Device.TestProvider.PartialPath1.2.SubObject1.Param4"
+        "Device.TestProvider.PartialPath1.2.SubTable.1.Param5"
+        "Device.TestProvider.PartialPath1.2.SubTable.1.SubObject2.Param6"
+        "Device.TestProvider.PartialPath1.2.SubTable.1.SubObject2.Param7"
+        "Device.TestProvider.PartialPath1.2.SubTable.2.Param5"
+        "Device.TestProvider.PartialPath1.2.SubTable.2.SubObject2.Param6"
+        "Device.TestProvider.PartialPath1.2.SubTable.2.SubObject2.Param7"
+        "Device.TestProvider.PartialPath1.2.SubTable.3.Param5"
+        "Device.TestProvider.PartialPath1.2.SubTable.3.SubObject2.Param6"
+        "Device.TestProvider.PartialPath1.2.SubTable.3.SubObject2.Param7"
+
+        "Device.TestProvider.PartialPath2.1.Param1"
+        "Device.TestProvider.PartialPath2.1.Param2"
+        "Device.TestProvider.PartialPath2.1.SubObject1.Param3"
+        "Device.TestProvider.PartialPath2.1.SubObject1.Param4"
+        "Device.TestProvider.PartialPath2.1.SubTable.1.Param5"
+        "Device.TestProvider.PartialPath2.1.SubTable.1.SubObject2.Param6"
+        "Device.TestProvider.PartialPath2.1.SubTable.1.SubObject2.Param7"
+        "Device.TestProvider.PartialPath2.2.Param1"
+        "Device.TestProvider.PartialPath2.2.Param2"
+        "Device.TestProvider.PartialPath2.2.SubObject1.Param3"
+        "Device.TestProvider.PartialPath2.2.SubObject1.Param4"
+        "Device.TestProvider.PartialPath2.2.SubTable.1.Param5"
+        "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param6"
+        "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param7"
+        "Device.TestProvider.PartialPath2.2.SubTable.2.Param5"
+        "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param6"
+        "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param7"
+        "Device.TestProvider.PartialPath2.2.SubTable.3.Param5"
+        "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param6"
+        "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param7"
+
+    Table rows inside "Device.TestProvider.PartialPath1" are created with rbusTable_AddRow.
+    Table rows inside "Device.TestProvider.PartialPath2" are hidden and table level
+    getHandlers are used to execute the partial path query.
+
+    We'll set the values for each individual parameter to be the parameter name itself so
+    that the consumer can simply verify the value equals the property name.
+ */
+
+rbusError_t ppParamGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    rbusValue_t value;
+    char const* name = rbusProperty_GetName(property);
+
+    (void)handle;
+    (void)opts;
+
+    printf(
+        "ppParamGetHandler called:\n" \
+        "\tproperty=%s\n",
+        name);
+
+    if(!strcmp(name, "Device.TestProvider.PartialPath1.1.Param1") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.1.Param2") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.1.SubObject1.Param3") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.1.SubObject1.Param4") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.1.SubTable.1.Param5") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.1.SubTable.1.SubObject2.Param6") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.1.SubTable.1.SubObject2.Param7") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.Param1") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.Param2") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubObject1.Param3") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubObject1.Param4") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubTable.1.Param5") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubTable.1.SubObject2.Param6") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubTable.1.SubObject2.Param7") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubTable.2.Param5") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubTable.2.SubObject2.Param6") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubTable.2.SubObject2.Param7") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubTable.3.Param5") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubTable.3.SubObject2.Param6") ||
+       !strcmp(name, "Device.TestProvider.PartialPath1.2.SubTable.3.SubObject2.Param7") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.1.Param1") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.1.Param2") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.1.SubObject1.Param3") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.1.SubObject1.Param4") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.1.SubTable.1.Param5") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.1.SubTable.1.SubObject2.Param6") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.1.SubTable.1.SubObject2.Param7") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.Param1") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.Param2") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubObject1.Param3") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubObject1.Param4") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.1.Param5") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param6") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param7") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.2.Param5") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param6") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param7") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.3.Param5") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param6") ||
+       !strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param7"))
+    {
+        /*set value to the name of the parameter so consumer can easily verify result*/
+        rbusValue_Init(&value);
+        rbusValue_SetString(value, name);
+        rbusProperty_SetValue(property, value);
+        rbusValue_Release(value);
+        return RBUS_ERROR_SUCCESS;
+    }
+    else
+    {
+        printf("ppParamGetHandler invalid name %s\n", name); 
+        return RBUS_ERROR_BUS_ERROR;
+    }
+}
+
+static void ppAddParam(rbusProperty_t list, const char* name)
+{
+    rbusProperty_t param;
+    rbusValue_t value;
+    rbusValue_Init(&value);
+    rbusValue_SetString(value, name);
+    rbusProperty_Init(&param, name, value);
+    rbusProperty_PushBack(list, param);
+    rbusProperty_Release(param);
+    rbusValue_Release(value);
+}
+
+rbusError_t ppTableGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    char const* name = rbusProperty_GetName(property);
+
+    (void)handle;
+    (void)opts;
+
+    printf(
+        "ppTableGetHandler called:\n" \
+        "\tproperty=%s\n",
+        name);
+
+    if(!strcmp(name, "Device.TestProvider.PartialPath2."))
+    {
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.Param1");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.Param2");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubObject1.Param3");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubObject1.Param4");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubTable.1.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubTable.1.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubTable.1.SubObject2.Param7");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.Param1");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.Param2");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubObject1.Param3");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubObject1.Param4");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param7");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param7");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param7");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else if(!strcmp(name, "Device.TestProvider.PartialPath2.1."))
+    {
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.Param1");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.Param2");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubObject1.Param3");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubObject1.Param4");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubTable.1.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubTable.1.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubTable.1.SubObject2.Param7");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else if(!strcmp(name, "Device.TestProvider.PartialPath2.1.SubTable.") ||
+            !strcmp(name, "Device.TestProvider.PartialPath2.1.SubTable.1."))
+    {
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubTable.1.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubTable.1.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.1.SubTable.1.SubObject2.Param7");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else if(!strstr(name, "Device.TestProvider.PartialPath2.2."))
+    {
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.Param1");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.Param2");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubObject1.Param3");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubObject1.Param4");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param7");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param7");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param7");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else if(!strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable."))
+    {
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param7");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param7");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param7");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else if(!strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.1."))
+    {
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.1.SubObject2.Param7");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else if(!strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.2."))
+    {
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.2.SubObject2.Param7");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else if(!strcmp(name, "Device.TestProvider.PartialPath2.2.SubTable.3."))
+    {
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.Param5");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param6");
+        ppAddParam(property, "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param7");
+        return RBUS_ERROR_SUCCESS;
+    }
+    else
+    {
+        printf("ppTableGetHandler invalid name %s\n", name); 
+        return RBUS_ERROR_BUS_ERROR;
+    }
+}
+
 int main(int argc, char *argv[])
 {
     (void)(argc);
@@ -817,7 +1102,7 @@ int main(int argc, char *argv[])
     char componentName[] = "TestProvider";
     int eventCounts[2]={0,0};
     int j;
-    #define numDataElems 26
+    #define numDataElems 44
 
     rbusDataElement_t dataElement[numDataElems] = {
         {"Device.TestProvider.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler, NULL}},
@@ -846,7 +1131,27 @@ int main(int argc, char *argv[])
         {"Device.TestProvider.Table1.{i}.Method1()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
         {"Device.TestProvider.Table1.{i}.Table2.{i}.Method2()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
         {"Device.TestProvider.MethodAsync1()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
-        {"Device.TestProvider.Table1.{i}.MethodAsync2()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}}
+        {"Device.TestProvider.Table1.{i}.MethodAsync2()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
+        /*Device.TestProvider.PartialPath1 will have row instances added via rbusTable_AddRow*/
+        {"Device.TestProvider.PartialPath1.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, ppTableAddRowHandler, ppTableRemRowHandler, NULL, NULL}},
+        {"Device.TestProvider.PartialPath1.{i}.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath1.{i}.Param2", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath1.{i}.SubObject1.Param3", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath1.{i}.SubObject1.Param4", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath1.{i}.SubTable.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, ppTableAddRowHandler, ppTableRemRowHandler, NULL, NULL}},
+        {"Device.TestProvider.PartialPath1.{i}.SubTable.{i}.Param5", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath1.{i}.SubTable.{i}.SubObject2.Param6", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath1.{i}.SubTable.{i}.SubObject2.Param7", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        /*Device.TestProvider.PartialPath2 will not add rows with rbusTable_AddRow but will use table level getHandler execute partial path query*/
+        {"Device.TestProvider.PartialPath2.{i}.", RBUS_ELEMENT_TYPE_TABLE, {ppTableGetHandler, NULL, ppTableAddRowHandler, ppTableRemRowHandler, NULL, NULL}},
+        {"Device.TestProvider.PartialPath2.{i}.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath2.{i}.Param2", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath2.{i}.SubObject1.Param3", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath2.{i}.SubObject1.Param4", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath2.{i}.SubTable.{i}.", RBUS_ELEMENT_TYPE_TABLE, {ppTableGetHandler, NULL, ppTableAddRowHandler, ppTableRemRowHandler, NULL, NULL}},
+        {"Device.TestProvider.PartialPath2.{i}.SubTable.{i}.Param5", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath2.{i}.SubTable.{i}.SubObject2.Param6", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.TestProvider.PartialPath2.{i}.SubTable.{i}.SubObject2.Param7", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}}
     };
 
     printf("provider: start\n");
@@ -859,6 +1164,8 @@ int main(int argc, char *argv[])
     printf("provider: rbus_open=%d\n", rc);
     if(rc != RBUS_ERROR_SUCCESS)
         goto exit2;
+
+    rtLog_SetLevel(RT_LOG_DEBUG);
 
     TestValueProperty* data = gTestValues;
     while(data->name)
@@ -875,6 +1182,17 @@ int main(int argc, char *argv[])
     printf("provider: rbus_regDataElements=%d\n", rc);
     if(rc != RBUS_ERROR_SUCCESS)
         goto exit1;
+
+    /*for partial path testing add exactly 2, 1, 3 rows as follows*/
+    /*add 2 rows*/
+    rbusTable_addRow(handle, "Device.TestProvider.PartialPath1", NULL, NULL);
+    rbusTable_addRow(handle, "Device.TestProvider.PartialPath1", NULL, NULL);
+    /*add 1 row*/
+    rbusTable_addRow(handle, "Device.TestProvider.PartialPath1.1.SubTable", NULL, NULL);
+    /*add 3 row2*/
+    rbusTable_addRow(handle, "Device.TestProvider.PartialPath1.2.SubTable", NULL, NULL);
+    rbusTable_addRow(handle, "Device.TestProvider.PartialPath1.2.SubTable", NULL, NULL);
+    rbusTable_addRow(handle, "Device.TestProvider.PartialPath1.2.SubTable", NULL, NULL);
 
     if(runningParamProvider_Init(handle, "Device.TestProvider.TestRunning") != RBUS_ERROR_SUCCESS)
     {
