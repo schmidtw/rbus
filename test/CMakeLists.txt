@@ -40,6 +40,7 @@ add_executable(rbusTestConsumer
     consumer/events.c
     consumer/methods.c
     consumer/filter.c
+    consumer/partialPath.c
     common/runningParamHelper.c
     common/testValueHelper.c)
 add_dependencies(rbusTestConsumer rbus)

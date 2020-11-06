@@ -135,6 +135,13 @@ void rbusProperty_SetNext(rbusProperty_t property, rbusProperty_t next);
  */ 
 void rbusProperty_PushBack(rbusProperty_t property, rbusProperty_t back);
 
+/** @fn void rbusProperty_Count(rbusProperty_t property)
+ *  @brief Return the number or properties in the list
+ *  @param property A property (the first in list).
+ *  @return The number of properties in the list.
+ */ 
+uint32_t rbusProperty_Count(rbusProperty_t property);
+
 void rbusProperty_fwrite(rbusProperty_t prop, int depth, FILE* fout);
 
 #endif

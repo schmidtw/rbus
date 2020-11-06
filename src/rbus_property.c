@@ -173,3 +173,15 @@ void rbusProperty_PushBack(rbusProperty_t property, rbusProperty_t back)
     rbusProperty_SetNext(last, back);
 }
 
+uint32_t rbusProperty_Count(rbusProperty_t property)
+{
+    uint32_t count = 1;
+    rbusProperty_t prop = property;
+    while(prop->next)
+    {
+        count++;
+        prop = prop->next;
+    }
+    return count;
+}
+
