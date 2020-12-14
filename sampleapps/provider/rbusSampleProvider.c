@@ -335,7 +335,7 @@ typedef struct sample_all_types_t {
     uint64_t m_uint64;
     float m_float;
     double m_double;
-    struct timeval m_timeval;
+    rbusDateTime_t m_timeval;
     char m_string[251];
     unsigned char m_bytes[16];
 } sampleDataTypes_t;
@@ -352,7 +352,7 @@ sampleDataTypes_t gTestSampleVal = {
             0xFFFFFFFFFFFFFFFF,
             3.141592653589793f,
             3.141592653589793,
-            {0},
+            {{0},{0}},
             "AllTypes",
             {0}
             };
@@ -438,8 +438,9 @@ rbusError_t SampleProvider_allTypesGetHandler(rbusHandle_t handle, rbusProperty_
         rbusValue_SetDouble(value, gTestSampleVal.m_double);
     else if (strcmp(name, "Device.SampleProvider.AllTypes.DateTimeData") == 0)
     {
-        gettimeofday(&gTestSampleVal.m_timeval, NULL);
-        rbusValue_SetTime(value, &gTestSampleVal.m_timeval);
+        time_t nowtime = 0;
+        memcpy(&(gTestSampleVal.m_timeval.m_time), localtime(&nowtime), sizeof(struct tm));
+        rbusValue_SetTime(value, &(gTestSampleVal.m_timeval));
     }
     else if (strcmp(name, "Device.SampleProvider.AllTypes.StringData") == 0)
         rbusValue_SetString(value, gTestSampleVal.m_string);

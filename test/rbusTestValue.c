@@ -31,7 +31,7 @@ int gCountFail = 0;
 void testValue_Type()
 {
     rbusValue_t val;
-    struct timeval tv;
+    rbusDateTime_t tv;
 
     printf("%s\n",__FUNCTION__);
 
@@ -403,8 +403,9 @@ void testValue_Floats()
 
 void testValue_Time()
 {
-    struct timeval tv1;
-    struct timeval const* tv2;
+    rbusDateTime_t tv1;
+    rbusDateTime_t const* tv2;
+    time_t nowtime = 0;
 
     rbusValue_t val;
 
@@ -412,20 +413,18 @@ void testValue_Time()
 
     printf("%s\n",__FUNCTION__);
 
-    gettimeofday(&tv1, NULL);
+    memcpy(&(tv1.m_time), localtime(&nowtime),sizeof(struct tm));
     rbusValue_SetTime(val, &tv1);
     TEST(rbusValue_GetType(val)==RBUS_DATETIME);
     tv2 = rbusValue_GetTime(val);
-    TEST(tv1.tv_sec == tv2->tv_sec);
-    TEST(tv1.tv_usec == tv2->tv_usec);
+    TEST(memcmp(&tv1, tv2, sizeof(rbusDateTime_t)) == 0);
+
     sleep(1);
-    gettimeofday(&tv1, NULL);
-    TEST(tv1.tv_sec == tv2->tv_sec+1);/*testing more that gettimeofday is working then anything*/
     /*test replacing time works*/
+    memcpy(&(tv1.m_time), localtime(&nowtime),sizeof(struct tm));
     rbusValue_SetTime(val, &tv1);
     tv2 = rbusValue_GetTime(val);
-    TEST(tv1.tv_sec == tv2->tv_sec);
-    TEST(tv1.tv_usec == tv2->tv_usec);
+    TEST(memcmp(&tv1, tv2, sizeof(rbusDateTime_t)) == 0);
 
     rbusValue_Release(val);
 }
@@ -672,8 +671,9 @@ void testValue_Buffer()
 {
     int i;
     int len;
-    struct timeval tv;
+    time_t nowtime = 0;
     uint8_t bytes[10000];
+    rbusDateTime_t rbus_time = {{0},{0}};
 
     printf("%s\n",__FUNCTION__);
 
@@ -704,7 +704,10 @@ void testValue_Buffer()
             case RBUS_UINT64: rbusValue_SetUInt64(valIn, 12231412313); break;
             case RBUS_SINGLE: rbusValue_SetSingle(valIn, 3.141592653589793f); break;
             case RBUS_DOUBLE: rbusValue_SetDouble(valIn, 3.141592653589793); break;
-            case RBUS_DATETIME: gettimeofday(&tv, NULL); rbusValue_SetTime(valIn, &tv); break;
+            case RBUS_DATETIME:
+                              memcpy(&(rbus_time.m_time), localtime(&nowtime),sizeof(struct tm));
+                              rbusValue_SetTime(valIn, &rbus_time);
+                break;
             case RBUS_STRING: rbusValue_SetString(valIn, "This is a string"); break;
             case RBUS_BYTES: rbusValue_SetBytes(valIn, bytes, 10000); break;            
             default: set = false; break;
@@ -738,7 +741,7 @@ void testValue_Buffer()
             case RBUS_UINT64: TEST(rbusValue_GetUInt64(valOut)==12231412313); break;
             case RBUS_SINGLE: TEST(rbusValue_GetSingle(valOut)==rbusValue_GetSingle(valIn) && abs(rbusValue_GetSingle(valOut))-3.14<0.01); break;
             case RBUS_DOUBLE: TEST(rbusValue_GetDouble(valOut)==rbusValue_GetDouble(valIn) && abs(rbusValue_GetDouble(valOut))-3.14<0.01); break;
-            case RBUS_DATETIME: TEST(memcmp(rbusValue_GetTime(valOut), &tv, sizeof(tv))==0); break;
+            case RBUS_DATETIME: TEST(memcmp(rbusValue_GetTime(valOut), &rbus_time, sizeof(rbus_time))==0); break;
             case RBUS_STRING: TEST(strcmp(rbusValue_GetString(valOut, &len), "This is a string")==0 && len==strlen("This is a string")); break;
             case RBUS_BYTES: TEST(memcmp(rbusValue_GetBytes(valOut, &len), bytes, 10000)==0 && len==10000); break;            
             default: break;
@@ -754,8 +757,9 @@ void testValue_TLV()
 {
     int i;
     int len;
-    struct timeval tv;
+    time_t nowtime = 0;
     uint8_t bytes[10000];
+    rbusDateTime_t rbus_time = {{0},{0}};
 
     printf("%s\n",__FUNCTION__);
 
@@ -786,7 +790,10 @@ void testValue_TLV()
             case RBUS_UINT64: rbusValue_SetUInt64(valIn, 12231412313); break;
             case RBUS_SINGLE: rbusValue_SetSingle(valIn, 3.141592653589793f); break;
             case RBUS_DOUBLE: rbusValue_SetDouble(valIn, 3.141592653589793); break;
-            case RBUS_DATETIME: gettimeofday(&tv, NULL); rbusValue_SetTime(valIn, &tv); break;
+            case RBUS_DATETIME:
+                              memcpy(&(rbus_time.m_time), localtime(&nowtime),sizeof(struct tm));
+                              rbusValue_SetTime(valIn, &rbus_time);
+                break;
             case RBUS_STRING: rbusValue_SetString(valIn, "This is a string"); break;
             case RBUS_BYTES: rbusValue_SetBytes(valIn, bytes, 10000); break;            
             default: set = false; break;
@@ -816,7 +823,7 @@ void testValue_TLV()
             case RBUS_UINT64: TEST(rbusValue_GetUInt64(valOut)==12231412313); break;
             case RBUS_SINGLE: TEST(rbusValue_GetSingle(valOut)==rbusValue_GetSingle(valIn) && abs(rbusValue_GetSingle(valOut))-3.14<0.01); break;
             case RBUS_DOUBLE: TEST(rbusValue_GetDouble(valOut)==rbusValue_GetDouble(valIn) && abs(rbusValue_GetDouble(valOut))-3.14<0.01); break;
-            case RBUS_DATETIME: TEST(memcmp(rbusValue_GetTime(valOut), &tv, sizeof(tv))==0); break;
+            case RBUS_DATETIME: TEST(memcmp(rbusValue_GetTime(valOut), &rbus_time, sizeof(rbus_time))==0); break;
             case RBUS_STRING: TEST(strcmp(rbusValue_GetString(valOut, &len), "This is a string")==0 && len==strlen("This is a string")); break;
             case RBUS_BYTES: TEST(memcmp(rbusValue_GetBytes(valOut, &len), bytes, 10000)==0 && len==10000); break;            
             default: break;
@@ -833,7 +840,8 @@ void testValue_ToString()
     char* s;
     char buff[1000];
 
-    struct timeval tv;
+    time_t nowtime = 0;
+    rbusDateTime_t rbus_time = {{0},{0}};
     uint8_t bytes[256] = 
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
         "Sed condimentum nibh vel justo mattis, ac blandit ex egestas. "
@@ -900,11 +908,11 @@ void testValue_ToString()
     TEST(!strncmp(s, "3.14159265358979", 15));
     free(s);
 
-    gettimeofday(&tv, NULL);
-    snprintf(buff, 1000, "%s", asctime(localtime(&tv.tv_sec)));
+    memcpy(&(rbus_time.m_time), localtime(&nowtime),sizeof(struct tm));
+    snprintf(buff, 1000, "%s", asctime(&rbus_time.m_time));
     if(buff[strlen(buff)-1]=='\n')/*asctime adds a '\n', so remove it*/
         buff[strlen(buff)-1] = 0;
-    rbusValue_SetTime(v, &tv);
+    rbusValue_SetTime(v, &rbus_time);
     s = rbusValue_ToString(v,0,0);
     TEST(!strcmp(buff, s));
     free(s);
@@ -939,7 +947,8 @@ void testValue_ToDebugString()
     char* s;
     char buff[1000];
 
-    struct timeval tv;
+    time_t nowtime = 0;
+    rbusDateTime_t rbus_time = {{0},{0}};
     uint8_t bytes[256] = 
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
         "Sed condimentum nibh vel justo mattis, ac blandit ex egestas. "
@@ -1008,11 +1017,11 @@ void testValue_ToDebugString()
               strlen("rbusValue type:RBUS_DOUBLE value:3.14159265358979")));
     free(s);
 
-    gettimeofday(&tv, NULL);
-    snprintf(buff, 1000, "rbusValue type:RBUS_DATETIME value:%s", asctime(localtime(&tv.tv_sec)));
+    memcpy(&(rbus_time.m_time), localtime(&nowtime),sizeof(struct tm));
+    snprintf(buff, 1000, "rbusValue type:RBUS_DATETIME value:%s", asctime(&rbus_time.m_time));
     if(buff[strlen(buff)-1]=='\n')/*asctime adds a '\n', so remove it*/
         buff[strlen(buff)-1] = 0;
-    rbusValue_SetTime(v, &tv);
+    rbusValue_SetTime(v, &rbus_time);
     s = rbusValue_ToDebugString(v,0,0);
     TEST(!strcmp(buff, s));
     free(s);
@@ -1052,7 +1061,8 @@ void testValue_Print()
     {
         rbusValue_t v;
         rbusValue_Init(&v);
-        struct timeval tv;
+        time_t nowtime = 0;
+        rbusDateTime_t rbus_time = {{0},{0}};
         uint8_t bytes[256] = 
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
             "Sed condimentum nibh vel justo mattis, ac blandit ex egestas. "
@@ -1104,8 +1114,8 @@ void testValue_Print()
             rbusValue_SetDouble(v, 3.141592653589793);
             break;
         case RBUS_DATETIME:
-            gettimeofday(&tv, NULL);
-            rbusValue_SetTime(v, &tv);
+            memcpy(&(rbus_time.m_time), localtime(&nowtime),sizeof(struct tm));
+            rbusValue_SetTime(v, &rbus_time);
             break;
         case RBUS_STRING:
             rbusValue_SetString(v, "The Is A String");
