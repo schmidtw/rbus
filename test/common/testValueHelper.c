@@ -57,7 +57,8 @@ void TestValueProperties_Init(TestValueProperty** list)
 {
     TestValueProperty* data;
 
-    struct timeval tv[3] = { {100,200}, {300,400}, {500,600} };
+    rbusDateTime_t rbus_time[3] = {{{0},{0}}};
+    time_t nowtime[3] = { 100,300,500};
 
     char* strings[3] = {
         "short string",
@@ -123,9 +124,13 @@ void TestValueProperties_Init(TestValueProperty** list)
     rbusValue_SetDouble(gTestData[10].values[1], 999999999999999.1);
     rbusValue_SetDouble(gTestData[10].values[2], 3.141592653589793);
 
-    rbusValue_SetTime(gTestData[11].values[0], &tv[0]);
-    rbusValue_SetTime(gTestData[11].values[1], &tv[1]);
-    rbusValue_SetTime(gTestData[11].values[2], &tv[2]);
+    memcpy(&(rbus_time[0].m_time), localtime(&nowtime[0]),sizeof(struct tm));
+    memcpy(&(rbus_time[1].m_time), localtime(&nowtime[1]),sizeof(struct tm));
+    memcpy(&(rbus_time[2].m_time), localtime(&nowtime[2]),sizeof(struct tm));
+
+    rbusValue_SetTime(gTestData[11].values[0], &rbus_time[0]);
+    rbusValue_SetTime(gTestData[11].values[1], &rbus_time[1]);
+    rbusValue_SetTime(gTestData[11].values[2], &rbus_time[2]);
 
     rbusValue_SetString(gTestData[12].values[0], strings[0]);
     rbusValue_SetString(gTestData[12].values[1], strings[1]);

@@ -68,7 +68,7 @@ void rbusBuffer_WriteUInt64TLV(rbusBuffer_t buff, uint64_t u64);
 void rbusBuffer_WriteSingleTLV(rbusBuffer_t buff, float f32);
 void rbusBuffer_WriteDoubleTLV(rbusBuffer_t buff, double f64);
 void rbusBuffer_WriteStringTLV(rbusBuffer_t buff, char const* s, int len);
-void rbusBuffer_WriteDateTimeTLV(rbusBuffer_t buff, struct timeval const* tv);
+void rbusBuffer_WriteDateTimeTLV(rbusBuffer_t buff, rbusDateTime_t const* tv);
 void rbusBuffer_WriteBytesTLV(rbusBuffer_t buff, uint8_t* bytes, int len);
 void rbusBuffer_Read(rbusBuffer_t const buff, void* data, int len);
 void rbusBuffer_ReadBoolean(rbusBuffer_t const buff, bool* b);
@@ -85,7 +85,7 @@ void rbusBuffer_ReadUInt64(rbusBuffer_t const buff, uint64_t* u64);
 void rbusBuffer_ReadSingle(rbusBuffer_t const buff, float* f32);
 void rbusBuffer_ReadDouble(rbusBuffer_t const buff, double* f64);
 void rbusBuffer_ReadString(rbusBuffer_t const buff, char** s, int* len);/* caller must free *s */
-void rbusBuffer_ReadDateTime(rbusBuffer_t const buff, struct timeval* tv);
+void rbusBuffer_ReadDateTime(rbusBuffer_t const buff, rbusDateTime_t* tv);
 void rbusBuffer_ReadBytes(rbusBuffer_t const buff, uint8_t** bytes, int* len);/* caller must free *bytes */
 
 #ifdef __cplusplus

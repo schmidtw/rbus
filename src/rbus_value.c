@@ -36,6 +36,8 @@
 #include "rbus_buffer.h"
 #include <rtLog.h>
 
+#define RBUS_TIMEZONE_LEN   6
+
 struct _rbusValue
 {
     rtRetainable retainable;
@@ -54,7 +56,7 @@ struct _rbusValue
         uint64_t                u64;
         float                   f32;
         double                  f64;
-        struct timeval          tv;
+        rbusDateTime_t          tv;
         rbusBuffer_t            bytes;
         struct  _rbusProperty*  property;
         struct  _rbusObject*    object;
@@ -215,11 +217,7 @@ char* rbusValue_ToString(rbusValue_t v, char* buf, size_t buflen)
             n = snprintf(p, 0, "%.*f", DBL_DIG, v->d.f64)+1;
             break;
         case RBUS_DATETIME:
-            {
-                char tmpBuff[40] = {0}; /* 27 bytes is good enough; */
-                strftime(tmpBuff, sizeof(tmpBuff), "%Y-%m-%d %T", localtime(&v->d.tv.tv_sec));
-                n=snprintf(p, 0, "%s.%06ld",tmpBuff, v->d.tv.tv_usec)+1;
-            }
+            n = snprintf(p, 0, "0000-00-00T00:00:00+00:00") + 1;
             break;
         default:
             n = snprintf(p, 0, "FIXME TYPE %d", v->type)+1;
@@ -282,8 +280,34 @@ char* rbusValue_ToString(rbusValue_t v, char* buf, size_t buflen)
     case RBUS_DATETIME:
         {
             char tmpBuff[40] = {0}; /* 27 bytes is good enough; */
-            strftime(tmpBuff, sizeof(tmpBuff), "%Y-%m-%d %T", localtime(&v->d.tv.tv_sec));
-            snprintf(p, n, "%s.%06ld", tmpBuff, v->d.tv.tv_usec);
+            if(v->d.tv.m_tz.m_tzhour || v->d.tv.m_tz.m_tzmin) {
+                if(v->d.tv.m_tz.m_isWest)
+                    snprintf(tmpBuff, 40, "-%02d:%02d",v->d.tv.m_tz.m_tzhour, v->d.tv.m_tz.m_tzmin);
+                else
+                    snprintf(tmpBuff, 40, "+%02d:%02d",v->d.tv.m_tz.m_tzhour, v->d.tv.m_tz.m_tzmin);
+            } else {
+                snprintf(tmpBuff, 40, "Z");
+            }
+            if(0 == v->d.tv.m_time.tm_year) {
+                snprintf(p, n, "%04d-%02d-%02dT%02d:%02d:%02d%s", v->d.tv.m_time.tm_year,
+                                                                    v->d.tv.m_time.tm_mon,
+                                                                    v->d.tv.m_time.tm_mday,
+                                                                    v->d.tv.m_time.tm_hour,
+                                                                    v->d.tv.m_time.tm_min,
+                                                                    v->d.tv.m_time.tm_sec,
+                                                                    tmpBuff);
+            } else {
+                /* tm_mon represents month from 0 to 11. So increment tm_mon by 1.
+                   tm_year represents years since 1900. So add 1900 to tm_year.
+                 */
+                snprintf(p, n, "%04d-%02d-%02dT%02d:%02d:%02d%s", v->d.tv.m_time.tm_year+1900,
+                                                                    v->d.tv.m_time.tm_mon+1,
+                                                                    v->d.tv.m_time.tm_mday,
+                                                                    v->d.tv.m_time.tm_hour,
+                                                                    v->d.tv.m_time.tm_min,
+                                                                    v->d.tv.m_time.tm_sec,
+                                                                    tmpBuff);
+            }
             break;
         }
     case RBUS_NONE:
@@ -430,7 +454,7 @@ double rbusValue_GetDouble(rbusValue_t v)
     return v->d.f64;
 }
 
-struct timeval const* rbusValue_GetTime(rbusValue_t v)
+rbusDateTime_t const* rbusValue_GetTime(rbusValue_t v)
 {
     assert(v->type == RBUS_DATETIME);
     return &v->d.tv;
@@ -585,7 +609,7 @@ void rbusValue_SetDouble(rbusValue_t v, double f64)
     v->type = RBUS_DOUBLE;
 }
 
-void rbusValue_SetTime(rbusValue_t v, struct timeval* tv)
+void rbusValue_SetTime(rbusValue_t v, rbusDateTime_t* tv)
 {
     rbusValue_FreeInternal(v);
     v->d.tv = *tv;
@@ -640,7 +664,7 @@ uint32_t rbusValue_GetL(rbusValue_t v)
     case RBUS_UINT64:       return sizeof(uint64_t);
     case RBUS_SINGLE:       return sizeof(float);
     case RBUS_DOUBLE:       return sizeof(double);
-    case RBUS_DATETIME:     return sizeof(struct timeval);
+    case RBUS_DATETIME:     return sizeof(rbusDateTime_t);
     case RBUS_BYTES:        return v->d.bytes->posWrite;
     default:
         assert(false);
@@ -889,8 +913,6 @@ int rbusValue_Compare(rbusValue_t v1, rbusValue_t v2)
         RETURN_COMPARE_VALUE(double, rbusValue_GetDouble);
     case RBUS_DATETIME:
     {
-        return memcmp(rbusValue_GetTime(v1), rbusValue_GetTime(v2), sizeof(struct timeval));
-#if 0 /* FIXME: Remove the above timeval struct & use rbusDateTime_t when we bring-in rbusDateTime_t
         if(memcmp(rbusValue_GetTime(v1), rbusValue_GetTime(v2), sizeof(rbusDateTime_t)))
             return 0;
 
@@ -898,15 +920,15 @@ int rbusValue_Compare(rbusValue_t v1, rbusValue_t v2)
         rbusDateTime_t dt1 = *rbusValue_GetTime(v1);
         rbusDateTime_t dt2 = *rbusValue_GetTime(v2);
 
-        dt1.m_time.tm_hour += (dt1.m_isWest ? dt1.m_tz.m_tzhour * -1 : dt1.m_tz.m_tzhour);
-        dt1.m_time.tm_min += (dt1.m_isWest ? dt1.m_tz.m_tzmin * -1 : dt1.m_tz.m_tzmin);
+        dt1.m_time.tm_hour += (dt1.m_tz.m_isWest ? dt1.m_tz.m_tzhour * -1 : dt1.m_tz.m_tzhour);
+        dt1.m_time.tm_min += (dt1.m_tz.m_isWest ? dt1.m_tz.m_tzmin * -1 : dt1.m_tz.m_tzmin);
         if(dt1.m_time.tm_min < 0)
             dt1.m_time.tm_min += 60;
         if(dt1.m_time.tm_min >= 60)
             dt1.m_time.tm_min -= 60;
 
-        dt2.m_time.tm_hour += (dt2.m_isWest ? dt2.m_tz.m_tzhour * -1 : dt2.m_tz.m_tzhour);
-        dt2.m_time.tm_min += (dt2.m_isWest ? dt2.m_tz.m_tzmin * -1 : dt2.m_tz.m_tzmin);
+        dt2.m_time.tm_hour += (dt2.m_tz.m_isWest ? dt2.m_tz.m_tzhour * -1 : dt2.m_tz.m_tzhour);
+        dt2.m_time.tm_min += (dt2.m_tz.m_isWest ? dt2.m_tz.m_tzmin * -1 : dt2.m_tz.m_tzmin);
         if(dt2.m_time.tm_min < 0)
             dt2.m_time.tm_min += 60;
         if(dt2.m_time.tm_min >= 60)
@@ -922,7 +944,6 @@ int rbusValue_Compare(rbusValue_t v1, rbusValue_t v2)
             return -1;
         else
             return 1;
-#endif
     }
     case RBUS_PROPERTY:
         if(rbusValue_GetProperty(v1) && rbusValue_GetProperty(v2))
@@ -1006,7 +1027,6 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
     unsigned long tmpUL = 0;
     long long tmpLL = 0;
     unsigned long long tmpULL = 0;
-
 
     if (pStringInput == NULL)
         return false;
@@ -1162,62 +1182,29 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
             break;
         }
     case RBUS_DATETIME:
-        if(0 == strncmp(pStringInput,"0000-",5)) {
-            /* Only because the existing components uses all zeros (0000-00-00 00:00:00.000000)
-               as input which is not standard, but to not to break the backward compatibility,
-               we are using it as string.
-             */
-            rtLog_Warn("RBUS_DATETIME: Legacy Date Time type not supported. Converting to string data type");
-            rbusValue_SetString(value, pStringInput);
-        } else {
-            char *pRet = NULL;
-            char *pFound = NULL;
-            struct timeval tv = {0};
-            struct tm t = {0};
-
-            pFound = strstr(pStringInput,"T");
-
-            if(pFound)
-                pRet=(char *)strptime(pStringInput, "%Y-%m-%dT%H:%M:%S", &t);
-            else
-                pRet=(char *)strptime(pStringInput, "%Y-%m-%d %H:%M:%S", &t);
-
-            if(!pRet) {
-                rtLog_Info ("Invalid input string ");
-                return false;
-            }
-            t.tm_isdst = -1;
-
-            tv.tv_sec=(long)mktime(&t);
-            if(-1 == tv.tv_sec) {
-                /* Only because the existing components uses "9999-12-31 23:59:59" as input
-                   which is not standard, but to not to break the backward compatibility, we are
-                   using it as string.
-                 */
-                rtLog_Warn("RBUS_DATETIME: Legacy Date Time type not supported. Converting to string data type");
-                rbusValue_SetString(value, pStringInput);
-            } else {
-                pFound = strstr(pStringInput,".");
-                if(pFound) {
-                    int usLen = 0;
-
-                    pFound++;
-                    usLen = strlen(pFound);
-
-                    if(6!=usLen) {
-                        rtLog_Info("Invalid microsecond format. Defaulting it to zero");
-                    } else {
-                        while(usLen--) {
-                            if(!isdigit((int)pFound[usLen])) {
-                                rtLog_Info("Invalid microsecond format. Defaulting it to zero");
-                            }
-                        }
-                        if(usLen < 0)
-                            sscanf(pFound,"%ld",&tv.tv_usec);
-                    }
+        {
+            rbusDateTime_t tv = {{0},{0}};
+            if(0 != strncmp(pStringInput,"0000-",5)) {
+                char *pRet = NULL;
+                if(strstr(pStringInput,"T"))
+                    pRet=(char *)strptime(pStringInput, "%Y-%m-%dT%H:%M:%S", &(tv.m_time));
+                else
+                    pRet=(char *)strptime(pStringInput, "%Y-%m-%d %H:%M:%S", &(tv.m_time));
+                if(!pRet) {
+                    rtLog_Info ("Invalid input string ");
+                    return false;
                 }
-                rbusValue_SetTime(value, &tv);
+                if((RBUS_TIMEZONE_LEN == strlen(pRet)) &&
+                        (isdigit((int)pRet[1]) &&
+                         isdigit((int)pRet[2]) &&
+                         isdigit((int)pRet[4]) &&
+                         isdigit((int)pRet[5]))
+                  ) {
+                    tv.m_tz.m_isWest = ('-' == pRet[0]);
+                    sscanf(pRet+1,"%02d:%02d",&(tv.m_tz.m_tzhour), &(tv.m_tz.m_tzmin));
+                }
             }
+            rbusValue_SetTime(value, &tv);
         }
         break;
     case RBUS_PROPERTY:

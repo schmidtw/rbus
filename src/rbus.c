@@ -251,7 +251,6 @@ static void rbusValue_initFromMessage(rbusValue_t* value, rtMessage msg)
         {
             int32_t ival;
             double fval;
-            struct timeval tv;
 
             switch(type)
             {
@@ -306,11 +305,8 @@ static void rbusValue_initFromMessage(rbusValue_t* value, rtMessage msg)
                     rbusValue_SetDouble(*value, (double)fval);
                     break;
                 case RBUS_DATETIME:
-                    rbus_PopInt32(msg, &ival);
-                    tv.tv_sec = ival;
-                    rbus_PopInt32(msg, &ival);
-                    tv.tv_usec = ival;
-                    rbusValue_SetTime(*value, &tv);
+                    rbus_PopBinaryData(msg, &data, &length);
+                    rbusValue_SetTLV(*value, type, length, data);
                     break;
                 default:
                     rbus_PopBinaryData(msg, &data, &length);
@@ -551,8 +547,7 @@ static void rbusValue_appendToMessage(char const* name, rbusValue_t value, rtMes
                 rbus_AppendDouble(msg, (double)rbusValue_GetDouble(value));
                 break;
             case RBUS_DATETIME:
-                rbus_AppendInt32(msg, (int32_t)rbusValue_GetTime(value)->tv_sec);
-                rbus_AppendInt32(msg, (int32_t)rbusValue_GetTime(value)->tv_usec);
+                rbus_AppendBinaryData(msg, rbusValue_GetV(value), rbusValue_GetL(value));
                 break;
             default:
                 rbus_AppendBinaryData(msg, rbusValue_GetV(value), rbusValue_GetL(value));

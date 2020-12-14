@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,13 +58,24 @@ typedef enum
     RBUS_UINT64,            /**< 64 bit unsigned int */
     RBUS_SINGLE,            /**< 32 bit float */
     RBUS_DOUBLE,            /**< 64 bit float */
-    RBUS_DATETIME,          /**< timeval num secs/msecs from epoch */
+    RBUS_DATETIME,          /**< rbusDateTime_t structure for Date/Time */
     RBUS_STRING,            /**< null terminated C style string */
     RBUS_BYTES,             /**< byte array */
     RBUS_PROPERTY,          /**< property instance */
     RBUS_OBJECT,            /**< object instance */
     RBUS_NONE
 } rbusValueType_t;
+
+typedef struct _rbusTimeZone {
+    int m_tzhour;
+    int m_tzmin;
+    bool m_isWest;
+} rbusTimeZone_t ;
+
+typedef struct _rbusDateTime {
+    struct tm       m_time;
+    rbusTimeZone_t  m_tz;
+} rbusDateTime_t;
 
 /**
  * @brief       A handle to an rbus value.
@@ -137,7 +149,7 @@ rbusValue_t rbusValue_FromSingle(float f32);
 rbusValue_t rbusValue_FromDouble(double f64);
 
 ///  @brief rbusValue_FromTime initialize a value's type to RBUS_DATETIME and data to the supplied timeval 
-rbusValue_t rbusValue_FromTime(struct timeval* tv);
+rbusValue_t rbusValue_FromTime(rbusDateTime_t* tv);
 
 ///  @brief rbusValue_FromString initialize a value's type to RBUS_STRING and data to the supplied string 
 ///         s should be a null terminated c string
@@ -179,7 +191,10 @@ void rbusValue_Copy(rbusValue_t dest, rbusValue_t source);
  *         Parameters buf and buflen are optional and allow the caller to pass in a buffer 
  *          to write the string to.  If parameter buf is NULL, this method will allocate a buffer
  *          to write the string to and the caller should call free to deallocate the buffer.
- *          For DateTime datatype, ISO-8601 format (YYYY-MM-DD HH:MM:SS.mmmmmm) will be used for printing.
+ *          For DateTime datatype, below ISO-8601 formats as per TR-069_Amendment-6 will be used for printing.
+ *          YYYY-MM-DDThh:mm:ssZ
+ *          YYYY-MM-DDThh:mm:ss+00:00
+ *          YYYY-MM-DDThh:mm:ss-00:00
  *  @param value the value to convert to a string
  *  @param buf optional buffer to write the string to
  *  @param buflen the length of buf if buf was supplied, otherwise ignored
@@ -239,7 +254,7 @@ float rbusValue_GetSingle(rbusValue_t value);
 
 double rbusValue_GetDouble(rbusValue_t value);
 
-struct timeval const* rbusValue_GetTime(rbusValue_t value);
+rbusDateTime_t const* rbusValue_GetTime(rbusValue_t value);
 
 /// @param len optional param to retrieve the length of the string being returned(not including null terminator).
 /// @return A c-style, null terminated string.  This is a pointer to the actual data thus no allocation or copy is done.
@@ -282,7 +297,7 @@ void rbusValue_SetSingle(rbusValue_t value, float f32);
 
 void rbusValue_SetDouble(rbusValue_t value, double f64);
 
-void rbusValue_SetTime(rbusValue_t value, struct timeval* tv);
+void rbusValue_SetTime(rbusValue_t value, rbusDateTime_t* tv);
 
 /// @param s        a c-style, null terminated string which is duplicated/copied to the value.
 void rbusValue_SetString(rbusValue_t value, char const* s);

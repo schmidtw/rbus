@@ -169,11 +169,21 @@ void rbusBuffer_WriteDoubleTLV(rbusBuffer_t buff, double f64)
     rbusBuffer_WriteTypeLengthValue(buff, RBUS_DOUBLE, sizeof(double), &temp);
 }
 
-void rbusBuffer_WriteDateTimeTLV(rbusBuffer_t buff, struct timeval const* tv)
+void rbusBuffer_WriteDateTimeTLV(rbusBuffer_t buff, rbusDateTime_t const* tv)
 {
-    struct timeval temp;
-    temp.tv_sec = rbusHostToLittleInt64(tv->tv_sec);
-    temp.tv_usec = rbusHostToLittleInt64(tv->tv_usec);
+    rbusDateTime_t temp;
+    rbusBuffer_Read(buff, &temp, sizeof(rbusDateTime_t));
+    temp.m_time.tm_sec      = rbusHostToLittleInt32(tv->m_time.tm_sec);
+    temp.m_time.tm_min      = rbusHostToLittleInt32(tv->m_time.tm_min);
+    temp.m_time.tm_hour     = rbusHostToLittleInt32(tv->m_time.tm_hour);
+    temp.m_time.tm_mday     = rbusHostToLittleInt32(tv->m_time.tm_mday);
+    temp.m_time.tm_year     = rbusHostToLittleInt32(tv->m_time.tm_year);
+    temp.m_time.tm_wday     = rbusHostToLittleInt32(tv->m_time.tm_wday);
+    temp.m_time.tm_yday     = rbusHostToLittleInt32(tv->m_time.tm_yday);
+    temp.m_time.tm_isdst    = rbusHostToLittleInt32(tv->m_time.tm_isdst);
+    temp.m_tz.m_tzhour      = rbusHostToLittleInt32(tv->m_tz.m_tzhour);
+    temp.m_tz.m_tzmin       = rbusHostToLittleInt32(tv->m_tz.m_tzmin);
+    temp.m_tz.m_isWest      = rbusHostToLittleInt32(tv->m_tz.m_isWest);
     rbusBuffer_WriteTypeLengthValue(buff, RBUS_DATETIME, sizeof(temp), &temp);
 }
 
@@ -281,12 +291,21 @@ void rbusBuffer_ReadDouble(rbusBuffer_t const buff, double* f64)
     *f64 = (double)rbusLittleToHostInt64((uint64_t)temp);
 }
 
-void rbusBuffer_ReadDateTime(rbusBuffer_t const buff, struct timeval* tv)
+void rbusBuffer_ReadDateTime(rbusBuffer_t const buff, rbusDateTime_t* tv)
 {
-    struct timeval temp;
-    rbusBuffer_Read(buff, &temp, sizeof(struct timeval));
-    tv->tv_sec = rbusLittleToHostInt64(temp.tv_sec);
-    tv->tv_usec = rbusLittleToHostInt64(temp.tv_usec);
+    rbusDateTime_t temp;
+    rbusBuffer_Read(buff, &temp, sizeof(rbusDateTime_t));
+    tv->m_time.tm_sec   = rbusLittleToHostInt32(temp.m_time.tm_sec);
+    tv->m_time.tm_min   = rbusLittleToHostInt32(temp.m_time.tm_min);
+    tv->m_time.tm_hour  = rbusLittleToHostInt32(temp.m_time.tm_hour);
+    tv->m_time.tm_mday  = rbusLittleToHostInt32(temp.m_time.tm_mday);
+    tv->m_time.tm_year  = rbusLittleToHostInt32(temp.m_time.tm_year);
+    tv->m_time.tm_wday  = rbusLittleToHostInt32(temp.m_time.tm_wday);
+    tv->m_time.tm_yday  = rbusLittleToHostInt32(temp.m_time.tm_yday);
+    tv->m_time.tm_isdst = rbusLittleToHostInt32(temp.m_time.tm_isdst);
+    tv->m_tz.m_tzhour   = rbusLittleToHostInt32(temp.m_tz.m_tzhour);
+    tv->m_tz.m_tzmin    = rbusLittleToHostInt32(temp.m_tz.m_tzmin);
+    tv->m_tz.m_isWest   = rbusLittleToHostInt32(temp.m_tz.m_isWest);
 }
 
 void rbusBuffer_ReadBytes(rbusBuffer_t const buff, uint8_t** bytes, int* len)
@@ -295,5 +314,3 @@ void rbusBuffer_ReadBytes(rbusBuffer_t const buff, uint8_t** bytes, int* len)
     *bytes = malloc(buff->posWrite);
     rbusBuffer_Read(buff, bytes, buff->posWrite);
 }
-
-
