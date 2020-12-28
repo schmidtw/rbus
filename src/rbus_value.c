@@ -1027,6 +1027,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
     unsigned long tmpUL = 0;
     long long tmpLL = 0;
     unsigned long long tmpULL = 0;
+    errno = 0;
 
     if (pStringInput == NULL)
         return false;
@@ -1055,28 +1056,24 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         break;
     case RBUS_INT8:
     {
-        union tmpUX
+        tmpL = strtol (pStringInput, NULL, 0);
+        if ((errno == ERANGE) || (tmpL < INT8_MIN  || tmpL > INT8_MAX))
         {
-            int8_t i8[4];
-            int32_t i32;
-        };
-
-        union tmpUX x;
-        x.i32 = strtol (pStringInput, NULL, 0);
-        rbusValue_SetInt8(value, x.i8[0]);
+            rtLog_Info ("Invalid input string");
+            return false;
+        }
+        rbusValue_SetInt8(value, (int8_t)tmpL);
         break;
     }
     case RBUS_UINT8:
     {
-        union tmpUX
+        tmpUL = strtoul (pStringInput, NULL, 0);
+        if ((errno == ERANGE) || (tmpUL < 0 || tmpUL > UINT8_MAX))
         {
-            uint8_t i8[4];
-            int32_t i32;
-        };
-
-        union tmpUX x;
-        x.i32 = strtol (pStringInput, NULL, 0);
-        rbusValue_SetUInt8(value, x.i8[0]);
+            rtLog_Info ("Invalid input string");
+            return false;
+        }
+        rbusValue_SetUInt8(value, (uint8_t)tmpUL);
         break;
     }
     case RBUS_INT16:

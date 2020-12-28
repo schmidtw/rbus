@@ -31,6 +31,10 @@
 
 #include <rbus_value.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief       A handle to an rbus property.
  */
@@ -144,6 +148,9 @@ uint32_t rbusProperty_Count(rbusProperty_t property);
 
 void rbusProperty_fwrite(rbusProperty_t prop, int depth, FILE* fout);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 /** @} */
