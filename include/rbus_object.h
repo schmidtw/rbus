@@ -31,6 +31,9 @@
 #define RBUS_OBJECT_H
 
 #include <rbus_property.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum _rbusObjectType
 {
@@ -165,5 +168,8 @@ rbusObjectType_t rbusObject_GetType(rbusObject_t object);
 
 void rbusObject_fwrite(rbusObject_t obj, int depth, FILE* fout);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 /** @} */

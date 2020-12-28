@@ -159,7 +159,7 @@ void rbusBuffer_WriteUInt64TLV(rbusBuffer_t buff, uint64_t u64)
 
 void rbusBuffer_WriteSingleTLV(rbusBuffer_t buff, float f32)
 {
-    float temp = rbusHostToLittleInt32(f32);
+    float temp = rbusHostToLittleInt32((uint32_t)f32);
     rbusBuffer_WriteTypeLengthValue(buff, RBUS_SINGLE, sizeof(float), &temp);
 }
 
@@ -172,7 +172,6 @@ void rbusBuffer_WriteDoubleTLV(rbusBuffer_t buff, double f64)
 void rbusBuffer_WriteDateTimeTLV(rbusBuffer_t buff, rbusDateTime_t const* tv)
 {
     rbusDateTime_t temp;
-    rbusBuffer_Read(buff, &temp, sizeof(rbusDateTime_t));
     temp.m_time.tm_sec      = rbusHostToLittleInt32(tv->m_time.tm_sec);
     temp.m_time.tm_min      = rbusHostToLittleInt32(tv->m_time.tm_min);
     temp.m_time.tm_hour     = rbusHostToLittleInt32(tv->m_time.tm_hour);

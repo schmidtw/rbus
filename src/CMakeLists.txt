@@ -18,10 +18,6 @@
 # limitations under the License.
 #############################################################################
 
-cmake_policy(SET CMP0048 NEW)
-
-project(rbus
-    VERSION 0.2.0)
 
 include_directories(
     ../include)
