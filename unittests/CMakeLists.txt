@@ -1,34 +1,42 @@
-include(ExternalProject)
-#include(GoogleTest)
+find_package(GTest QUIET)
 
-ExternalProject_Add(
-  gtest
-  URL https://github.com/google/googletest/archive/master.zip
-  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
-  INSTALL_COMMAND "")
+if (NOT GTEST_INCLUDE_DIR)
+    message("Warning GTest wasn't found. GTest library will be built.")
+    include(ExternalProject)
+    #include(GoogleTest)
 
-ExternalProject_Get_Property(gtest source_dir binary_dir)
+    ExternalProject_Add(
+      gtest
+      URL https://github.com/google/googletest/archive/master.zip
+      PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gtest
+      INSTALL_COMMAND "")
 
-add_library(libgtest IMPORTED STATIC GLOBAL)
-add_dependencies(libgtest gtest)
-set_target_properties(libgtest PROPERTIES
-  "IMPORTED_LOCATION" "${binary_dir}/lib/libgtest.a"
-  "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}")
+    ExternalProject_Get_Property(gtest source_dir binary_dir)
 
-add_library(libgmock IMPORTED STATIC GLOBAL)
-add_dependencies(libgmock gtest)
-set_target_properties(libgmock PROPERTIES
-  "IMPORTED_LOCATION" "${binary_dir}/lib/libgmock.a"
-  "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}")
+    add_library(libgtest IMPORTED STATIC GLOBAL)
+    add_dependencies(libgtest gtest)
+    set_target_properties(libgtest PROPERTIES
+      "IMPORTED_LOCATION" "${binary_dir}/lib/libgtest.a"
+      "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}")
 
-include_directories("${source_dir}/googletest/include" "${source_dir}/googlemock/include" ../include)
+    add_library(libgmock IMPORTED STATIC GLOBAL)
+    add_dependencies(libgmock gtest)
+    set_target_properties(libgmock PROPERTIES
+      "IMPORTED_LOCATION" "${binary_dir}/lib/libgmock.a"
+      "IMPORTED_LINK_INTERFACE_LIBRARIES" "${CMAKE_THREAD_LIBS_INIT}")
 
+    include_directories("${source_dir}/googletest/include" "${source_dir}/googlemock/include")
+else ()
+    include_directories("${GTEST_INCLUDE_DIR}")
+endif()
+
+include_directories(../include)
 # someone needs to figure out how to run this stuff under valgrind
 add_custom_target(test_memcheck
   COMMAND "${CMAKE_CTEST_COMMAND} --force-new-ctest-process --test-action memcheck"
   COMMAND cat "${CMAKE_BINARY_DIR}/Testing/Temporary/MemoryChecker.*.log")
 
-add_executable(rbus_gtest.bin 
+add_executable(rbus_gtest.bin
   rbusValueTest.cpp
   rbusFunctionalityTest.cpp
   rbusObjectTest.cpp
@@ -36,7 +44,12 @@ add_executable(rbus_gtest.bin
   rbusFilterTest.cpp
   main.cpp)
 add_dependencies(rbus_gtest.bin rbus)
-target_link_libraries(rbus_gtest.bin rbus libgtest libgmock gcov)
+
+if (NOT GTEST_INCLUDE_DIR)
+    target_link_libraries(rbus_gtest.bin rbus libgtest libgmock gcov)
+else ()
+    target_link_libraries(rbus_gtest.bin rbus gtest gcov)
+endif()
 
 install (TARGETS rbus_gtest.bin
     RUNTIME DESTINATION bin)
