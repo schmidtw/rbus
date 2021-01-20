@@ -54,6 +54,7 @@ if (ENABLE_CODE_COVERAGE)
       "${CMAKE_CURRENT_BINARY_DIR}/unittests/gtest/*"
       "test/*"
       "sampleapps/*")
+    option (ENABLE_UNIT_TESTING "ENABLE_UNIT_TESTING" ON)
     if (BUILD_FOR_DESKTOP)
         if (ENABLE_CODE_COVERAGE_GOVR)
             setup_target_for_coverage_gcovr_html(NAME "${PROJECT_NAME}CodeCoverageUI")
