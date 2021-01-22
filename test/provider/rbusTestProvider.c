@@ -252,7 +252,7 @@ Node* createNode(Node* parent, rbusElementType_t type, char const* name)
 
     if(name)
     {
-        strncpy(node->name, name, MAX_ALIAS_LEN);
+        strncpy(node->name, name, MAX_ALIAS_LEN-1);
     }
 
     if(parent)

@@ -307,13 +307,13 @@ rbusError_t setHandler1(rbusHandle_t handle, rbusProperty_t property, rbusSetHan
 
     if(propertyNameEquals(name, "Alias"))
     {
-        strncpy(t1->alias, rbusValue_GetString(value, NULL), MAX_LENGTH);
+        strncpy(t1->alias, rbusValue_GetString(value, NULL), MAX_LENGTH-1);
         printDataModel();
         return RBUS_ERROR_SUCCESS;
     }
     else if(propertyNameEquals(name, "Data"))
     {
-        strncpy(t1->data, rbusValue_GetString(value, NULL), MAX_LENGTH);
+        strncpy(t1->data, rbusValue_GetString(value, NULL), MAX_LENGTH-1);
         printDataModel();
         return RBUS_ERROR_SUCCESS;
     }

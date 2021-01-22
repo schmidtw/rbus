@@ -1087,8 +1087,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         {
             int16_t tmpI16 = (int16_t) tmpL;
             rbusValue_SetInt16(value, tmpI16);
-            break;
         }
+        break;
     case RBUS_INT32:
         tmpL = strtol (pStringInput, NULL, 0);
         if ((errno == ERANGE && (tmpL == LONG_MAX || tmpL == LONG_MIN)) || (tmpL > INT32_MAX) || (tmpL < INT32_MIN))
@@ -1100,8 +1100,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         {
             int32_t tmpI32 = (int32_t) tmpL;
             rbusValue_SetInt32(value, tmpI32);
-            break;
         }
+        break;
     case RBUS_INT64:
         tmpLL = strtoll (pStringInput, NULL, 0);
         if ((errno == ERANGE && (tmpLL == LLONG_MAX || tmpLL == LLONG_MIN)) || (tmpLL > INT64_MAX) || (tmpLL < INT64_MIN))
@@ -1113,8 +1113,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         {
             int64_t tmpI64 = (int64_t) tmpLL;
             rbusValue_SetInt64(value, tmpI64);
-            break;
         }
+        break;
     case RBUS_UINT16:
         tmpUL = strtoul (pStringInput, NULL, 0);
         if ((errno == ERANGE && (tmpUL == ULONG_MAX || tmpUL == 0)) || (tmpUL > UINT16_MAX))
@@ -1206,7 +1206,6 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         break;
     case RBUS_PROPERTY:
     case RBUS_OBJECT:
-        rtLog_Info ("Not Implemented yet.."); //FIXME
     default:
         return false;
     }

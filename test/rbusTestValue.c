@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <rbus.h>
 #include "../src/rbus_buffer.h"
+#include <math.h>
 
 #define TEST(T) \
     if(!(T)) \
@@ -739,8 +740,8 @@ void testValue_Buffer()
             case RBUS_UINT32: TEST(rbusValue_GetUInt32(valOut)==112231); break;
             case RBUS_INT64: TEST(rbusValue_GetInt64(valOut)==500341898123); break;
             case RBUS_UINT64: TEST(rbusValue_GetUInt64(valOut)==12231412313); break;
-            case RBUS_SINGLE: TEST(rbusValue_GetSingle(valOut)==rbusValue_GetSingle(valIn) && abs(rbusValue_GetSingle(valOut))-3.14<0.01); break;
-            case RBUS_DOUBLE: TEST(rbusValue_GetDouble(valOut)==rbusValue_GetDouble(valIn) && abs(rbusValue_GetDouble(valOut))-3.14<0.01); break;
+            case RBUS_SINGLE: TEST(rbusValue_GetSingle(valOut)==rbusValue_GetSingle(valIn) && fabs(rbusValue_GetSingle(valOut))-3.14<0.01); break;
+            case RBUS_DOUBLE: TEST(rbusValue_GetDouble(valOut)==rbusValue_GetDouble(valIn) && fabs(rbusValue_GetDouble(valOut))-3.14<0.01); break;
             case RBUS_DATETIME: TEST(memcmp(rbusValue_GetTime(valOut), &rbus_time, sizeof(rbus_time))==0); break;
             case RBUS_STRING: TEST(strcmp(rbusValue_GetString(valOut, &len), "This is a string")==0 && len==strlen("This is a string")); break;
             case RBUS_BYTES: TEST(memcmp(rbusValue_GetBytes(valOut, &len), bytes, 10000)==0 && len==10000); break;            
@@ -821,8 +822,8 @@ void testValue_TLV()
             case RBUS_UINT32: TEST(rbusValue_GetUInt32(valOut)==112231); break;
             case RBUS_INT64: TEST(rbusValue_GetInt64(valOut)==500341898123); break;
             case RBUS_UINT64: TEST(rbusValue_GetUInt64(valOut)==12231412313); break;
-            case RBUS_SINGLE: TEST(rbusValue_GetSingle(valOut)==rbusValue_GetSingle(valIn) && abs(rbusValue_GetSingle(valOut))-3.14<0.01); break;
-            case RBUS_DOUBLE: TEST(rbusValue_GetDouble(valOut)==rbusValue_GetDouble(valIn) && abs(rbusValue_GetDouble(valOut))-3.14<0.01); break;
+            case RBUS_SINGLE: TEST(rbusValue_GetSingle(valOut)==rbusValue_GetSingle(valIn) && fabs(rbusValue_GetSingle(valOut))-3.14<0.01); break;
+            case RBUS_DOUBLE: TEST(rbusValue_GetDouble(valOut)==rbusValue_GetDouble(valIn) && fabs(rbusValue_GetDouble(valOut))-3.14<0.01); break;
             case RBUS_DATETIME: TEST(memcmp(rbusValue_GetTime(valOut), &rbus_time, sizeof(rbus_time))==0); break;
             case RBUS_STRING: TEST(strcmp(rbusValue_GetString(valOut, &len), "This is a string")==0 && len==strlen("This is a string")); break;
             case RBUS_BYTES: TEST(memcmp(rbusValue_GetBytes(valOut, &len), bytes, 10000)==0 && len==10000); break;            

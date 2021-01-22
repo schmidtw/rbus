@@ -83,7 +83,6 @@ static void test1(rbusHandle_t handle, char const* prop)
 {
     rbusError_t rc;
     char* value = NULL;
-    bool success;
 
     printf("test1 prop=%s\n", prop);
 

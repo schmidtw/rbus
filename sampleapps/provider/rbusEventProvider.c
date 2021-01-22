@@ -76,7 +76,7 @@ rbusError_t getHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHand
         char buff[16];
         rbusValue_t value;
 
-        sprintf(buff, "v%d", mydata++/3);/*fake a value change every 3rd call to this function*/
+        snprintf(buff, sizeof(buff), "v%d", mydata++/3);/*fake a value change every 3rd call to this function*/
 
         printf("Called get handler for [%s] val=[%s]\n", name, buff);
 

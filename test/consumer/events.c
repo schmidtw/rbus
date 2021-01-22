@@ -170,7 +170,7 @@ static int testAddRow(rbusHandle_t handle, char const* user, char const* name, c
 
 static int testAddRowMulti(rbusHandle_t handle, char const* user1, char const* user2 , char const* user3, char const* name, char const* data, char const* alias)
 {
-    printf("\n# TEST ADD ROW %s %s %s %s %s %s #\n\n", user1, user2, user3, name, data, alias);
+    printf("\n# TEST ADD ROW %s %s %s %s %s %s #\n\n", user1, user2, user3 ? user3 : "NULL", name, data, alias);
     setTestResult(RBUS_EVENT_OBJECT_CREATED, user1, name, data, false);
     if(user2)
         addTestResult(RBUS_EVENT_OBJECT_CREATED, user2, name, data, false);
@@ -192,7 +192,7 @@ static int testRemoveRow(rbusHandle_t handle, char const* user, char const* name
 
 static int testRemoveRowMulti(rbusHandle_t handle, char const* user1, char const* user2, char const* user3, char const* name, char const* data)
 {
-    printf("\n# TEST REM ROW %s %s %s %s %s #\n\n", user1, user2, user3, name, data);
+    printf("\n# TEST REM ROW %s %s %s %s %s #\n\n", user1, user2, user3  ? user3 : "NULL", name, data);
     setTestResult(RBUS_EVENT_OBJECT_DELETED, user1, name, data, false);
     if(user2)
         addTestResult(RBUS_EVENT_OBJECT_DELETED, user2, name, data, false);
