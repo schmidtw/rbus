@@ -18,6 +18,7 @@
 */
 
 #include <rbus.h>
+#include "rbus_log.h"
 #include "rbus_buffer.h"
 #include <endian.h>
 #include <assert.h>
@@ -54,6 +55,13 @@ void rbusBuffer_Destroy(rbusBuffer_t buff)
 
 void rbusBuffer_Write(rbusBuffer_t buff, void const* data, int len)
 {
+    rbusBuffer_Reserve(buff, len);
+    memcpy(buff->data + buff->posWrite, data, len);
+    buff->posWrite += len;
+}
+
+void rbusBuffer_Reserve(rbusBuffer_t buff, int len)
+{
     assert(buff->data);
     int posNext = buff->posWrite+len;
     if(posNext > buff->lenAlloc)
@@ -70,8 +78,6 @@ void rbusBuffer_Write(rbusBuffer_t buff, void const* data, int len)
             buff->data = realloc(buff->data, buff->lenAlloc);
         }
     }
-    memcpy(buff->data + buff->posWrite, data, len);
-    buff->posWrite = posNext;
 }
 
 void rbusBuffer_WriteTypeLengthValue(
@@ -191,109 +197,121 @@ void rbusBuffer_WriteBytesTLV(rbusBuffer_t buff, uint8_t* bytes, int len)
     rbusBuffer_WriteTypeLengthValue(buff, RBUS_BYTES, len, bytes);
 }
 
-void rbusBuffer_Read(rbusBuffer_t const buff, void* data, int len)
+int rbusBuffer_Read(rbusBuffer_t const buff, void* data, int len)
 {
-    assert(buff->data);
-    assert(buff->posRead + len < buff->lenAlloc);
+    if(!(buff->posRead + len < buff->lenAlloc))
+    {
+        RBUSLOG_WARN("rbusBuffer_Read failed");
+        return -1;
+    }
     memcpy(data, buff->data + buff->posRead, len);
     buff->posRead += len;
+    return 0;
 }
 
-void rbusBuffer_ReadString(rbusBuffer_t const buff, char** s, int* len)
+int rbusBuffer_ReadString(rbusBuffer_t const buff, char** s, int* len)
 {
     *len = buff->posRead;
     *s = malloc(buff->posRead+1);/*TODO is +1 needed?*/
-    rbusBuffer_Read(buff, *s, *len);
+    return rbusBuffer_Read(buff, *s, *len);
 }
 
-void rbusBuffer_ReadBoolean(rbusBuffer_t const buff, bool* b)
+int rbusBuffer_ReadBoolean(rbusBuffer_t const buff, bool* b)
 {
     assert(sizeof(bool) == 1);/*otherwise we need to handle endian*/
-    rbusBuffer_Read(buff, b, sizeof(bool));
+    return rbusBuffer_Read(buff, b, sizeof(bool));
 }
 
-void rbusBuffer_ReadChar(rbusBuffer_t const buff, char* c)
+int rbusBuffer_ReadChar(rbusBuffer_t const buff, char* c)
 {
     assert(sizeof(char) == 1);/*otherwise we need to handle endian*/
-    rbusBuffer_Read(buff, c, sizeof(char));
+    return rbusBuffer_Read(buff, c, sizeof(char));
 }
 
-void rbusBuffer_ReadByte(rbusBuffer_t const buff, unsigned char* u)
+int rbusBuffer_ReadByte(rbusBuffer_t const buff, unsigned char* u)
 {
     assert(sizeof(unsigned char) == 1);/*otherwise we need to handle endian*/
-    rbusBuffer_Read(buff, u, sizeof(unsigned char));
+    return rbusBuffer_Read(buff, u, sizeof(unsigned char));
 }
 
-void rbusBuffer_ReadInt8(rbusBuffer_t const buff, int8_t* i8)
+int rbusBuffer_ReadInt8(rbusBuffer_t const buff, int8_t* i8)
 {
-    rbusBuffer_Read(buff, i8, sizeof(int8_t));
+    return rbusBuffer_Read(buff, i8, sizeof(int8_t));
 }
 
-void rbusBuffer_ReadUInt8(rbusBuffer_t const buff, uint8_t* u8)
+int rbusBuffer_ReadUInt8(rbusBuffer_t const buff, uint8_t* u8)
 {
-    rbusBuffer_Read(buff, u8, sizeof(uint8_t));
+    return rbusBuffer_Read(buff, u8, sizeof(uint8_t));
 }
 
-void rbusBuffer_ReadInt16(rbusBuffer_t const buff, int16_t* i16)
+int rbusBuffer_ReadInt16(rbusBuffer_t const buff, int16_t* i16)
 {
     int16_t temp;
-    rbusBuffer_Read(buff, &temp, sizeof(int16_t));
+    int rc = rbusBuffer_Read(buff, &temp, sizeof(int16_t));
     *i16 = rbusLittleToHostInt16(temp);
+    return rc;
 }
 
-void rbusBuffer_ReadUInt16(rbusBuffer_t const buff, uint16_t* u16)
+int rbusBuffer_ReadUInt16(rbusBuffer_t const buff, uint16_t* u16)
 {
     uint16_t temp;
-    rbusBuffer_Read(buff, &temp, sizeof(uint16_t));
+    int rc = rbusBuffer_Read(buff, &temp, sizeof(uint16_t));
     *u16 = rbusLittleToHostInt16(temp);
+    return rc;
 }
 
-void rbusBuffer_ReadInt32(rbusBuffer_t const buff, int32_t* i32)
+int rbusBuffer_ReadInt32(rbusBuffer_t const buff, int32_t* i32)
 {
     int32_t temp;
-    rbusBuffer_Read(buff, &temp, sizeof(int32_t));
+    int rc = rbusBuffer_Read(buff, &temp, sizeof(int32_t));
     *i32 = rbusLittleToHostInt32(temp);
+    return rc;
 }
 
-void rbusBuffer_ReadUInt32(rbusBuffer_t const buff, uint32_t* u32)
+int rbusBuffer_ReadUInt32(rbusBuffer_t const buff, uint32_t* u32)
 {
     uint32_t temp;
-    rbusBuffer_Read(buff, &temp, sizeof(uint32_t));
+    int rc = rbusBuffer_Read(buff, &temp, sizeof(uint32_t));
     *u32 = rbusLittleToHostInt32(temp);
+    return rc;
 }
 
-void rbusBuffer_ReadInt64(rbusBuffer_t const buff, int64_t* i64)
+int rbusBuffer_ReadInt64(rbusBuffer_t const buff, int64_t* i64)
 {
     int64_t temp;
-    rbusBuffer_Read(buff, &temp, sizeof(int64_t));
+    int rc = rbusBuffer_Read(buff, &temp, sizeof(int64_t));
     *i64 = rbusLittleToHostInt64(temp);
+    return rc;
 }
 
-void rbusBuffer_ReadUInt64(rbusBuffer_t const buff, uint64_t* u64)
+int rbusBuffer_ReadUInt64(rbusBuffer_t const buff, uint64_t* u64)
 {
     uint64_t temp;
-    rbusBuffer_Read(buff, &temp, sizeof(uint64_t));
+    int rc = rbusBuffer_Read(buff, &temp, sizeof(uint64_t));
     *u64 = rbusLittleToHostInt64(temp);
+    return rc;
 }
 
-void rbusBuffer_ReadSingle(rbusBuffer_t const buff, float* f32)
+int rbusBuffer_ReadSingle(rbusBuffer_t const buff, float* f32)
 {
     float temp;
-    rbusBuffer_Read(buff, &temp, sizeof(float));
+    int rc = rbusBuffer_Read(buff, &temp, sizeof(float));
     *f32 = rbusLittleToHostInt32(temp);
+    return rc;
 }
 
-void rbusBuffer_ReadDouble(rbusBuffer_t const buff, double* f64)
+int rbusBuffer_ReadDouble(rbusBuffer_t const buff, double* f64)
 {
     double temp;
-    rbusBuffer_Read(buff, &temp, sizeof(double));
+    int rc = rbusBuffer_Read(buff, &temp, sizeof(double));
     *f64 = (double)rbusLittleToHostInt64((uint64_t)temp);
+    return rc;
 }
 
-void rbusBuffer_ReadDateTime(rbusBuffer_t const buff, rbusDateTime_t* tv)
+int rbusBuffer_ReadDateTime(rbusBuffer_t const buff, rbusDateTime_t* tv)
 {
     rbusDateTime_t temp;
-    rbusBuffer_Read(buff, &temp, sizeof(rbusDateTime_t));
+    int rc = rbusBuffer_Read(buff, &temp, sizeof(rbusDateTime_t));
     tv->m_time.tm_sec   = rbusLittleToHostInt32(temp.m_time.tm_sec);
     tv->m_time.tm_min   = rbusLittleToHostInt32(temp.m_time.tm_min);
     tv->m_time.tm_hour  = rbusLittleToHostInt32(temp.m_time.tm_hour);
@@ -305,11 +323,12 @@ void rbusBuffer_ReadDateTime(rbusBuffer_t const buff, rbusDateTime_t* tv)
     tv->m_tz.m_tzhour   = rbusLittleToHostInt32(temp.m_tz.m_tzhour);
     tv->m_tz.m_tzmin    = rbusLittleToHostInt32(temp.m_tz.m_tzmin);
     tv->m_tz.m_isWest   = rbusLittleToHostInt32(temp.m_tz.m_isWest);
+    return rc;
 }
 
-void rbusBuffer_ReadBytes(rbusBuffer_t const buff, uint8_t** bytes, int* len)
+int rbusBuffer_ReadBytes(rbusBuffer_t const buff, uint8_t** bytes, int* len)
 {
     *len = buff->posWrite;
     *bytes = malloc(buff->posWrite);
-    rbusBuffer_Read(buff, bytes, buff->posWrite);
+    return rbusBuffer_Read(buff, bytes, buff->posWrite);
 }

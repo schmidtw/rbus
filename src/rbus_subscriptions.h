@@ -17,8 +17,8 @@
  * limitations under the License.
 */
 
-#ifndef RBUS_INSTANCETREE_H
-#define RBUS_INSTANCETREE_H
+#ifndef RBUS_SUBSCRIPTIONS_H
+#define RBUS_SUBSCRIPTIONS_H
 
 #include "rbus_element.h"
 #include "rbus_tokenchain.h"
@@ -48,7 +48,7 @@ typedef struct _rbusSubscription
 } rbusSubscription_t;
 
 /*create a new subscriptions registry for an rbus handle*/
-void rbusSubscriptions_create(rbusSubscriptions_t* subscriptions, rbusHandle_t handle, elementNode* root);
+void rbusSubscriptions_create(rbusSubscriptions_t* subscriptions, rbusHandle_t handle, char const* componentName, elementNode* root, char const* tmpDir);
 
 /*destroy a subscriptions registry*/
 void rbusSubscriptions_destroy(rbusSubscriptions_t subscriptions);
@@ -67,6 +67,12 @@ void rbusSubscriptions_onTableRowAdded(rbusSubscriptions_t subscriptions, elemen
 
 /*call right before an existing row is delete*/
 void rbusSubscriptions_onTableRowRemoved(rbusSubscriptions_t subscriptions, elementNode* node);
+
+/*call when registering an event data element to resubscribe any listeners that might have been loaded from cache*/
+void rbusSubscriptions_resubscribeCache(rbusHandle_t handle, rbusSubscriptions_t subscriptions, char const* elementName, elementNode* el);
+
+/*unsubscribe any client when they disconnect from broker. handles cases where clients don't unsubscribe properly (e.g. because they crashed)*/
+void rbusSubscriptions_handleClientDisconnect(rbusHandle_t handle, rbusSubscriptions_t subscriptions, char const* listener);
 
 #ifdef __cplusplus
 }

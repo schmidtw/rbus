@@ -19,7 +19,10 @@
 
 #include <stdlib.h>
 #include <rtRetainable.h>
+#include "rbus_log.h"
+#include <assert.h>
 #include "rbus_filter.h"
+#include "rbus_buffer.h"
 
 typedef struct _rbusFilter_LogicExpression* rbusFilter_LogicExpression_t;
 
@@ -189,6 +192,133 @@ rbusFilter_t rbusFilter_GetLogicLeft(rbusFilter_t filter)
 rbusFilter_t rbusFilter_GetLogicRight(rbusFilter_t filter)
 {
     return filter->e.logic.right;
+}
+
+void rbusFilter_Encode(rbusFilter_t filter, rbusBuffer_t buff)
+{
+    rbusBuffer_WriteUInt32TLV(buff, filter->type);
+    if(filter->type == RBUS_FILTER_EXPRESSION_RELATION)
+    {
+        rbusBuffer_WriteUInt32TLV(buff, filter->e.relation.op);
+        rbusValue_Encode(filter->e.relation.value, buff);
+    }
+    else if(filter->type == RBUS_FILTER_EXPRESSION_LOGIC)
+    {
+        rbusBuffer_WriteUInt32TLV(buff, filter->e.logic.op);
+        rbusFilter_Encode(filter->e.logic.left, buff);
+        rbusFilter_Encode(filter->e.logic.right, buff);
+    }
+}
+
+int rbusFilter_Decode(rbusFilter_t* filterOut, rbusBuffer_t const buff)
+{
+    uint16_t    type;
+    uint16_t    length;
+    rbusFilter_t filter;
+    rbusFilter_ExpressionType_t filterType;
+    rbusFilter_RelationOperator_t relOp;
+    rbusFilter_LogicOperator_t logOp;
+    rbusValue_t val;
+    rbusFilter_t left, right;
+
+    if(rbusBuffer_ReadUInt16(buff, &type) < 0)
+        return -1;
+    if(rbusBuffer_ReadUInt16(buff, &length) < 0)
+        return -1;
+    if(!(type == RBUS_UINT32 && length == 4))
+    {
+        RBUSLOG_WARN("rbusFilter_Decode failed");
+        return -1;
+    }
+    if(rbusBuffer_ReadUInt32(buff, &filterType) < 0)
+        return -1;
+
+    if(filterType == RBUS_FILTER_EXPRESSION_RELATION)
+    {
+        if(rbusBuffer_ReadUInt16(buff, &type) < 0)
+            return -1;
+        if(rbusBuffer_ReadUInt16(buff, &length) < 0)
+            return -1;
+        if(!(type == RBUS_UINT32 && length == 4))
+        {
+            RBUSLOG_WARN("rbusFilter_Decode failed");
+            return -1;
+        }
+        if(rbusBuffer_ReadUInt32(buff, &relOp) < 0)
+            return -1;
+        if(rbusValue_Decode(&val, buff) < 0)
+            return -1;
+
+        rbusFilter_InitRelation(&filter, relOp, val);
+        rbusValue_Release(val);
+    }
+    else if(filterType == RBUS_FILTER_EXPRESSION_LOGIC)
+    {
+        if(rbusBuffer_ReadUInt16(buff, &type) < 0)
+            return -1;
+        if(rbusBuffer_ReadUInt16(buff, &length) < 0)
+            return -1;
+        if(!(type == RBUS_UINT32 && length == 4))
+        {
+            RBUSLOG_WARN("rbusFilter_Decode failed");
+            return -1;
+        }
+        if(rbusBuffer_ReadUInt32(buff, &logOp) < 0)
+            return -1;
+        if(rbusFilter_Decode(&left, buff) < 0)
+            return -1;
+        if(rbusFilter_Decode(&right, buff) < 0)
+            return -1;
+
+        rbusFilter_InitLogic(&filter, logOp, left, right);
+        rbusFilter_Release(left);
+        rbusFilter_Release(right);
+    }
+    *filterOut = filter;
+    return 0;
+}
+
+int rbusFilter_Compare(rbusFilter_t filter1, rbusFilter_t filter2)
+{
+    if(filter1 && filter2)
+    {
+        if(filter1->type == filter2->type)
+        {
+            if(filter1->type == RBUS_FILTER_EXPRESSION_RELATION)
+            {
+                if(filter1->e.relation.op == filter2->e.relation.op)
+                    return rbusValue_Compare(filter1->e.relation.value, filter2->e.relation.value);
+                else if(filter1->e.relation.op < filter2->e.relation.op)
+                    return 1;
+                else
+                    return -1;
+            }
+            else /*RBUS_FILTER_EXPRESSION_LOGIC*/
+            {
+                if(filter1->e.logic.op == filter2->e.logic.op)
+                {
+                    int rc = rbusFilter_Compare(filter1->e.logic.left, filter2->e.logic.left);
+                    if(rc != 0)
+                        return rc;
+                    return rbusFilter_Compare(filter1->e.logic.right, filter2->e.logic.right);
+                }
+                else if(filter1->e.logic.op < filter2->e.logic.op)
+                    return 1;
+                else
+                    return -1;
+            }
+        }
+        else if(filter1->type < filter2->type)
+            return 1;
+        else
+            return -1;
+    }
+    else if(filter1)
+        return 1;
+    else if(filter2)
+        return -1;
+    else
+        return 0;
 }
 
 void rbusFilter_fwrite(rbusFilter_t filter, FILE* fout, rbusValue_t value)

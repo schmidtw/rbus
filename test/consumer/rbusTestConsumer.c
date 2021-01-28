@@ -27,6 +27,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <rbus.h>
+#include <rtLog.h>
 #include "../common/runningParamHelper.h"
 
 int getDurationValue();
@@ -95,6 +96,7 @@ void printUsage()
     printf(" OPTIONS:\n");
     printf(" -d : get the estimated duration in seconds the test will take (must include desired test flags)\n");
     printf(" -a : run all tests (ignores indiviual test flags)\n");
+    printf(" -l : set log level\n");
     printf(" TESTS: (if -a is not set then specify which tests to run)\n");
     for(i=0; i<TestTypeMax; ++i)
     {
@@ -126,6 +128,12 @@ int main(int argc, char *argv[])
             {
                 testList[i].enabled = 1;
             }
+        }
+        else if(strcmp(argv[a], "-l")==0)
+        {
+            a++;
+            if(a < argc)
+                rtLog_SetLevel(rtLogLevelFromString(argv[a]));
         }
         else
         {

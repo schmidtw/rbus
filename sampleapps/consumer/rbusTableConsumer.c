@@ -24,7 +24,6 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-#include <string.h>
 #include <getopt.h>
 #include <rbus.h>
 
@@ -91,7 +90,7 @@ int main(int argc, char *argv[])
     }
 
     /*subscribe to table T1 events*/
-    rc = rbusEvent_Subscribe(handle, "Device.Tables1.T1.", eventReceiveHandler, NULL);
+    rc = rbusEvent_Subscribe(handle, "Device.Tables1.T1.", eventReceiveHandler, NULL, 0);
     if(rc != RBUS_ERROR_SUCCESS)
     {
         printf("consumer: rbusEvent_Subscribe failed: %d\n", rc);
@@ -107,10 +106,10 @@ int main(int argc, char *argv[])
       only instance numbers, not aliases, can be used to identify the row,
       thus we use instColors instead of alias [colors]*/
     snprintf(name, RBUS_MAX_NAME_LENGTH, "Device.Tables1.T1.%d.T2.", instColors);
-    rbusEvent_Subscribe(handle, name, eventReceiveHandler, NULL);
+    rbusEvent_Subscribe(handle, name, eventReceiveHandler, NULL, 0);
 
     snprintf(name, RBUS_MAX_NAME_LENGTH, "Device.Tables1.T1.%d.T2.", instShapes);
-    rbusEvent_Subscribe(handle, name, eventReceiveHandler, NULL);
+    rbusEvent_Subscribe(handle, name, eventReceiveHandler, NULL, 0);
 
     /*add rows to the T2 table inside the new T1 'colors' row
       using the alias 'colors' to find the row */
@@ -131,7 +130,7 @@ int main(int argc, char *argv[])
 
     /*receiver a ValueChange event whenever any color data changes*/
     snprintf(name, RBUS_MAX_NAME_LENGTH, "Device.Tables1.T1.%d.T2.*.Data", instColors);
-    rbusEvent_Subscribe(handle, name, eventReceiveHandler, "my color user data");
+    rbusEvent_Subscribe(handle, name, eventReceiveHandler, "my color user data", 0);
 
     /*set property 'Data' on the T1 rows*/
     rbus_setStr(handle, "Device.Tables1.T1.[colors].Data", "Has some colors");

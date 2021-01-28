@@ -18,27 +18,93 @@
 */
 
 #include <rbus.h>
+#include "../../src/rbus_buffer.h"
 #include "../common/test_macros.h"
-
+#include <memory.h>
+#include <stdlib.h>
 static int gDuration = 1;
-
 
 int getDurationFilter()
 {
     return gDuration;
 }
 
+static void testApply(rbusFilter_t f1)
+{
+    int i;
+    rbusValue_t vIn;
+    rbusValue_Init(&vIn);
+    for(i = -12; i <= 12; ++i)
+    {
+        rbusValue_SetInt32(vIn, i);
+        TEST(rbusFilter_Apply(f1, vIn) == (int32_t)(( (i < -10 || i > 10) || (i > -5 && i < 5) )));
+    }
+    rbusValue_Release(vIn);
+}
+
+static void testSerialize(rbusFilter_t f1)
+{
+    rbusFilter_t f2;
+    rbusBuffer_t buffOut, buffIn;
+    FILE* file;
+
+    rbusBuffer_Create(&buffOut);
+    rbusFilter_Encode(f1, buffOut);
+    file = fopen("/tmp/filter.dat", "wb");
+    if(!file)
+    {
+        TEST(file != NULL);
+        return;
+    }
+    fwrite(buffOut->data, 1, buffOut->posWrite, file);
+    fclose(file);
+
+    rbusBuffer_Create(&buffIn);
+    file = fopen("/tmp/filter.dat", "rb");
+    if(!file)
+    {
+        TEST(file != NULL);
+        return;
+    }
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    rbusBuffer_Reserve(buffIn, size);
+    int re = fread(buffIn->data, 1, size, file); 
+    (void)re;
+    fclose(file);
+    buffIn->posWrite += size;
+    
+    printf("buffOut->posWrite=%d buffIn->posWrite=%d\n", buffOut->posWrite, buffIn->posWrite);
+    TEST(buffOut->posWrite == buffIn->posWrite);
+    TEST(memcmp(buffOut->data, buffIn->data, size) == 0);
+
+    TEST(buffIn->posRead == 0);
+    rbusFilter_Decode(&f2, buffIn);
+
+    TEST(rbusFilter_Compare(f1, f2) == 0);
+
+    testApply(f2);
+
+    rbusFilter_Release(f2);
+    rbusBuffer_Destroy(buffOut);
+    rbusBuffer_Destroy(buffIn);
+}
+
+/*
+    f1( j1( r1(>10) | r2(<-10) ) | j2( r3(>-5) && r4(<5) ) )
+    this filter will trigger if the test value as such
+    ( (v>10 || v<-10) | (v>-5 || v<5 ) )
+*/
 static void test1()
 {
-    int32_t i;
-    rbusValue_t v1, v2, v3, v4, vIn;
+    rbusValue_t v1, v2, v3, v4;
     rbusFilter_t r1, r2, r3, r4, j1, j2, f1;
 
     rbusValue_Init(&v1);
     rbusValue_Init(&v2);
     rbusValue_Init(&v3);
     rbusValue_Init(&v4);
-    rbusValue_Init(&vIn);
 
     rbusValue_SetInt32(v1, 10);
     rbusValue_SetInt32(v2, -10);
@@ -55,18 +121,14 @@ static void test1()
 
     rbusFilter_InitLogic(&f1, RBUS_FILTER_OPERATOR_OR, j1, j2);
 
-    for(i = -12; i <= 12; ++i)
-    {
-        rbusValue_SetInt32(vIn, i);
-        TEST(rbusFilter_Apply(f1, vIn) == (int32_t)(( (i < -10 || i > 10) || (i > -5 && i < 5) )));
-    }
+    testApply(f1);
+
+    testSerialize(f1);
 
     rbusValue_Release(v1);
     rbusValue_Release(v2);
     rbusValue_Release(v3);
     rbusValue_Release(v4);
-    rbusValue_Release(vIn);
-
     rbusFilter_Release(r1);
     rbusFilter_Release(r2);
     rbusFilter_Release(r3);

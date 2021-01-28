@@ -78,13 +78,13 @@ TokenChain* TokenChain_create(char const* sourceName, elementNode* regNode)
 
     if(regNode == NULL)
     {
-        rtLog_Error("%s ERROR: regNode NULL", __FUNCTION__);
+        RBUSLOG_ERROR("%s ERROR: regNode NULL", __FUNCTION__);
         return NULL;
     }
 
     if(sourceName == NULL)
     {
-        rtLog_Error("%s ERROR: sourceName NULL", __FUNCTION__);
+        RBUSLOG_ERROR("%s ERROR: sourceName NULL", __FUNCTION__);
         return NULL;
     }
 
@@ -92,7 +92,7 @@ TokenChain* TokenChain_create(char const* sourceName, elementNode* regNode)
 
     if(nameLen == 0)    
     {
-        rtLog_Error("%s ERROR: sourceName EMPTY", __FUNCTION__);
+        RBUSLOG_ERROR("%s ERROR: sourceName EMPTY", __FUNCTION__);
         return NULL;
     }
 
@@ -107,7 +107,7 @@ TokenChain* TokenChain_create(char const* sourceName, elementNode* regNode)
     ptr = name + nameLen -1;
 
 #   if DEBUG_TOKEN
-    rtLog_Info("%s DEBUG: %s, %s", __FUNCTION__, sourceName, regNode->fullName);
+    RBUSLOG_INFO("%s DEBUG: %s, %s", __FUNCTION__, sourceName, regNode->fullName);
 #   endif
 
     while(ptr != name && node->parent)
@@ -176,7 +176,7 @@ TokenChain* TokenChain_create(char const* sourceName, elementNode* regNode)
                 }
                 else
                 {
-                    rtLog_Error("%s ERROR: alias missing closing bracket: %s", __FUNCTION__, tok->text);
+                    RBUSLOG_ERROR("%s ERROR: alias missing closing bracket: %s", __FUNCTION__, tok->text);
                     goto tokenChainError;
                 }
             }
@@ -194,7 +194,7 @@ TokenChain* TokenChain_create(char const* sourceName, elementNode* regNode)
                     }
                     else
                     {   
-                        rtLog_Error("%s ERROR: invalid instance number %s", __FUNCTION__, tok->text);
+                        RBUSLOG_ERROR("%s ERROR: invalid instance number %s", __FUNCTION__, tok->text);
                         goto tokenChainError;
                     }
                 }   
@@ -202,7 +202,7 @@ TokenChain* TokenChain_create(char const* sourceName, elementNode* regNode)
         }
 
 #       if DEBUG_TOKEN
-        rtLog_Info("%s DEBUG: token->name=%s token->type=%d source->name=%s source->type=%d", __FUNCTION__, tok->text, tok->type, node->name, node->type);
+        RBUSLOG_INFO("%s DEBUG: token->name=%s token->type=%d source->name=%s source->type=%d", __FUNCTION__, tok->text, tok->type, node->name, node->type);
 #       endif
 
         node = node->parent;
@@ -210,7 +210,7 @@ TokenChain* TokenChain_create(char const* sourceName, elementNode* regNode)
 
     if(ptr != name || node->parent != NULL)
     {
-        rtLog_Error("%s ERROR: token count missmatch source=%s node=%s", __FUNCTION__, sourceName, regNode->fullName);
+        RBUSLOG_ERROR("%s ERROR: token count missmatch source=%s node=%s", __FUNCTION__, sourceName, regNode->fullName);
         goto tokenChainError;
     }
 
@@ -252,20 +252,20 @@ bool TokenChain_match(TokenChain* chain, elementNode* instNode)
     int rc;
 
 #   if DEBUG_TOKEN
-    rtLog_Info("%s DEBUG: instNode=%s tokenChain=", __FUNCTION__, instNode->fullName);
+    RBUSLOG_INFO("%s DEBUG: instNode=%s tokenChain=", __FUNCTION__, instNode->fullName);
     TokenChain_print(chain);
 #   endif
 
     while(token && inst && inst->parent != NULL)
     {
 #       if DEBUG_TOKEN
-        rtLog_Info("%s DEBUG: comparing inst %s:%d to token %s:%d", __FUNCTION__, inst->name, inst->type, token->text, token->node->type);
+        RBUSLOG_INFO("%s DEBUG: comparing inst %s:%d to token %s:%d", __FUNCTION__, inst->name, inst->type, token->text, token->node->type);
 #       endif
 
         if(token->node->type != inst->type)
         {
 #           if DEBUG_TOKEN
-            rtLog_Info("%s DEBUG: inst type %d doesn't match token type %d", __FUNCTION__, inst->type, token->node->type);
+            RBUSLOG_INFO("%s DEBUG: inst type %d doesn't match token type %d", __FUNCTION__, inst->type, token->node->type);
 #           endif
 
             return false;
@@ -274,13 +274,13 @@ bool TokenChain_match(TokenChain* chain, elementNode* instNode)
         if(token->node->parent && token->node->parent->type == RBUS_ELEMENT_TYPE_TABLE)
         {
 #       if DEBUG_TOKEN
-            rtLog_Info("%s DEBUG: comparing parent inst %s:%d to token %s:%d", __FUNCTION__, inst->parent->name, inst->parent->type, token->next->text, token->node->parent->type);
+            RBUSLOG_INFO("%s DEBUG: comparing parent inst %s:%d to token %s:%d", __FUNCTION__, inst->parent->name, inst->parent->type, token->next->text, token->node->parent->type);
 #       endif
 
             if(inst->parent->type != RBUS_ELEMENT_TYPE_TABLE)
             {
 #               if DEBUG_TOKEN
-                rtLog_Info("%s DEBUG: inst node is not a row %s", __FUNCTION__, inst->name);
+                RBUSLOG_INFO("%s DEBUG: inst node is not a row %s", __FUNCTION__, inst->name);
 #               endif
 
                 return false;
@@ -291,7 +291,7 @@ bool TokenChain_match(TokenChain* chain, elementNode* instNode)
                 rc = strcmp(inst->name, token->text);
 
 #               if DEBUG_TOKEN
-                rtLog_Info("%s DEBUG: instance numbers %s and %s %s", __FUNCTION__, inst->name, token->text, rc==0 ? "match" : "don't match");
+                RBUSLOG_INFO("%s DEBUG: instance numbers %s and %s %s", __FUNCTION__, inst->name, token->text, rc==0 ? "match" : "don't match");
 #               endif
 
                 if(rc != 0)
@@ -304,7 +304,7 @@ bool TokenChain_match(TokenChain* chain, elementNode* instNode)
                 rc = strcmp(inst->alias, token->text);
 
 #               if DEBUG_TOKEN
-                rtLog_Info("%s DEBUG: aliases %s and %s %s", __FUNCTION__, inst->alias, token->text, rc==0 ? "match" : "don't match");
+                RBUSLOG_INFO("%s DEBUG: aliases %s and %s %s", __FUNCTION__, inst->alias, token->text, rc==0 ? "match" : "don't match");
 #               endif
 
                 if(rc != 0)
@@ -322,7 +322,7 @@ bool TokenChain_match(TokenChain* chain, elementNode* instNode)
             rc = strcmp(inst->name, token->text);
 
 #           if DEBUG_TOKEN
-            rtLog_Info("%s DEBUG: instance numbers %s and %s %s", __FUNCTION__, inst->name, token->text, rc==0 ? "match" : "don't match");
+            RBUSLOG_INFO("%s DEBUG: instance numbers %s and %s %s", __FUNCTION__, inst->name, token->text, rc==0 ? "match" : "don't match");
 #           endif
 
             if(rc != 0)
@@ -338,14 +338,14 @@ bool TokenChain_match(TokenChain* chain, elementNode* instNode)
     if( (token == NULL && inst->parent != NULL) || (token && inst->parent == NULL))
     {
 #       if DEBUG_TOKEN
-        rtLog_Info("%s DEBUG: token counts don't match", __FUNCTION__);
+        RBUSLOG_INFO("%s DEBUG: token counts don't match", __FUNCTION__);
 #       endif
 
         return false;
     }
 
 #   if DEBUG_TOKEN
-    rtLog_Info("%s DEBUG: match found", __FUNCTION__);
+    RBUSLOG_INFO("%s DEBUG: match found", __FUNCTION__);
 #   endif
 
     return true;
@@ -356,8 +356,8 @@ void TokenChain_print(TokenChain* chain)
     Token* token = chain->first;
     while(token)
     {
-        rtLog_Info("%s->", token->text);
+        RBUSLOG_INFO("%s->", token->text);
         token = token->next;
     }
-    rtLog_Info("(null)");
+    RBUSLOG_INFO("(null)");
 }

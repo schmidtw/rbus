@@ -34,7 +34,7 @@
 #include <rtRetainable.h>
 #include <limits.h>
 #include "rbus_buffer.h"
-#include <rtLog.h>
+#include "rbus_log.h"
 
 #define RBUS_TIMEZONE_LEN   6
 
@@ -693,93 +693,74 @@ void rbusValue_SetTLV(rbusValue_t v, rbusValueType_t type, uint32_t length, void
     assert(rbusValue_GetL(v) == length);
 }
 
-void rbusValue_Decode(rbusValue_t* value, rbusBuffer_t const buff)
+int rbusValue_Decode(rbusValue_t* value, rbusBuffer_t const buff)
 {
     uint16_t    type;
     uint16_t    length;
     rbusValue_t current;
 
-    assert(buff->posRead == 0);
-
     rbusValue_Init(value);
 
     current = *value;
 
-    while (buff->posRead < buff->posWrite)
-    {   /*
-        if (previous)
+    // read value
+    rbusBuffer_ReadUInt16(buff, &type);
+    rbusBuffer_ReadUInt16(buff, &length);
+    current->type = type;
+    switch(type)
+    {
+    /*Calling rbusValue_SetString/rbusValue_SetBytes so the value's internal buffer is created.*/
+    case RBUS_STRING:
+        if(!(buff->posRead + length <= buff->lenAlloc))
         {
-            current = previous->next = malloc(sizeof(rbusValue_t));
-            rbusValue_Init(current);
+            RBUSLOG_WARN("rbusValue_Decode failed");
+            return -1;
         }
-        */
-        // read value
-        rbusBuffer_ReadUInt16(buff, &type);
-        rbusBuffer_ReadUInt16(buff, &length);
-        current->type = type;
-        switch(type)
+        assert(strlen((char const*)buff->data + buff->posRead) + 1 == (size_t)length);/*length should captures null term*/
+        rbusValue_SetString(current, (char const*)buff->data + buff->posRead);
+        buff->posRead += length;
+        return length;
+    case RBUS_BYTES:
+        if(!(buff->posRead + length <= buff->lenAlloc))
         {
-        /*Calling rbusValue_SetString/rbusValue_SetBuffer so the value's internal buffer is created.*/
-        case RBUS_STRING:
-            assert(buff->posRead + length <= buff->lenAlloc);
-            assert(strlen((char const*)buff->data + buff->posRead) + 1 == (size_t)length);/*length should captures null term*/
-            rbusValue_SetString(current, (char const*)buff->data + buff->posRead);
-            buff->posRead += length;
-            break;
-        case RBUS_BYTES:
-            assert(buff->posRead + length <= buff->lenAlloc);
-            rbusValue_SetBytes(current, buff->data + buff->posRead, length);
-            buff->posRead += length;
-            break;
-        /* For the other types, its ok to read directly into them and set the type below */
-        case RBUS_BOOLEAN:
-            rbusBuffer_ReadBoolean(buff, &current->d.b);
-            break;
-        case RBUS_INT32:
-            rbusBuffer_ReadInt32(buff, &current->d.i32);
-            break;
-        case RBUS_UINT32:
-            rbusBuffer_ReadUInt32(buff, &current->d.u32);
-            break;
-        case RBUS_CHAR:
-            rbusBuffer_ReadChar(buff, &current->d.c);
-            break;
-        case RBUS_BYTE:
-            rbusBuffer_ReadByte(buff, &current->d.u);
-            break;
-        case RBUS_INT8:
-            rbusBuffer_ReadInt8(buff, &current->d.i8);
-            break;
-        case RBUS_UINT8:
-            rbusBuffer_ReadUInt8(buff, &current->d.u8);
-            break;
-        case RBUS_INT16:
-            rbusBuffer_ReadInt16(buff, &current->d.i16);
-            break;
-        case RBUS_UINT16:
-            rbusBuffer_ReadUInt16(buff, &current->d.u16);
-            break;
-        case RBUS_INT64:
-            rbusBuffer_ReadInt64(buff, &current->d.i64);
-            break;
-        case RBUS_UINT64:
-            rbusBuffer_ReadUInt64(buff, &current->d.u64);
-            break;
-        case RBUS_SINGLE:
-            rbusBuffer_ReadSingle(buff, &current->d.f32);
-            break;
-        case RBUS_DOUBLE:
-            rbusBuffer_ReadDouble(buff, &current->d.f64);
-            break;
-        case RBUS_DATETIME:
-            rbusBuffer_ReadDateTime(buff, &current->d.tv);
-            break;
-        default:
-            assert(false);
-            break;
+            RBUSLOG_WARN("rbusValue_Decode failed");
+            return -1;
         }
-
-        //previous = current;
+        rbusValue_SetBytes(current, buff->data + buff->posRead, length);
+        buff->posRead += length;
+        return length;
+    /* For the other types, its ok to read directly into them and set the type below */
+    case RBUS_BOOLEAN:
+        return rbusBuffer_ReadBoolean(buff, &current->d.b);
+    case RBUS_INT32:
+        return rbusBuffer_ReadInt32(buff, &current->d.i32);
+    case RBUS_UINT32:
+        return rbusBuffer_ReadUInt32(buff, &current->d.u32);
+    case RBUS_CHAR:
+        return rbusBuffer_ReadChar(buff, &current->d.c);
+    case RBUS_BYTE:
+        return rbusBuffer_ReadByte(buff, &current->d.u);
+    case RBUS_INT8:
+        return rbusBuffer_ReadInt8(buff, &current->d.i8);
+    case RBUS_UINT8:
+        return rbusBuffer_ReadUInt8(buff, &current->d.u8);
+    case RBUS_INT16:
+        return rbusBuffer_ReadInt16(buff, &current->d.i16);
+    case RBUS_UINT16:
+        return rbusBuffer_ReadUInt16(buff, &current->d.u16);
+    case RBUS_INT64:
+        return rbusBuffer_ReadInt64(buff, &current->d.i64);
+    case RBUS_UINT64:
+        return rbusBuffer_ReadUInt64(buff, &current->d.u64);
+    case RBUS_SINGLE:
+        return rbusBuffer_ReadSingle(buff, &current->d.f32);
+    case RBUS_DOUBLE:
+        return rbusBuffer_ReadDouble(buff, &current->d.f64);
+    case RBUS_DATETIME:
+        return rbusBuffer_ReadDateTime(buff, &current->d.tv);
+    default:
+        assert(false);
+        return -1;
     }
 }
 
@@ -985,7 +966,7 @@ void rbusValue_Copy(rbusValue_t dest, rbusValue_t source)
 {
     if(dest == source)
     {
-        rtLog_Info("%s: dest and source are the same", __FUNCTION__);
+        RBUSLOG_INFO("%s: dest and source are the same", __FUNCTION__);
         return;
     }
 
@@ -1005,7 +986,7 @@ void rbusValue_Copy(rbusValue_t dest, rbusValue_t source)
         break;
     case RBUS_PROPERTY:
     case RBUS_OBJECT:
-        rtLog_Info("%s PROPERTY/OBJECT NOT SUPPORTED YET", __FUNCTION__); /* TODO */
+        RBUSLOG_INFO("%s PROPERTY/OBJECT NOT SUPPORTED YET", __FUNCTION__); /* TODO */
         break;
     default:
         dest->type = source->type;
@@ -1059,7 +1040,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         tmpL = strtol (pStringInput, NULL, 0);
         if ((errno == ERANGE) || (tmpL < INT8_MIN  || tmpL > INT8_MAX))
         {
-            rtLog_Info ("Invalid input string");
+            RBUSLOG_INFO ("Invalid input string");
             return false;
         }
         rbusValue_SetInt8(value, (int8_t)tmpL);
@@ -1068,9 +1049,9 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
     case RBUS_UINT8:
     {
         tmpUL = strtoul (pStringInput, NULL, 0);
-        if ((errno == ERANGE) || (tmpUL < 0 || tmpUL > UINT8_MAX))
+        if ((errno == ERANGE) || (tmpUL > UINT8_MAX))
         {
-            rtLog_Info ("Invalid input string");
+            RBUSLOG_INFO ("Invalid input string");
             return false;
         }
         rbusValue_SetUInt8(value, (uint8_t)tmpUL);
@@ -1080,7 +1061,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         tmpL = strtol (pStringInput, NULL, 0);
         if ((errno == ERANGE && (tmpL == LONG_MAX || tmpL == LONG_MIN)) || (tmpL > INT16_MAX) || (tmpL < INT16_MIN))
         {
-            rtLog_Info ("Invalid input string");
+            RBUSLOG_INFO ("Invalid input string");
             return false;
         }
         else if ((tmpL <= INT16_MAX) && (tmpL >= INT16_MIN))
@@ -1093,7 +1074,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         tmpL = strtol (pStringInput, NULL, 0);
         if ((errno == ERANGE && (tmpL == LONG_MAX || tmpL == LONG_MIN)) || (tmpL > INT32_MAX) || (tmpL < INT32_MIN))
         {
-            rtLog_Info ("Invalid input string");
+            RBUSLOG_INFO ("Invalid input string");
             return false;
         }
         else if ((tmpL <= INT32_MAX) && (tmpL >= INT32_MIN))
@@ -1106,7 +1087,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         tmpLL = strtoll (pStringInput, NULL, 0);
         if ((errno == ERANGE && (tmpLL == LLONG_MAX || tmpLL == LLONG_MIN)) || (tmpLL > INT64_MAX) || (tmpLL < INT64_MIN))
         {
-            rtLog_Info ("Invalid input string");
+            RBUSLOG_INFO ("Invalid input string");
             return false;
         }
         else if ((tmpLL <= INT64_MAX) && (tmpLL >= INT64_MIN))
@@ -1119,7 +1100,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         tmpUL = strtoul (pStringInput, NULL, 0);
         if ((errno == ERANGE && (tmpUL == ULONG_MAX || tmpUL == 0)) || (tmpUL > UINT16_MAX))
         {
-            rtLog_Info ("Invalid input string");
+            RBUSLOG_INFO ("Invalid input string");
             return false;
         }
         else
@@ -1132,7 +1113,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         tmpUL = strtoul (pStringInput, NULL, 0);
         if ((errno == ERANGE && (tmpUL == ULONG_MAX || tmpUL == 0)) || (tmpUL > UINT32_MAX))
         {
-            rtLog_Info ("Invalid input string");
+            RBUSLOG_INFO ("Invalid input string");
             return false;
         }
         else
@@ -1145,7 +1126,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         tmpULL = strtoull (pStringInput, NULL, 0);
         if ((errno == ERANGE && (tmpULL == ULLONG_MAX || tmpULL == 0)) || (tmpULL > UINT64_MAX))
         {
-            rtLog_Info ("Invalid input string");
+            RBUSLOG_INFO ("Invalid input string");
             return false;
         }
         else
@@ -1158,7 +1139,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         tmpF = strtof(pStringInput, NULL);
         if (errno == ERANGE)
         {
-            rtLog_Info ("Invalid input string");
+            RBUSLOG_INFO ("Invalid input string");
             return false;
         }
         else
@@ -1170,7 +1151,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         tmpD = strtod(pStringInput, NULL);
         if (errno == ERANGE)
         {
-            rtLog_Info ("Invalid input string");
+            RBUSLOG_INFO ("Invalid input string");
             return false;
         }
         else
@@ -1188,7 +1169,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
                 else
                     pRet=(char *)strptime(pStringInput, "%Y-%m-%d %H:%M:%S", &(tv.m_time));
                 if(!pRet) {
-                    rtLog_Info ("Invalid input string ");
+                    RBUSLOG_INFO ("Invalid input string ");
                     return false;
                 }
                 if((RBUS_TIMEZONE_LEN == strlen(pRet)) &&
@@ -1231,7 +1212,7 @@ void rbusValue_fwrite(rbusValue_t value, int depth, FILE* fout)
         char* s = rbusValue_ToDebugString(value, NULL, 0);
         for(i=0; i<depth; ++i)
             fprintf(fout, " ");
-        fprintf(fout, "%s\n", s);
+        fprintf(fout, "%s", s);
         free(s);
     }
 }

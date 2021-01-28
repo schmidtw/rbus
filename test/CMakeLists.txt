@@ -19,6 +19,7 @@
 
 include_directories(
     ../include
+    ../src
     )
 
 if (BUILD_RBUS_INTERFACE_TEST_APPS)
@@ -78,6 +79,14 @@ target_link_libraries(rbusTestValue rbus)
 set (CMAKE_C_FLAGS "-Wno-overflow ${CMAKE_C_FLAGS}")
 
 install (TARGETS rbusTestValue
+        RUNTIME DESTINATION bin)
+
+add_executable(rbusRecoveryConsumer 
+    consumer/rbusRecoveryConsumer.c
+    common/runningParamHelper.c)
+add_dependencies(rbusRecoveryConsumer rbus)
+target_link_libraries(rbusRecoveryConsumer rbus)
+install (TARGETS rbusRecoveryConsumer 
         RUNTIME DESTINATION bin)
 
 endif (BUILD_RBUS_INTERFACE_TEST_APPS)

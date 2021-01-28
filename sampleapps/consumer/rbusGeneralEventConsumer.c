@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
         goto exit1;
     }
 
-    rc = rbusEvent_SubscribeEx(handle, subscriptions, 2);
+    rc = rbusEvent_SubscribeEx(handle, subscriptions, 2, 0);
     if(rc != RBUS_ERROR_SUCCESS)
     {
         printf("consumer: rbusEvent_Subscribe 1 failed: %d\n", rc);

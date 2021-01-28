@@ -18,39 +18,43 @@
 */
 
 #include "rbus_subscriptions.h"
+#include "rbus_buffer.h"
 #include <memory.h>
+#include <assert.h>
+#include <sys/stat.h>
+#include <signal.h>
 
-
+#define CACHE_FILE_PATH_FORMAT "%s/rbus_subs_%s"
 
 struct _rbusSubscriptions
 {
     rbusHandle_t handle;
     elementNode* root;
+    char* componentName;
+    char* tmpDir;
     rtList subList;
 };
 
-int subscriptionKeyCompare(rbusSubscription_t* subscription, char const* listener, char const* eventName, rbusFilter_t filter)
+static void rbusSubscriptions_loadCache(rbusSubscriptions_t subscriptions);
+static void rbusSubscriptions_saveCache(rbusSubscriptions_t subscriptions);
+
+int subscribeHandlerImpl(rbusHandle_t handle, bool added, elementNode* el, char const* eventName, char const* listener, int32_t interval, int32_t duration, rbusFilter_t filter);
+
+
+static int subscriptionKeyCompare(rbusSubscription_t* subscription, char const* listener, char const* eventName, rbusFilter_t filter)
 {
     int rc;
-    rc = strcmp(subscription->listener, listener);
-    if(rc == 0)
+    if((rc = strcmp(subscription->listener, listener)) == 0)
     {
-        rc = strcmp(subscription->eventName, eventName);
-
-        /*currently, rbus-core doesn't allow a consumer to subscribe to the same event more then once
-          so the eventName alone is the key.  If we update rbus-core to allow different filters on the
-          same event, then we need to update the code below to use filter as part of key */
-        (void)filter;
-        /* TODO compare filter
-        if(rc == 0)
+        if((rc = strcmp(subscription->eventName, eventName)) == 0)
         {
+            rc = rbusFilter_Compare(subscription->filter, filter);
         }
-        */
     }
     return rc;
 }
 
-void subscriptionFree(void* p)
+static void subscriptionFree(void* p)
 {
     rbusSubscription_t* sub = p;
     rtListItem item;
@@ -74,33 +78,40 @@ void subscriptionFree(void* p)
     free(sub);
 }
 
-void rbusSubscriptions_create(rbusSubscriptions_t* subscriptions, rbusHandle_t handle, elementNode* root)
+void rbusSubscriptions_create(rbusSubscriptions_t* subscriptions, rbusHandle_t handle, char const* componentName, elementNode* root, const char* tmpDir)
 {
     *subscriptions = malloc(sizeof(struct _rbusSubscriptions));
     (*subscriptions)->handle = handle;
     (*subscriptions)->root = root;
+    (*subscriptions)->componentName = strdup(componentName);
+    (*subscriptions)->tmpDir = strdup(tmpDir);
     rtList_Create(&(*subscriptions)->subList);
+    rbusSubscriptions_loadCache(*subscriptions);
 }
 
 /*destroy a subscriptions registry*/
 void rbusSubscriptions_destroy(rbusSubscriptions_t subscriptions)
 {
     rtList_Destroy(subscriptions->subList, subscriptionFree);
+    free(subscriptions->componentName);
+    free(subscriptions->tmpDir);
     free(subscriptions);
 }
 
-void rbusSubscriptions_onSubscriptionCreated(rbusSubscription_t* sub, elementNode* node);
+static void rbusSubscriptions_onSubscriptionCreated(rbusSubscription_t* sub, elementNode* node);
 
 /*add a new subscription*/
 rbusSubscription_t* rbusSubscriptions_addSubscription(rbusSubscriptions_t subscriptions, char const* listener, char const* eventName, rbusFilter_t filter, int32_t interval, int32_t duration, bool autoPublish, elementNode* registryElem)
 {
     rbusSubscription_t* sub;
     TokenChain* tokens;
+  
+    RBUSLOG_DEBUG("%s: adding %s %s", __FUNCTION__, listener, eventName);
 
     tokens = TokenChain_create(eventName, registryElem);
     if(tokens == NULL)
     {
-        rtLog_Error("%s: invalid token chain\n", __FUNCTION__);
+        RBUSLOG_ERROR("%s: invalid token chain for %s", __FUNCTION__, eventName);
         return NULL;
     }
 
@@ -120,6 +131,9 @@ rbusSubscription_t* rbusSubscriptions_addSubscription(rbusSubscriptions_t subscr
     rtList_PushBack(subscriptions->subList, sub, NULL);
 
     rbusSubscriptions_onSubscriptionCreated(sub, subscriptions->root);
+
+    rbusSubscriptions_saveCache(subscriptions);
+
     return sub;
 }
 
@@ -129,18 +143,25 @@ rbusSubscription_t* rbusSubscriptions_getSubscription(rbusSubscriptions_t subscr
     rtListItem item;
     rbusSubscription_t* sub;
 
+    RBUSLOG_DEBUG("%s: searching for %s %s", __FUNCTION__, listener, eventName);
+
     rtList_GetFront(subscriptions->subList, &item);
 
     while(item)
     {
         rtListItem_GetData(item, (void**)&sub);
 
+        RBUSLOG_DEBUG("%s: comparing to %s %s", __FUNCTION__, sub->listener, sub->eventName);
+
         if(subscriptionKeyCompare(sub, listener, eventName, filter) == 0)
         {
+            RBUSLOG_DEBUG("%s: found sub %s %s", __FUNCTION__, listener, eventName);
             return sub;
         }
         rtListItem_GetNext(item, &item);
     }
+    RBUSLOG_DEBUG("%s: no sub found for %s %s", __FUNCTION__, listener, eventName);
+
     return NULL;
 }
 
@@ -150,6 +171,8 @@ void rbusSubscriptions_removeSubscription(rbusSubscriptions_t subscriptions, rbu
     rtListItem item;
     rbusSubscription_t* sub2;
 
+    RBUSLOG_DEBUG("%s: %s %s", __FUNCTION__, sub->listener, sub->eventName);
+
     rtList_GetFront(subscriptions->subList, &item);
 
     while(item)
@@ -157,11 +180,13 @@ void rbusSubscriptions_removeSubscription(rbusSubscriptions_t subscriptions, rbu
         rtListItem_GetData(item, (void**)&sub2);
         if(sub == sub2)
         {
+            RBUSLOG_DEBUG("%s: removing %s %s", __FUNCTION__, sub->listener, sub->eventName);
             rtList_RemoveItem(subscriptions->subList, item, subscriptionFree);
             break;
         }
         rtListItem_GetNext(item, &item);
     }    
+    rbusSubscriptions_saveCache(subscriptions);
 }
 
 /*  called after a new subscription is created 
@@ -169,7 +194,7 @@ void rbusSubscriptions_removeSubscription(rbusSubscriptions_t subscriptions, rbu
  *  new subscription matches any existing instance nodes
  *  e.g. if subscribing to Foo.*.Prop, this will find all instances of Prop 
  */
-void rbusSubscriptions_onSubscriptionCreated(rbusSubscription_t* sub, elementNode* node)
+static void rbusSubscriptions_onSubscriptionCreated(rbusSubscription_t* sub, elementNode* node)
 {
     if(node)
     {
@@ -202,7 +227,7 @@ void rbusSubscriptions_onSubscriptionCreated(rbusSubscription_t* sub, elementNod
  *  we go through the list of subscriptions and check to see if the 
  *  new node is picked up by any subscription eventName
  */
-void rbusSubscriptions_onElementCreated(rbusSubscriptions_t subscriptions, elementNode* node)
+static void rbusSubscriptions_onElementCreated(rbusSubscriptions_t subscriptions, elementNode* node)
 {
     if(node)
     {
@@ -225,7 +250,8 @@ void rbusSubscriptions_onElementCreated(rbusSubscriptions_t subscriptions, eleme
                 {
                     rtListItem_GetData(item, (void**)&sub);
 
-                    if(TokenChain_match(sub->tokens, child))
+                    if(sub->tokens/*tokens can NULL when loaded from cache*/ && 
+                       TokenChain_match(sub->tokens, child))
                     {
                         rtList_PushBack(sub->instances, child, NULL);
                         addElementSubscription(child, sub, false);
@@ -308,4 +334,432 @@ void rbusSubscriptions_onTableRowRemoved(rbusSubscriptions_t subscriptions, elem
 {
     rbusSubscriptions_onElementDeleted(subscriptions, node);
 }
+
+static pid_t rbusSubscriptions_getListenerPid(char const* listener)
+{
+    pid_t pid;
+    const char* p = listener + strlen(listener) - 1;
+    while(*p != '.' && p != listener)
+    {
+        p--;
+    }
+    pid = atoi(p+1);
+    if(pid == 0)
+    {
+        RBUSLOG_ERROR("%s: pid not found in listener name %s", __FUNCTION__, listener);
+    }
+    return pid;
+}
+
+static bool rbusSubscriptions_isProcessRunning(pid_t pid)
+{
+    /*sending 0 signal to kill is used to check if process running*/
+    int rc = kill(pid, 0);
+    RBUSLOG_DEBUG("%s: kill check for pid %d returned %d", __FUNCTION__, pid, rc);
+    return rc == 0;
+}
+
+static bool rbusSubscriptions_isListenerRunning(char const* listener)
+{
+    /*this assumes rtMessage is appending the pid to the inbox name
+      get pid and verify a process with that pid is actually running.
+    */
+    pid_t pid = rbusSubscriptions_getListenerPid(listener);
+    if(pid > 0)
+    {
+        return rbusSubscriptions_isProcessRunning(pid);
+    }
+    /* if there's no pid appended to listener then rtMessage was updated to not append the pid
+       which makes it impossible to know what a particular component's process actually is.
+       so, we'll have to figure out another  solution if this every happens.
+       assume its running by returning true*/
+    return true;
+}
+
+static void rbusSubscriptions_loadCache(rbusSubscriptions_t subscriptions)
+{
+    struct stat st;
+    long size;
+    uint16_t type, length;
+    int32_t hasFilter;
+    FILE* file = NULL;
+    rbusBuffer_t buff = NULL;
+    rbusSubscription_t* sub = NULL;
+    char filePath[256];
+    bool needSave = false;
+
+    snprintf(filePath, 256, CACHE_FILE_PATH_FORMAT, subscriptions->tmpDir, subscriptions->componentName);
+
+    RBUSLOG_INFO("%s: file %s", __FUNCTION__, filePath);
+
+    if(stat(filePath, &st) != 0)
+    {
+        RBUSLOG_DEBUG("%s: file doesn't exist %s", __FUNCTION__, filePath);
+        return;
+    }
+
+    file = fopen(filePath, "rb");
+    if(!file)
+    {
+        RBUSLOG_ERROR("%s: failed to open file %s", __FUNCTION__, filePath);
+        goto remove_bad_file;
+    }
+
+    fseek(file, 0, SEEK_END);
+    size = ftell(file);
+    if(size <= 0)
+    {
+        RBUSLOG_DEBUG("%s: file is empty %s", __FUNCTION__, filePath);
+        goto remove_bad_file;
+    }
+
+    rbusBuffer_Create(&buff);
+    rbusBuffer_Reserve(buff, size);
+
+    fseek(file, 0, SEEK_SET);
+    if(fread(buff->data, 1, size, file) != (size_t)size)
+    {
+        RBUSLOG_ERROR("%s: failed to read entire file %s", __FUNCTION__, filePath);
+        goto remove_bad_file;
+    }
+
+    fclose(file);
+    file = NULL;
+
+    buff->posWrite += size;
+
+    while(buff->posRead < buff->posWrite)
+    {
+        sub = (rbusSubscription_t*)calloc(1, sizeof(struct _rbusSubscription));
+
+        //read listener
+        if(rbusBuffer_ReadUInt16(buff, &type) < 0) goto remove_bad_file;
+        if(rbusBuffer_ReadUInt16(buff, &length) < 0) goto remove_bad_file;
+        if(type != RBUS_STRING || length >= RBUS_MAX_NAME_LENGTH) goto remove_bad_file;
+
+        sub->listener = malloc(length);
+        memcpy(sub->listener, buff->data + buff->posRead, length);
+        buff->posRead += length;
+
+        //read eventName
+        if(rbusBuffer_ReadUInt16(buff, &type) < 0) goto remove_bad_file;
+        if(rbusBuffer_ReadUInt16(buff, &length) < 0) goto remove_bad_file;
+        if(type != RBUS_STRING || length >= RBUS_MAX_NAME_LENGTH) goto remove_bad_file;
+
+        sub->eventName = malloc(length);
+        memcpy(sub->eventName, buff->data + buff->posRead, length);
+        buff->posRead += length;
+
+        //read interval
+        if(rbusBuffer_ReadUInt16(buff, &type) < 0) goto remove_bad_file;
+        if(rbusBuffer_ReadUInt16(buff, &length) < 0) goto remove_bad_file;
+        if(type != RBUS_INT32 && length != sizeof(int32_t)) goto remove_bad_file;
+        if(rbusBuffer_ReadInt32(buff, &sub->interval) < 0) goto remove_bad_file;
+
+        //read duration        
+        if(rbusBuffer_ReadUInt16(buff, &type) < 0) goto remove_bad_file;
+        if(rbusBuffer_ReadUInt16(buff, &length) < 0) goto remove_bad_file;
+        if(type != RBUS_INT32 && length != sizeof(int32_t)) goto remove_bad_file;
+        if(rbusBuffer_ReadInt32(buff, &sub->duration) < 0) goto remove_bad_file;
+
+        //read autoPublish
+        if(rbusBuffer_ReadUInt16(buff, &type) < 0) goto remove_bad_file;
+        if(rbusBuffer_ReadUInt16(buff, &length) < 0) goto remove_bad_file;
+        if(type != RBUS_INT32 && length != sizeof(int32_t)) goto remove_bad_file;
+        if(rbusBuffer_ReadInt32(buff, (int*)&sub->autoPublish) < 0) goto remove_bad_file;
+
+        //read hasFilter
+        if(rbusBuffer_ReadUInt16(buff, &type) < 0) goto remove_bad_file;
+        if(rbusBuffer_ReadUInt16(buff, &length) < 0) goto remove_bad_file;
+        if(type != RBUS_INT32 && length != sizeof(int32_t)) goto remove_bad_file;
+        if(rbusBuffer_ReadInt32(buff, &hasFilter) < 0) goto remove_bad_file;
+
+        //read filter
+        if(hasFilter)
+        {
+            if(rbusFilter_Decode(&sub->filter, buff) < 0) goto remove_bad_file;
+        }
+        else
+            sub->filter = NULL;
+
+        /*
+            It's possible that we can load a sub from the cache for a listener whose process is no longer running.
+            Example, this provider exited with active subscribers and thus still had those subs in its cache.
+            Later those listener processes exit/crash.
+            Then after that, this provider restarts and reads those now obsolete listeners. 
+         */
+        if(!rbusSubscriptions_isListenerRunning(sub->listener))
+        {
+            RBUSLOG_INFO("%s: process no longer running for listener %s", __FUNCTION__, sub->listener);
+            subscriptionFree(sub);
+            needSave = true;
+            continue;
+        }
+
+        rtList_Create(&sub->instances);
+        rtList_PushBack(subscriptions->subList, sub, NULL);
+
+        RBUSLOG_INFO("%s: loaded %s %s", __FUNCTION__, sub->listener, sub->eventName);
+    }
+
+    rbusBuffer_Destroy(buff);
+
+    if(needSave)
+        rbusSubscriptions_saveCache(subscriptions);
+
+    return;
+
+remove_bad_file:
+
+    RBUSLOG_WARN("%s: removing corrupted file %s", __FUNCTION__, filePath);
+
+    if(file)
+        fclose(file);
+
+    if(buff)
+        rbusBuffer_Destroy(buff);
+
+    if(sub)
+        free(sub);
+
+    if(remove(filePath) != 0)
+        RBUSLOG_ERROR("%s: failed to remove %s", __FUNCTION__, filePath);
+}
+
+static void rbusSubscriptions_saveCache(rbusSubscriptions_t subscriptions)
+{
+    FILE* file;
+    rbusBuffer_t buff;
+    rtListItem item;
+    rbusSubscription_t* sub;
+    char filePath[256];
+
+    snprintf(filePath, 256, CACHE_FILE_PATH_FORMAT, subscriptions->tmpDir, subscriptions->componentName);
+
+    RBUSLOG_INFO("%s: saving %s", __FUNCTION__, filePath);
+
+    rtList_GetFront(subscriptions->subList, &item);
+
+    if(!item)
+    {
+        RBUSLOG_DEBUG("%s: no subs so removing file %s", __FUNCTION__, filePath);
+
+        if(remove(filePath) != 0)
+            RBUSLOG_ERROR("%s: failed to remove %s", __FUNCTION__, filePath);
+
+        return;
+    }
+
+    file = fopen(filePath, "wb");
+
+    if(!file)
+    {
+        RBUSLOG_ERROR("%s: failed to open %s", __FUNCTION__, filePath);
+        return;
+    }
+
+    rbusBuffer_Create(&buff);
+
+    while(item)
+    {
+        rtListItem_GetData(item, (void**)&sub);
+        rbusBuffer_WriteStringTLV(buff, sub->listener, strlen(sub->listener)+1);
+        rbusBuffer_WriteStringTLV(buff, sub->eventName, strlen(sub->eventName)+1);
+        rbusBuffer_WriteInt32TLV(buff, sub->interval);
+        rbusBuffer_WriteInt32TLV(buff, sub->duration);
+        rbusBuffer_WriteInt32TLV(buff, sub->autoPublish);
+        rbusBuffer_WriteInt32TLV(buff, sub->filter ? 1 : 0);
+        if(sub->filter)
+          rbusFilter_Encode(sub->filter, buff);
+
+        RBUSLOG_DEBUG("%s: saved %s %s", __FUNCTION__, sub->listener, sub->eventName);
+
+        rtListItem_GetNext(item, &item);
+    }
+
+    fwrite(buff->data, 1, buff->posWrite, file);
+
+    rbusBuffer_Destroy(buff);
+
+    fclose(file);
+}
+
+void rbusSubscriptions_resubscribeCache(rbusHandle_t handle, rbusSubscriptions_t subscriptions, char const* elementName, elementNode* el)
+{
+    rtListItem item;
+    rbusSubscription_t* sub;
+
+    RBUSLOG_INFO("%s: event %s", __FUNCTION__, elementName);
+
+    rtList_GetFront(subscriptions->subList, &item);
+
+    while(item)
+    {
+        rtListItem_GetData(item, (void**)&sub);
+
+        if(sub->element == NULL && sub->tokens == NULL &&/*not already subscribed*/
+          strcmp(sub->eventName, elementName) == 0)
+        {
+            rtListItem next;
+            rbusError_t err;
+            RBUSLOG_INFO("%s: subscribing %s %s", __FUNCTION__, sub->eventName, sub->listener);
+            rtListItem_GetNext(item, &next);
+            err = subscribeHandlerImpl(handle, true, el, sub->eventName, sub->listener, sub->interval, sub->duration, sub->filter);
+            /*TODO figure out what to do if we get an error resubscribing
+              It's conceivable that a provider might not like the sub due to some state change between this and the previous process run
+             */
+             (void)err;
+
+            rtList_RemoveItem(subscriptions->subList, item, subscriptionFree);
+            item = next;
+        }
+        else
+        {
+            rtListItem_GetNext(item, &item);
+        }
+    }
+}
+
+void rbusSubscriptions_handleClientDisconnect(rbusHandle_t handle, rbusSubscriptions_t subscriptions, char const* listener)
+{
+    rtListItem item;
+    rbusSubscription_t* sub;
+
+    RBUSLOG_INFO("%s: %s", __FUNCTION__, listener);
+
+    rtList_GetFront(subscriptions->subList, &item);
+
+    while(item)
+    {
+        rtListItem_GetData(item, (void**)&sub);
+        rtListItem_GetNext(item, &item);
+        if(strcmp(sub->listener, listener) == 0)
+        {
+            subscribeHandlerImpl(handle, false, sub->element, sub->eventName, sub->listener, 0, 0, 0);
+        }
+    }
+}
+
+#if 0
+/*removes subscriptions for listeners whose processes are no longer running (e.g. listener crash handling)
+  we are using _client_disconnect_callback_handler to detect when listener crashes and that may be good enough
+  but i'm leaving this function in case we need a way to guarantee any dead listener gets removed */
+static void rbusSubscriptions_cleanupDeadListeners(rbusHandle_t handle, rbusSubscriptions_t subscriptions, void(*unsubscribe)(rbusHandle_t, rbusSubscription_t*)
+{
+    rtListItem item;
+    rbusSubscription_t* sub;
+
+    RBUSLOG_INFO("%s", __FUNCTION__);
+
+    rtList_GetFront(subscriptions->subList, &item);
+
+    while(item)
+    {
+        const char* p;
+        pid_t pid;
+
+        rtListItem_GetData(item, (void**)&sub);
+        rtListItem_GetNext(item, &item);
+
+        pid = rbusSubscriptions_getListenerPid(sub->listener);
+        if(pid > 0)
+        {
+            if(!rbusSubscriptions_isProcessRunning(pid))
+            {
+                subscribeHandlerImpl(handle, false, sub->el, sub->eventName, sub->listener, 0, 0, 0);
+            }
+        }
+    }
+}
+
+/*similar to rbusSubscriptions_getSubscription, checks for existing subscription by searching for its unique key [listener, eventName, filter]
+  additionally, if an existing is found, its listner name is updated to the new listener name (which may have a different pid appended)*/
+rbusSubscription_t* rbusSubscriptions_updateExisting(rbusSubscriptions_t subscriptions, char const* listener, char const* eventName, rbusFilter_t filter)
+{
+    rtListItem item;
+    rbusSubscription_t* sub;
+
+    RBUSLOG_INFO("%s: update %s %s", __FUNCTION__, listener, eventName);
+
+    rtList_GetFront(subscriptions->subList, &item);
+
+    while(item)
+    {
+        rtListItem_GetData(item, (void**)&sub);
+
+#if 1 //IGNORE_PID_WHEN_CHECKING_DUPLICATES
+        if(strcmp(sub->eventName, eventName) == 0)
+        {
+            /* This tries to handle the case where a subscriber crashes and 
+               restarts with a new pid appended to its inbox name.
+               The rtMessage inbox name is what we call listener here.  
+               If subscriber Foo with inbox=Foo.1234 subscribes but then crashes, 
+               we don't know about the crash and continue to keep Foo.1234 in our list.
+               If Foo restarts with a new inbox=Foo.4567 and subscribes
+               we want to reuse the pre-existing subscription, updating only the name.
+               We have to check that the pre-existing listener's process is actually
+               no longer running, as there could be cases where multiple components
+               with the same name are actually intentially being run (e.g. t2 and dmcli).
+             */
+            const char* p1 = sub->listener + strlen(sub->listener) - 1;
+            const char* p2 = listener + strlen(listener) - 1;
+            pid_t pid1, pid2;
+            while(*p1 != '.' && p1 != listener)
+                p1--;
+            while(*p2 != '.' && p2 != listener)
+                p2--;
+            pid1 = atoi(p1+1);
+            pid2 = atoi(p2+1)
+            if( pid1 > 0 && pid2 > 0 )
+            {
+                int l1 = (int)(p1 - sub->listener);
+                int l2 = (int)(p2 - listener);
+
+                if( strncmp(sub->listener, listener, l1 >= l2 ? l1 : l2) == 0 && 
+                    rbusFilter_Compare(sub->filter, filter) == 0)
+                {   
+                    /*don't allow the the same component from the same process with the same filter
+                      to subscribe to the same event more then once*/
+                    if(pid1 == pid2) 
+                    {
+                        return sub;
+                    }
+                    /*if the preexisting listener process is not running then its a good
+                      chance this new item is from the restart of a crashed process.
+                      of course its possible that we could have multiple crashes of processes
+                      hosting the same component, and in this case we might have several
+                      pre-existing items that could match the current one, but its fine
+                      to take the first one we come across in this list.
+                     */
+                    if(rbusSubscriptions_isProcessRunning(p1) != 0)
+                    {
+                        /*update name which has new pid*/
+                        RBUSLOG_INFO("%s: updating duplicate name from %s to %s", __FUNCTION__, sub->listener, listener);
+
+                        free(sub->listener);
+                        sub->listener = strdup(listener);
+
+                        /*must save with new name in case this provider crashes*/
+                        rbusSubscriptions_saveCache(subscriptions);
+                        return sub;
+                    }
+                }
+            }
+            else
+            {
+                /*rtMessage should be appending pids, if not then we are in some error state*/
+                RBUSLOG_ERROR("%s: pid not found in a listener name %s %s", __FUNCTION__, listener, sub->listener);
+            }
+        }
+#else
+        if(subscriptionKeyCompare(sub, listener, eventName, filter) == 0)
+        {
+            return sub;
+        }
+#endif
+        rtListItem_GetNext(item, &item);
+    }
+    return NULL;
+}
+#endif
 

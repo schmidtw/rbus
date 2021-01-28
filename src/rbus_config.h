@@ -17,19 +17,25 @@
  * limitations under the License.
 */
 
-#ifndef RBUS_VALUECHANGE_H
-#define RBUS_VALUECHANGE_H
+#ifndef RBUS_CONFIG_H
+#define RBUS_CONFIG_H
 
-#include "rbus_subscriptions.h"
+#include "rbus.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void rbusValueChange_SetPollingPeriod(int seconds);
-void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode);
-void rbusValueChange_RemovePropertyNode(rbusHandle_t handle, elementNode* propNode);
-void rbusValueChange_CloseHandle(rbusHandle_t handle);
+typedef struct _rbusConfig_t
+{
+    char*           tmpDir;           /*temp directory where rbus can persist data*/
+    int             subscribeTimeout; /*max time to attempt subscribe retries in milisecond*/
+    int             subscribeMaxWait; /*max time to wait between subscribe retries in miliseconds*/
+} rbusConfig_t;
+
+void rbusConfig_CreateOnce();
+void rbusConfig_Destroy();
+rbusConfig_t* rbusConfig_Get();
 
 #ifdef __cplusplus
 }

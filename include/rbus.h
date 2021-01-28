@@ -232,28 +232,26 @@ typedef struct
     rbusFilter_t  filter;       /**< Optional filter that was applied by provider*/
 } rbusEvent_t;
 
+ typedef struct _rbusEventSubscription rbusEventSubscription_t;
 
-/// @brief rbusEventSubscription_t
-typedef struct _rbusEventSubscription
-{
-    char const*         eventName;  /** Fully qualified event name */
-    rbusFilter_t        filter;     /** Optional filter that the client would like 
-                                        the sender to apply before sending the event
-                                      */
-    int32_t             interval;   /**< Total interval period after which
-                                         the event needs to be fired. Should
-                                         be in multiples of minInterval
-                                      */
-    uint32_t            duration;   /** Optional maximum duration in seconds until which 
-                                        the subscription should be in effect. Beyond this 
-                                        duration, the event would be unsubscribed automatically. 
-                                        Pass "0" for indefinite event subscription which requires 
-                                        the rbusEvent_Unsubscribe API to be called explicitly.
-                                      */
-    void*               handler     /** fixme rbusEventHandler_t internal*/;
-    void*               userData;   /** The userData set when subscribing to the event. */
-    rbusHandle_t        handle;     /** Private use only: The rbus handle associated with this subscription */
-} rbusEventSubscription_t;
+/** @fn typedef void (* rbusSubscribeAsyncRespHandler_t)(
+ *          rbusHandle_t              handle,
+ *          prbusEventSubscription_t  subscription,
+ *          rbusError_t error)
+ *  @brief A component will receive this API callback when a subscription response is received.
+ *  This callback is registered with rbusEvent_SubscribeAsync or rbusEvent_SubscribeExAsync. \n
+ *  Used by: Any component that subscribes async for events.
+ *  @param rbusHandle     Bus Handle
+ *  @param subscription   Subscription data created when the client subscribed
+ *                        for the event. This will contain the userData, for example.
+ *  @param error          Any error that occured
+ *                        success, or any provider error code, or timeout (if retry limit reached)
+ *  @return void
+ */
+typedef void (*rbusSubscribeAsyncRespHandler_t)(
+    rbusHandle_t handle, 
+    rbusEventSubscription_t* subscription,
+    rbusError_t error);
 
 /** @fn typedef void (* rbusEventHandler_t)(
  *          rbusHandle_t              handle,
@@ -273,6 +271,29 @@ typedef void (*rbusEventHandler_t)(
     rbusEvent_t const*          eventData,
     rbusEventSubscription_t*    subscription
 );
+
+/// @brief rbusEventSubscription_t
+typedef struct _rbusEventSubscription
+{
+    char const*         eventName;  /** Fully qualified event name */
+    rbusFilter_t        filter;     /** Optional filter that the client would like 
+                                        the sender to apply before sending the event
+                                      */
+    int32_t             interval;   /**< Total interval period after which
+                                         the event needs to be fired. Should
+                                         be in multiples of minInterval
+                                      */
+    uint32_t            duration;   /** Optional maximum duration in seconds until which 
+                                        the subscription should be in effect. Beyond this 
+                                        duration, the event would be unsubscribed automatically. 
+                                        Pass "0" for indefinite event subscription which requires 
+                                        the rbusEvent_Unsubscribe API to be called explicitly.
+                                      */
+    void*               handler;    /** fixme rbusEventHandler_t internal*/
+    void*               userData;   /** The userData set when subscribing to the event. */
+    rbusHandle_t        handle;     /** Private use only: The rbus handle associated with this subscription */
+    rbusSubscribeAsyncRespHandler_t asyncHandler;/** Private use only: The async handler being used for any background subscription retries */
+} rbusEventSubscription_t;
 
 /** @} */
 
@@ -1038,10 +1059,10 @@ rbusError_t rbusTable_removeRow(
  *          rbusHandle_t        handle,
  *          char const*         eventName,
  *          rbusEventHandler_t  handler,
- *          void*               userData)
+ *          void*               userData,
+ *          int                 timeout)
  *  @brief Subscribe to a single event.  \n
  *  Used by: Components that need to subscribe to an event.
- *
  * The handler will be called back when the event is generated. 
  * The type of event and when the event is generated is based 
  * on the type of data element eventName refers to.
@@ -1051,11 +1072,15 @@ rbusError_t rbusTable_removeRow(
  * generated when the value of that parameter changes.
  * If eventName is the name of a table, the event is generated
  * when a row is added or deleted from that table.
+ * If timeout is positive, internal retries will be attempted if the subscription
+ * cannot be routed to an existing provider, and the retries will continue until
+ * either a provider is found, an unrecoverable error occurs, or retry timeout reached.
  * A component should call rbusEvent_Unsubscribe to stop receiving the event.
  *  @param      handle          Bus Handle
  *  @param      eventName       The fully qualified name of the event
  *  @param      handler         The event callback handler
  *  @param      userData        User data to be passed back to the callback handler
+ *  @param      timeout         Max time in seconds to attempt retrying subscribe
  *  @return RBus error code as defined by rbusError_t.
  *  Possible values are: RBUS_ERROR_INVALID_EVENT
  *  @ingroup Events
@@ -1064,7 +1089,50 @@ rbusError_t  rbusEvent_Subscribe(
     rbusHandle_t        handle,
     char const*         eventName,
     rbusEventHandler_t  handler,
-    void*               userData);
+    void*               userData,
+    int                 timeout);
+
+/** @fn rbusError_t  rbusEvent_SubscribeAsync(
+ *          rbusHandle_t                    handle,
+ *          char const*                     eventName,
+ *          rbusEventHandler_t              handler,
+ *          rbusSubscribeAsyncRespHandler_t subscribeHandler,
+ *          void*                           userData,
+ *          int                             timeout)
+ *  @brief Subscribe asynchronously to a single event.  \n
+ *  Used by: Components that need to subscribe asynchronously to an event.
+ * The handler will be called back when the event is generated. 
+ * The type of event and when the event is generated is based 
+ * on the type of data element eventName refers to.
+ * If eventName is the name of a general event, the event is 
+ * generated when the provider of the event, publishes it.
+ * If eventName is the name of a parameter, the event is 
+ * generated when the value of that parameter changes.
+ * If eventName is the name of a table, the event is generated
+ * when a row is added or deleted from that table.
+ * The subscribeHandler is called when either a provider responds to the 
+ * subscription request, an unrecoverable error occurs, or retry timeout reached.
+ * If timeout is positive, internal retries will be attempted if the subscription 
+ * cannot be routed to an existing provider, and the retries will continue until 
+ * either a provider is found, an unrecoverable error occurs, or retry timeout reached.
+ * A component should call rbusEvent_Unsubscribe to stop receiving the event.
+ *  @param      handle            Bus Handle
+ *  @param      eventName         The fully qualified name of the event
+ *  @param      handler           The event callback handler
+ *  @param      subscribeHandler  The subscribe callback handler
+ *  @param      userData          User data to be passed back to the callback handler
+ *  @param      timeout           Max time in seconds to attempt retrying subscribe
+ *  @return RBus error code as defined by rbusError_t.
+ *  Possible values are: RBUS_ERROR_INVALID_EVENT
+ *  @ingroup Events
+ */
+rbusError_t  rbusEvent_SubscribeAsync(
+    rbusHandle_t                    handle,
+    char const*                     eventName,
+    rbusEventHandler_t              handler,
+    rbusSubscribeAsyncRespHandler_t subscribeHandler,
+    void*                           userData,
+    int                             timeout);
 
 /** @fn rbusError_t  rbusEvent_Unsubscribe(
  *          rbusHandle_t        handle,
@@ -1087,15 +1155,22 @@ rbusError_t rbusEvent_Unsubscribe(
 /** @fn rbusError_t  rbusEvent_SubscribeEx (
  *          rbusHandle_t handle,
  *          rbusEventSubscription_t* subscription,
- *          int numSubscriptions)
+ *          int numSubscriptions,
+ *          int timeout)
  *  @brief  Subscribe to one or more events with the option to add extra attributes
  *          to each subscription through the rbusEventSubscription_t structure\n
  *  Used by: Components that need to subscribe to events.
  * For each rbusEventSubscription_t subscription, the eventName and handler 
  * are required to be set.  Other options may be set to NULL or 0 if not needed.
- *  @param      handle          Bus Handle
- *  @param      subscription    The array of subscriptions to register to
- *  @param      numSubscriptions The number of subscriptions to register to
+ * Subscribing to all items in the subscription array is transactional.  
+ * That is, all must succeed to subscribe or none will be subscribed.
+ * If timeout is positive, internal retries will be attempted if the subscription
+ * cannot be routed to an existing provider, and the retries will continue until
+ * either a provider is found, an unrecoverable error occurs, or retry timeout reached.
+ *  @param      handle            Bus Handle
+ *  @param      subscription      The array of subscriptions to register to
+ *  @param      numSubscriptions  The number of subscriptions to register to
+ *  @param      timeout           Max time in seconds to attempt retrying subscribe
  *  @return RBus error code as defined by rbusError_t.
  *  Possible values are: RBUS_ERROR_INVALID_EVENT
  *  @ingroup Events
@@ -1103,7 +1178,43 @@ rbusError_t rbusEvent_Unsubscribe(
 rbusError_t rbusEvent_SubscribeEx(
     rbusHandle_t              handle,
     rbusEventSubscription_t*  subscription,
-    int                       numSubscriptions);
+    int                       numSubscriptions,
+    int                       timeout);
+
+/** @fn rbusError_t  rbusEvent_SubscribeExAsync (
+ *          rbusHandle_t handle,
+ *          rbusEventSubscription_t* subscription,
+ *          int numSubscriptions,
+ *          rbusSubscribeAsyncRespHandler_t subscribeHandler,
+ *          int timeout)
+ *  @brief  Subscribe asynchronously to one or more events with the option to add extra
+ *          attributes to each subscription through the rbusEventSubscription_t structure\n
+ *  Used by: Components that need to subscribe asynchronously to events.
+ * For each rbusEventSubscription_t subscription, the eventName and handler 
+ * are required to be set.  Other options may be set to NULL or 0 if not needed.
+ * Subscribing to all items in the subscription array is transactional.  
+ * That is, all must succeed to subscribe or none will be subscribed.
+ * The subscribeHandler is called after either all subscriptions were successfully 
+ * made to providers, any one subscriptions received an error response from a provider, 
+ * an unrecoverable error occurs, or retry timeout reached.
+ * If timeout is positive, internal retries will be attempted for each subscription that
+ * cannot be routed to an existing provider, and the retries will continue until 
+ * either a provider is found, an unrecoverable error occurs, or retry timeout reached.
+ *  @param      handle            Bus Handle
+ *  @param      subscription      The array of subscriptions to register to
+ *  @param      numSubscriptions  The number of subscriptions to register to
+ *  @param      subscribeHandler  The subscribe callback handler
+ *  @param      timeout           Max time in seconds to attempt retrying subscribe
+ *  @return RBus error code as defined by rbusError_t.
+ *  Possible values are: RBUS_ERROR_INVALID_EVENT
+ *  @ingroup Events
+ */
+rbusError_t rbusEvent_SubscribeExAsync(
+    rbusHandle_t                    handle,
+    rbusEventSubscription_t*        subscription,
+    int                             numSubscriptions,
+    rbusSubscribeAsyncRespHandler_t subscribeHandler,
+    int                             timeout);
 
 /** @fn rbusError_t  rbusEvent_UnsubscribeEx(
  *          rbusHandle_t handle, 
@@ -1300,7 +1411,7 @@ rbusError_t rbus_closeSession(
  *
  *  @brief  A callback handler to get the log messages to application context
  *
- *  Used by: component that wants to handle the logs in its own way must register a callback handler to get the log messages.
+ *  Used by: Component that wants to handle the logs in its own way must register a callback handler to get the log messages.
  *
  *  @param logHandler   handler function pointer
  *  @return RBus error code as defined by rbusError_t.
@@ -1308,6 +1419,18 @@ rbusError_t rbus_closeSession(
 rbusError_t rbus_registerLogHandler(
     rbusLogHandler logHandler);
 
+/** @fn rbusError_t rbus_setLogLevel(
+ *          rbusLogLevel level)
+ *
+ *  @brief  Component use this API to set the log level to be printed
+ *
+ *  Used by: Component that wants to use default logging of RBUS instead of overriding the logging, can set the log level by this.
+ *
+ *  @param level        Log level
+ *  @return RBus error code as defined by rbusError_t.
+ */
+
+rbusError_t rbus_setLogLevel(rbusLogLevel level);
 
 /** @} */
 

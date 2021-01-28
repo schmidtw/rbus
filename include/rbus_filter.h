@@ -178,10 +178,18 @@ rbusFilter_t rbusFilter_GetLogicLeft(rbusFilter_t filter);
 rbusFilter_t rbusFilter_GetLogicRight(rbusFilter_t filter);
 ///@}
 
+/** @fn void rbusFilter_Compare(rbusFilter_t filter1, rbusFilter_t filter2)
+ *  @brief Compare two filters for equality.
+ *  @param filter1 the first filter to compare
+ *  @param filter2 the second filter to compare
+ *  @return The compare result where 0 is equal and non-zero if not equal. 
+ */
+int rbusFilter_Compare(rbusFilter_t filter1, rbusFilter_t filter2);
+
 /** @fn void rbusFilter_fwrite(rbusFilter_t obj, FILE* fout, rbusValue_t value)
  *  @brief A debug utility function to write the filter as a string to a file stream.
  */
-void rbusFilter_fwrite(rbusFilter_t obj, FILE* fout, rbusValue_t value);
+void rbusFilter_fwrite(rbusFilter_t filter, FILE* fout, rbusValue_t value);
 
 #ifdef __cplusplus
 }

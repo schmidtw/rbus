@@ -118,7 +118,7 @@ static void eventHandler(
 
 }
 
-#define SUBSCRIBE(T) VERIFY(rbusEvent_Subscribe(handle, T, eventHandler, T))
+#define SUBSCRIBE(T) VERIFY(rbusEvent_Subscribe(handle, T, eventHandler, T, 0))
 
 static void addTestResult(int i, char const* user, char const* name, char const* data, bool ok)
 {

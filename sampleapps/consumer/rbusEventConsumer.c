@@ -50,7 +50,7 @@ int loopFor = 24;
             (EVENT)->type, \
             (EVENT)->name); \
     rbusObject_fwrite((EVENT)->data, 8, stdout); \
-    printf("############################################################################\n");
+    printf("\n############################################################################\n");
 
 static void generalEvent1Handler(
     rbusHandle_t handle,
@@ -147,8 +147,8 @@ int main(int argc, char *argv[])
     rbusHandle_t handle;
     char* data[2] = { "My Data 1", "My Data2" };
     rbusEventSubscription_t subscriptions[2] = {
-        {"Device.Provider1.Event1!", NULL, 0, 0, generalEvent1Handler, data[0], 0},
-        {"Device.Provider1.Event2!", NULL, 0, 0, generalEvent2Handler, data[1], 0}
+        {"Device.Provider1.Event1!", NULL, 0, 0, generalEvent1Handler, data[0], NULL, NULL},
+        {"Device.Provider1.Event2!", NULL, 0, 0, generalEvent2Handler, data[1], NULL, NULL}
     };
 
     printf("constumer: start\n");
@@ -166,7 +166,8 @@ int main(int argc, char *argv[])
         handle,
         "Device.Provider1.Param1",
         valueChangeHandler,
-        NULL);
+        NULL,
+        0);
 
     if(rc != RBUS_ERROR_SUCCESS)
     {
@@ -183,7 +184,8 @@ int main(int argc, char *argv[])
         handle,
         "Device.Provider1.Event1!",
         generalEvent1Handler,
-        data[0]);
+        data[0],
+        0);
 
     if(rc != RBUS_ERROR_SUCCESS)
     {
@@ -195,7 +197,8 @@ int main(int argc, char *argv[])
         handle,
         "Device.Provider1.Event2!",
         generalEvent2Handler,
-        data[1]);
+        data[1],
+        0);
 
     if(rc != RBUS_ERROR_SUCCESS)
     {
@@ -212,7 +215,7 @@ int main(int argc, char *argv[])
 #endif
 
 #if TEST_SUBSCRIBE_EX
-    rc = rbusEvent_SubscribeEx(handle, subscriptions, 2);
+    rc = rbusEvent_SubscribeEx(handle, subscriptions, 2, 0);
 
     if(rc != RBUS_ERROR_SUCCESS)
     {

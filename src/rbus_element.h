@@ -25,7 +25,7 @@
 #include <rbus_core.h>
 #include <rtList.h>
 #include <rtVector.h>
-#include <rtLog.h>
+#include "rbus_log.h"
 
 #ifdef __cplusplus
 extern "C" {

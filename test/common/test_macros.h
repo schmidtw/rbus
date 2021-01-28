@@ -75,7 +75,7 @@ extern "C" {
             (EVENT)->type, \
             (EVENT)->name); \
     rbusObject_fwrite((EVENT)->data, 8, stdout); \
-    printf("############################################################################\n");
+    printf("\n############################################################################\n");
 
 static int gCountPass = 0;
 static int gCountFail = 0;

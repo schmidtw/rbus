@@ -56,7 +56,7 @@ void getAllValues(rbusHandle_t handle, TestValueProperty* properties, int index)
 
         if(rc ==  RBUS_ERROR_SUCCESS)
         {
-            rbusValue_fwrite(value, 0, stdout);
+            rbusValue_fwrite(value, 0, stdout); printf("\n");
 
             if( rbusValue_Compare(value, data->values[index]) != 0)
             {

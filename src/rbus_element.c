@@ -36,7 +36,7 @@ void printNtimes(char* s, int n)
 
     while(n!=0)
     {
-        rtLog_Info("%s", s);
+        RBUSLOG_INFO("%s", s);
         n--;
     }
 }
@@ -121,7 +121,7 @@ elementNode* insertElement(elementNode** root, rbusDataElement_t* elem)
     createChild = 1;
 
 #if DEBUG_ELEMENTS
-    rtLog_Info("<%s>: Request to insert element [%s]!!", __FUNCTION__, elem->name);
+    RBUSLOG_INFO("<%s>: Request to insert element [%s]!!", __FUNCTION__, elem->name);
 #endif
 
     name = strdup(elem->name);
@@ -160,7 +160,7 @@ elementNode* insertElement(elementNode** root, rbusDataElement_t* elem)
             if(createChild)
             {
 #if DEBUG_ELEMENTS
-                rtLog_Info("Create child [%s]", token);
+                RBUSLOG_INFO("Create child [%s]", token);
 #endif
                 currentNode->child = getEmptyElementNode();
                 currentNode->child->parent = currentNode;
@@ -182,7 +182,7 @@ elementNode* insertElement(elementNode** root, rbusDataElement_t* elem)
         while(nextNode != NULL)
         {
 #if DEBUG_ELEMENTS
-            rtLog_Info("child name=[%s], Token = [%s]", nextNode->name, token);
+            RBUSLOG_INFO("child name=[%s], Token = [%s]", nextNode->name, token);
 #endif
             if(strcmp(nextNode->name, token) == 0)
             {
@@ -199,7 +199,7 @@ elementNode* insertElement(elementNode** root, rbusDataElement_t* elem)
                 if(nextNode == NULL)
                 {
 #if DEBUG_ELEMENTS
-                    rtLog_Info("Create Sibling [%s]", token);
+                    RBUSLOG_INFO("Create Sibling [%s]", token);
 #endif
                     currentNode->nextSibling = getEmptyElementNode();
                     currentNode->nextSibling->parent = currentNode->parent;
@@ -250,7 +250,7 @@ elementNode* retrieveElement(elementNode* root, const char* elmentName)
     int tokenFound = 0;
 
 #if DEBUG_ELEMENTS
-    rtLog_Info("<%s>: Request to retrieve element [%s]", __FUNCTION__, elmentName);
+    RBUSLOG_INFO("<%s>: Request to retrieve element [%s]", __FUNCTION__, elmentName);
 #endif
     if(currentNode == NULL)
     {
@@ -266,7 +266,7 @@ elementNode* retrieveElement(elementNode* root, const char* elmentName)
     while( token != NULL)
     {
 #if DEBUG_ELEMENTS
-        rtLog_Info("Token = [%s]", token);
+        RBUSLOG_INFO("Token = [%s]", token);
 #endif
         tokenFound = 0;
         if(nextNode == NULL)
@@ -275,7 +275,7 @@ elementNode* retrieveElement(elementNode* root, const char* elmentName)
         }
 
 #if DEBUG_ELEMENTS
-        rtLog_Info("child name=[%s], Token = [%s]", nextNode->name, token);
+        RBUSLOG_INFO("child name=[%s], Token = [%s]", nextNode->name, token);
 #endif
         /*
         if(nextNode->type == RBUS_ELEMENT_TYPE_TABLE)
@@ -289,7 +289,7 @@ elementNode* retrieveElement(elementNode* root, const char* elmentName)
         if(strcmp(nextNode->name, token) == 0)
         {
 #if DEBUG_ELEMENTS
-            rtLog_Info("tokenFound!");
+            RBUSLOG_INFO("tokenFound!");
 #endif
             tokenFound = 1;
             currentNode = nextNode;
@@ -303,12 +303,12 @@ elementNode* retrieveElement(elementNode* root, const char* elmentName)
             while(nextNode != NULL)
             {
 #if DEBUG_ELEMENTS
-                rtLog_Info("child name=[%s], Token = [%s]", nextNode->name, token);
+                RBUSLOG_INFO("child name=[%s], Token = [%s]", nextNode->name, token);
 #endif
                 if(strcmp(nextNode->name, token) == 0)
                 {
 #if DEBUG_ELEMENTS
-                    rtLog_Info("tokenFound!");
+                    RBUSLOG_INFO("tokenFound!");
 #endif
                     tokenFound = 1;
                     currentNode = nextNode;
@@ -337,7 +337,7 @@ elementNode* retrieveElement(elementNode* root, const char* elmentName)
     if(tokenFound)
     {
 #if DEBUG_ELEMENTS
-        rtLog_Info("Found Element with param name [%s]", currentNode->name);
+        RBUSLOG_INFO("Found Element with param name [%s]", currentNode->name);
 #endif
         return currentNode;
     }
@@ -356,7 +356,7 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
     int tokenFound = 0;
 
 #if DEBUG_ELEMENTS
-    rtLog_Info("<%s>: Request to retrieve element [%s]", __FUNCTION__, elmentName);
+    RBUSLOG_INFO("<%s>: Request to retrieve element [%s]", __FUNCTION__, elmentName);
 #endif
     if(currentNode == NULL)
     {
@@ -372,7 +372,7 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
     while( token != NULL)
     {
 #if DEBUG_ELEMENTS
-        rtLog_Info("Token = [%s]", token);
+        RBUSLOG_INFO("Token = [%s]", token);
 #endif
         tokenFound = 0;
 
@@ -382,13 +382,13 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
         }
 
 #if DEBUG_ELEMENTS
-        rtLog_Info("child name=[%s], Token = [%s]", nextNode->name, token);
+        RBUSLOG_INFO("child name=[%s], Token = [%s]", nextNode->name, token);
 #endif
 
         if(strcmp(nextNode->name, token) == 0)
         {
 #if DEBUG_ELEMENTS
-            rtLog_Info("tokenFound!");
+            RBUSLOG_INFO("tokenFound!");
 #endif
             tokenFound = 1;
             currentNode = nextNode;
@@ -402,12 +402,12 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
             while(nextNode != NULL)
             {
 #if DEBUG_ELEMENTS
-                rtLog_Info("child name=[%s], Token = [%s]", nextNode->name, token);
+                RBUSLOG_INFO("child name=[%s], Token = [%s]", nextNode->name, token);
 #endif
                 if(strcmp(nextNode->name, token) == 0)
                 {
 #if DEBUG_ELEMENTS
-                    rtLog_Info("tokenFound!");
+                    RBUSLOG_INFO("tokenFound!");
 #endif
                     tokenFound = 1;
                     currentNode = nextNode;
@@ -428,7 +428,7 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
                                 if(strncmp(nextNode->alias, token+1, tlen-2) == 0)
                                 {
 #if DEBUG_ELEMENTS
-                                    rtLog_Info("tokenFound by alias %s!", nextNode->alias);
+                                    RBUSLOG_INFO("tokenFound by alias %s!", nextNode->alias);
 #endif
                                     tokenFound = 1;
                                     currentNode = nextNode;
@@ -453,7 +453,7 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
     if(tokenFound)
     {
 #if DEBUG_ELEMENTS
-        rtLog_Info("Found Element with param name [%s]", currentNode->name);
+        RBUSLOG_INFO("Found Element with param name [%s]", currentNode->name);
 #endif
         return currentNode;
     }
@@ -472,12 +472,12 @@ int findImmediateMatchingNode(elementNode* parent, char* token, elementNode** cu
     {
         return ret;
     }
-    //rtLog_Debug("child name=[%s], Token = [%s]", parent->name, token);
+    //RBUSLOG_DEBUG("child name=[%s], Token = [%s]", parent->name, token);
     if(parent->child)
     {
         if(strcmp(parent->child->name, token) == 0)
         {
-            //rtLog_Debug("tokenFound!");
+            //RBUSLOG_DEBUG("tokenFound!");
             *curr = parent->child;
             *prev = parent;
             ret = 0;
@@ -490,7 +490,7 @@ int findImmediateMatchingNode(elementNode* parent, char* token, elementNode** cu
             {
                 if(strcmp(sibling->name, token) == 0)
                 {
-                    //rtLog_Debug("tokenFound!");
+                    //RBUSLOG_DEBUG("tokenFound!");
                     *curr = sibling;
                     *prev = prevSibling;
                     ret = 0;
@@ -507,7 +507,7 @@ int findAndFreeNodeRecursively(elementNode* parent, char* token)
 {
     elementNode *curr = NULL, *prev = NULL;
     int ret = -1;
-    //rtLog_Debug("parent node = [%s], token = [%s]", parent->name, token);
+    //RBUSLOG_DEBUG("parent node = [%s], token = [%s]", parent->name, token);
     ret = findImmediateMatchingNode(parent, token, &curr, &prev);
     if(ret == 0)
     {
@@ -515,7 +515,7 @@ int findAndFreeNodeRecursively(elementNode* parent, char* token)
         token = strtok(NULL, ".");
         if(token == NULL)
         {
-	    //rtLog_Debug("All tokens found!!");
+	    //RBUSLOG_DEBUG("All tokens found!!");
             if(prev->nextSibling == curr)
             {
                 prev->nextSibling = curr->nextSibling;
@@ -555,7 +555,7 @@ int findAndFreeNodeRecursively(elementNode* parent, char* token)
     }
     else
     {
-       //rtLog_Debug("ERROR finding immediate matching node!");
+       //RBUSLOG_DEBUG("ERROR finding immediate matching node!");
     }
     return ret;
 }
@@ -574,14 +574,14 @@ int removeElement(elementNode** root, char const* elementName)
 
     name = strdup(elementName);
 
-    //rtLog_Debug("<%s>: Request to remove element [%s]!!", __FUNCTION__, elementName);
+    //RBUSLOG_DEBUG("<%s>: Request to remove element [%s]!!", __FUNCTION__, elementName);
     token = strtok(name, ".");
-    //rtLog_Debug("Token = [%s]", token);
+    //RBUSLOG_DEBUG("Token = [%s]", token);
     ret = findAndFreeNodeRecursively(parent, token);
     free(name);
     if(ret != 0)
     {
-        //rtLog_Debug("Element not found[%s]", elementName);
+        //RBUSLOG_DEBUG("Element not found[%s]", elementName);
     }
     return ret;
 }
@@ -589,7 +589,7 @@ int removeElement(elementNode** root, char const* elementName)
 static void printElement(elementNode* node, int level)
 {
     printNtimes("  ", level);
-    rtLog_Info("[name:%s type:%s fullName:%s addr:%p, parent:%p %s%s]", 
+    RBUSLOG_INFO("[name:%s type:%s fullName:%s addr:%p, parent:%p %s%s]", 
         node->name, 
         getTypeString(node->type),
         node->fullName,
@@ -807,7 +807,7 @@ elementNode* instantiateTableRow(elementNode* tableNode, uint32_t instNum, char 
     char name[32];
 
 #if DEBUG_ELEMENTS
-    rtLog_Info("%s: table=%s instNum=%u alias=%s", __FUNCTION__, tableNode->fullName, instNum, alias);
+    RBUSLOG_INFO("%s: table=%s instNum=%u alias=%s", __FUNCTION__, tableNode->fullName, instNum, alias);
     printElement(tableNode, 0);
 #endif
 
@@ -816,9 +816,9 @@ elementNode* instantiateTableRow(elementNode* tableNode, uint32_t instNum, char 
         elementNode* root = tableNode;
         while(root->parent)
             root = root->parent;
-        rtLog_Info("################### BEFORE INSTANTION ###################");
+        RBUSLOG_INFO("################### BEFORE INSTANTION ###################");
         printRegisteredElements(root, 0);
-        rtLog_Info("#########################################################");
+        RBUSLOG_INFO("#########################################################");
     }
 #endif
 
@@ -835,7 +835,7 @@ elementNode* instantiateTableRow(elementNode* tableNode, uint32_t instNum, char 
     if(!rowTemplate)
     {
         assert(false);
-        rtLog_Error("%s ERROR: row template not found for table %s", __FUNCTION__, tableNode->fullName);
+        RBUSLOG_ERROR("%s ERROR: row template not found for table %s", __FUNCTION__, tableNode->fullName);
         return NULL;
     }
 
@@ -853,9 +853,9 @@ elementNode* instantiateTableRow(elementNode* tableNode, uint32_t instNum, char 
         elementNode* root = tableNode;
         while(root->parent)
             root = root->parent;
-        rtLog_Info("################### AFTER INSTANTION ####################");
+        RBUSLOG_INFO("################### AFTER INSTANTION ####################");
         printRegisteredElements(root, 0);
-        rtLog_Info("#########################################################");
+        RBUSLOG_INFO("#########################################################");
     }
 #endif
 
@@ -868,7 +868,7 @@ void deleteTableRow(elementNode* rowNode)
     elementNode* parent = rowNode->parent;
 
 #if DEBUG_ELEMENTS
-    rtLog_Info("%s: row=%s", __FUNCTION__, rowNode->fullName);
+    RBUSLOG_INFO("%s: row=%s", __FUNCTION__, rowNode->fullName);
     printElement(rowNode, 0);
     printElement(rowNode->parent, 0);
 #endif
@@ -878,9 +878,9 @@ void deleteTableRow(elementNode* rowNode)
         elementNode* root = rowNode;
         while(root->parent)
             root = root->parent;
-        rtLog_Info("################### BEFORE DELETE ###################");
+        RBUSLOG_INFO("################### BEFORE DELETE ###################");
         printRegisteredElements(root, 0);
-        rtLog_Info("#####################################################");
+        RBUSLOG_INFO("#####################################################");
     }
 #endif
 
@@ -911,17 +911,17 @@ void deleteTableRow(elementNode* rowNode)
         if(found)
         {
 #if DEBUG_ELEMENTS
-            rtLog_Info("%s: row removed from parent %s", __FUNCTION__, parent->fullName);
+            RBUSLOG_INFO("%s: row removed from parent %s", __FUNCTION__, parent->fullName);
 #endif
         }
         else
         {
-            rtLog_Info("%s: failed to find child in parent", __FUNCTION__);
+            RBUSLOG_INFO("%s: failed to find child in parent", __FUNCTION__);
         }
     }
     else
     {
-        rtLog_Info("%s: row doesn't have a parent", __FUNCTION__);
+        RBUSLOG_INFO("%s: row doesn't have a parent", __FUNCTION__);
     }
 
     /* free node's children then free node */
@@ -934,9 +934,9 @@ void deleteTableRow(elementNode* rowNode)
         elementNode* root = parent;
         while(root->parent)
             root = root->parent;
-        rtLog_Info("################### AFTER DELETE ####################");
+        RBUSLOG_INFO("################### AFTER DELETE ####################");
         printRegisteredElements(root, 0);
-        rtLog_Info("#####################################################");
+        RBUSLOG_INFO("#####################################################");
     }
 #endif
 

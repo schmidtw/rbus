@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
     {
         if(handles[i])
         {
-            rc = rbusEvent_Subscribe(handles[i], elements[i][1], eventHandler, componentNames[i]);
+            rc = rbusEvent_Subscribe(handles[i], elements[i][1], eventHandler, componentNames[i], 0);
             if(rc == RBUS_ERROR_SUCCESS)
             {
                 printf("_test_:rbusEvent_Subscribe result:SUCCESS event:%s\n", elements[i][1]);

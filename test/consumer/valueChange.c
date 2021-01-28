@@ -173,7 +173,7 @@ void testValueChange(rbusHandle_t handle, int* countPass, int* countFail)
      *test simply subscribe
      */
 
-    rc = rbusEvent_Subscribe(handle, "Device.TestProvider.VCParam", simpleVCHandler, NULL);
+    rc = rbusEvent_Subscribe(handle, "Device.TestProvider.VCParam", simpleVCHandler, NULL, 0);
     TALLY(rc == RBUS_ERROR_SUCCESS);
     printf("_test_ValueChange rbusEvent_Subscribe %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
     if(rc != RBUS_ERROR_SUCCESS)
@@ -210,21 +210,21 @@ void testValueChange(rbusHandle_t handle, int* countPass, int* countFail)
     rbusFilter_InitRelation(&filter[11], RBUS_FILTER_OPERATOR_NOT_EQUAL, strVal);
 
     rbusEventSubscription_t subscription[12] = {
-        {"Device.TestProvider.VCParamInt0", filter[0], 0, 0, intVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamInt1", filter[1], 0, 0, intVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamInt2", filter[2], 0, 0, intVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamInt3", filter[3], 0, 0, intVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamInt4", filter[4], 0, 0, intVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamInt5", filter[5], 0, 0, intVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamStr0", filter[6], 0, 0, stringVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamStr1", filter[7], 0, 0, stringVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamStr2", filter[8], 0, 0, stringVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamStr3", filter[9], 0, 0, stringVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamStr4", filter[10], 0, 0, stringVCHandler, NULL, 0},
-        {"Device.TestProvider.VCParamStr5", filter[11], 0, 0, stringVCHandler, NULL, 0}
+        {"Device.TestProvider.VCParamInt0", filter[0], 0, 0, intVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamInt1", filter[1], 0, 0, intVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamInt2", filter[2], 0, 0, intVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamInt3", filter[3], 0, 0, intVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamInt4", filter[4], 0, 0, intVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamInt5", filter[5], 0, 0, intVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamStr0", filter[6], 0, 0, stringVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamStr1", filter[7], 0, 0, stringVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamStr2", filter[8], 0, 0, stringVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamStr3", filter[9], 0, 0, stringVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamStr4", filter[10], 0, 0, stringVCHandler, NULL, NULL, NULL},
+        {"Device.TestProvider.VCParamStr5", filter[11], 0, 0, stringVCHandler, NULL, NULL, NULL}
     };
 
-    rc = rbusEvent_SubscribeEx(handle, subscription, 12);
+    rc = rbusEvent_SubscribeEx(handle, subscription, 12, 0);
 
     rbusValue_Release(intVal);
     rbusValue_Release(strVal);

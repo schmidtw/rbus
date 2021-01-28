@@ -17,19 +17,18 @@
  * limitations under the License.
 */
 
-#ifndef RBUS_VALUECHANGE_H
-#define RBUS_VALUECHANGE_H
+#ifndef RBUS_ASYNCSUBSCRIBE_H
+#define RBUS_ASYNCSUBSCRIBE_H
 
-#include "rbus_subscriptions.h"
+#include "rbus.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void rbusValueChange_SetPollingPeriod(int seconds);
-void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode);
-void rbusValueChange_RemovePropertyNode(rbusHandle_t handle, elementNode* propNode);
-void rbusValueChange_CloseHandle(rbusHandle_t handle);
+void rbusAsyncSubscribe_AddSubscription(rbusEventSubscription_t* subscription);
+void rbusAsyncSubscribe_RemoveSubscription(rbusEventSubscription_t* subscription);
+void rbusAsyncSubscribe_CloseHandle(rbusHandle_t handle);
 
 #ifdef __cplusplus
 }

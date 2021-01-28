@@ -60,7 +60,7 @@ typedef struct ValueChangeRecord
 
 static void rbusValueChange_Init()
 {
-    rtLog_Debug("%s", __FUNCTION__);
+    RBUSLOG_DEBUG("%s", __FUNCTION__);
 
     if(vcinit)
         return;
@@ -74,7 +74,7 @@ static void rbusValueChange_Init()
     pthread_mutexattr_settype(&attrib, PTHREAD_MUTEX_ERRORCHECK);
     if(0 != pthread_mutex_init(&vcmutex, &attrib))
     {
-        rtLog_Warn("%s: failed to initialize mutex", __FUNCTION__);
+        RBUSLOG_WARN("%s: failed to initialize mutex", __FUNCTION__);
     }
 }
 
@@ -100,7 +100,7 @@ static ValueChangeRecord* vcParams_Find(const elementNode* paramNode)
 static void* rbusValueChange_pollingThreadFunc(void *userData)
 {
     (void)(userData);
-    rtLog_Debug("%s: start", __FUNCTION__);
+    RBUSLOG_DEBUG("%s: start", __FUNCTION__);
     while(vcrunning)
     {
         size_t i;
@@ -134,12 +134,12 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
 
             if(result != RBUS_ERROR_SUCCESS)
             {
-                rtLog_Warn("%s: failed to get current value of %s", __FUNCTION__, rbusProperty_GetName(property));
+                RBUSLOG_WARN("%s: failed to get current value of %s", __FUNCTION__, rbusProperty_GetName(property));
                 continue;
             }
 
             char* sValue = rbusValue_ToString(rbusProperty_GetValue(property), NULL, 0);
-            rtLog_Debug("%s: %s=%s", __FUNCTION__, rbusProperty_GetName(property), sValue);
+            RBUSLOG_DEBUG("%s: %s=%s", __FUNCTION__, rbusProperty_GetName(property), sValue);
             free(sValue);
 
             newVal = rbusProperty_GetValue(property);
@@ -150,7 +150,7 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
                 rbusSubscription_t* subscription;
                 rtListItem li;
 
-                rtLog_Info("%s: value change detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
+                RBUSLOG_INFO("%s: value change detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
 
                 /*
                     mrollins: I added a 'filter=true|false' property to the event data when a filter it triggered.
@@ -195,7 +195,7 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
 
                         if(newResult != oldResult)
                         {
-                            rtLog_Info("%s: filter matched for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
+                            RBUSLOG_INFO("%s: filter matched for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
                             /*set 'filter' to true/false implying that either the filter has started or stopped matching*/
                             rbusValue_Init(&filterResult);
                             rbusValue_SetBoolean(filterResult, newResult != 0);
@@ -221,7 +221,7 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
                             rbusValue_Release(filterResult);
                         }
 
-                        rtLog_Info ("%s: value change detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
+                        RBUSLOG_INFO ("%s: value change detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
 
                         event.name = rbusProperty_GetName(rec->property);
                         event.data = data;
@@ -233,7 +233,7 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
 
                         if(result != RBUS_ERROR_SUCCESS)
                         {
-                            rtLog_Warn("%s: rbusEvent_Publish failed with result=%d", __FUNCTION__, result);
+                            RBUSLOG_WARN("%s: rbusEvent_Publish failed with result=%d", __FUNCTION__, result);
                         }
 
                         /*
@@ -255,20 +255,20 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
             }
             else
             {
-                rtLog_Info("%s: value change not detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
+                RBUSLOG_INFO("%s: value change not detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
                 rbusProperty_Release(property);
             }
         }
 
         VC_UNLOCK();//############ UNLOCK ############
     }
-    rtLog_Debug("%s: stop", __FUNCTION__);
+    RBUSLOG_DEBUG("%s: stop", __FUNCTION__);
     return NULL;
 }
 
 void rbusValueChange_SetPollingPeriod(int seconds)
 {
-    rtLog_Debug("%s: %d", __FUNCTION__, seconds);
+    RBUSLOG_DEBUG("%s: %d", __FUNCTION__, seconds);
     vcperiod = seconds;
 }
 
@@ -276,7 +276,7 @@ void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode)
 {
     ValueChangeRecord* rec;
 
-    rtLog_Debug("%s: %s", __FUNCTION__, propNode->fullName);
+    RBUSLOG_DEBUG("%s: %s", __FUNCTION__, propNode->fullName);
 
     if(!vcinit)
     {
@@ -287,19 +287,19 @@ void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode)
     assert(propNode);
     if(!propNode)
     {
-        rtLog_Warn("%s: propNode NULL error", __FUNCTION__);
+        RBUSLOG_WARN("%s: propNode NULL error", __FUNCTION__);
         return;
     }
     assert(propNode->type == RBUS_ELEMENT_TYPE_PROPERTY);
     if(propNode->type != RBUS_ELEMENT_TYPE_PROPERTY)
     {
-        rtLog_Warn("%s: propNode type %d error", __FUNCTION__, propNode->type);
+        RBUSLOG_WARN("%s: propNode type %d error", __FUNCTION__, propNode->type);
         return;
     }
     assert(propNode->cbTable.getHandler);
     if(!propNode->cbTable.getHandler)
     {
-        rtLog_Warn("%s: propNode getHandler NULL error", __FUNCTION__);
+        RBUSLOG_WARN("%s: propNode getHandler NULL error", __FUNCTION__);
         return;
     }
 
@@ -360,7 +360,7 @@ void rbusValueChange_RemovePropertyNode(rbusHandle_t handle, elementNode* propNo
 
     (void)(handle);
 
-    rtLog_Debug("%s: %s", __FUNCTION__, propNode->fullName);
+    RBUSLOG_DEBUG("%s: %s", __FUNCTION__, propNode->fullName);
 
     if(!vcinit)
     {
@@ -402,13 +402,13 @@ void rbusValueChange_RemovePropertyNode(rbusHandle_t handle, elementNode* propNo
     }
     else
     {
-        rtLog_Warn("%s: value change param not found: %s", __FUNCTION__, propNode->fullName);
+        RBUSLOG_WARN("%s: value change param not found: %s", __FUNCTION__, propNode->fullName);
     }
 }
 
-void rbusValueChange_Close(rbusHandle_t handle)
+void rbusValueChange_CloseHandle(rbusHandle_t handle)
 {
-    rtLog_Debug("%s", __FUNCTION__);
+    RBUSLOG_DEBUG("%s", __FUNCTION__);
 
     if(!vcinit)
     {

@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     rbusHandle_t handle;
     rbusFilter_t filter;
     rbusValue_t filterValue;
-    rbusEventSubscription_t subscription = {"Device.Provider1.Param1", NULL, 0, 0, eventReceiveHandler, NULL, 0};
+    rbusEventSubscription_t subscription = {"Device.Provider1.Param1", NULL, 0, 0, eventReceiveHandler, NULL, NULL, NULL};
 
     rc = rbus_open(&handle, "EventConsumer");
     if(rc != RBUS_ERROR_SUCCESS)
@@ -79,7 +79,8 @@ int main(int argc, char *argv[])
         handle,
         "Device.Provider1.Param1",
         eventReceiveHandler,
-        "My User Data");
+        "My User Data",
+        0);
 
     sleep(10);
 
@@ -98,7 +99,7 @@ int main(int argc, char *argv[])
 
     subscription.filter = filter;
 
-    rc = rbusEvent_SubscribeEx(handle, &subscription, 1);
+    rc = rbusEvent_SubscribeEx(handle, &subscription, 1, 0);
 
     rbusValue_Release(filterValue);
     rbusFilter_Release(filter);

@@ -18,6 +18,7 @@
 */
 
 #include <rbus.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include "../common/test_macros.h"
@@ -92,7 +93,8 @@ static void test1(rbusHandle_t handle, char const* prop)
 
     if(rc == RBUS_ERROR_SUCCESS)
     {
-         TEST(!strcmp(prop, value));
+        TEST(!strcmp(prop, value));
+        free(value);
     }
 }
 

@@ -18,44 +18,21 @@
 # limitations under the License.
 #############################################################################
 
+find_package(PkgConfig)
 
-include_directories(
-    ../include)
-add_library(
-    rbus
-    SHARED
-    rbus.c
-    rbus_value.c
-    rbus_property.c
-    rbus_object.c
-    rbus_buffer.c
-    rbus_filter.c
-    rbus_element.c
-    rbus_valuechange.c
-    rbus_subscriptions.c
-    rbus_tokenchain.c
-    rbus_asyncsubscribe.c
-    rbus_config.c)
+find_library(RDKLOGGER_LIBRARIES NAMES rdkloggers)
+find_path(RDKLOGGER_INCLUDE_DIRS NAMES rdk_debug.h)
 
-target_link_libraries(
-    rbus
-    ${RTMESSAGE_LIBRARIES}
-    ${RBUSCORE_LIBRARIES}
-    -fPIC
-    -pthread)
+set(RDKLOGGER_LIBRARIES ${RDKLOGGER_LIBRARIES} CACHE PATH "Path to rdkLogger library")
+set(RDKLOGGER_INCLUDE_DIRS ${RDKLOGGER_INCLUDE_DIRS} )
+set(RDKLOGGER_INCLUDE_DIRS ${RDKLOGGER_INCLUDE_DIRS} CACHE PATH "Path to rdkLogger include")
 
-target_include_directories (rbus PUBLIC ${RBUSCORE_INCLUDE_DIRS})
-target_include_directories (rbus PUBLIC ${RTMESSAGE_INCLUDE_DIRS})
-target_include_directories (rbus PUBLIC ${RDKLOGGER_INCLUDE_DIRS})
+include(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(RDKLOGGER DEFAULT_MSG RDKLOGGER_INCLUDE_DIRS RDKLOGGER_LIBRARIES)
 
-set_target_properties(rbus
-    PROPERTIES SOVERSION "0"
-    VERSION "${PROJECT_VERSION}")
-
-install (TARGETS rbus
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib)
-
-install (DIRECTORY ../include/
-    DESTINATION "include/rbus")
-
+mark_as_advanced(
+    RDKLOGGER_FOUND
+    RDKLOGGER_INCLUDE_DIRS
+    RDKLOGGER_LIBRARIES
+    RDKLOGGER_LIBRARY_DIRS
+    RDKLOGGER_FLAGS)
