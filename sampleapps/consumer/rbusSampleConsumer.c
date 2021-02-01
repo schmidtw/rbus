@@ -75,7 +75,6 @@ int main(int argc, char *argv[])
         if(rc != RBUS_ERROR_SUCCESS)
         {
             printf ("rbus_get failed for [%s] with error [%d]\n", paramNames[count], rc);
-            rbusValue_Release(value);
             continue;
         }
 
