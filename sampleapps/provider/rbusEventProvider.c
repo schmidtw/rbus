@@ -73,7 +73,7 @@ rbusError_t getHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHand
     if(strcmp(name, "Device.Provider1.Param1") == 0)
     {
         static int mydata = 0;
-        char buff[10];
+        char buff[16];
         rbusValue_t value;
 
         sprintf(buff, "v%d", mydata++/3);/*fake a value change every 3rd call to this function*/
