@@ -131,8 +131,6 @@ void testSubscribe(rbusHandle_t handle, int* countPass, int* countFail)
         countDown--;
     }
  
-    rbusEvent_Unsubscribe(handle, "Device.TestProvider.Event1!");
-
     /*test negative cases*/
     rc = rbusEvent_Subscribe(handle, "Device.TestProvider.NonExistingEvent1!", handler1, data[0]);
     printf("_test_Subscribe rbusEvent_Subscribe NonExistingEvent1 %s rc=%d\n", rc != RBUS_ERROR_SUCCESS ? "PASS" : "FAIL", rc);
@@ -143,8 +141,8 @@ void testSubscribe(rbusHandle_t handle, int* countPass, int* countFail)
     TALLY(rc != RBUS_ERROR_SUCCESS);
 
 exit1:
-    rbusEvent_Unsubscribe(handle, "Device.TestProvider.Event1");
-    printf("_test_Subscribe rbusEvent_Unsubscribe Event1 %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS" : "FAIL", rc);
+    rc = rbusEvent_Unsubscribe(handle, "Device.TestProvider.Event1!");
+    printf("_test_Subscribe rbusEvent_Unsubscribe Event1! %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS" : "FAIL", rc);
     TALLY(rc == RBUS_ERROR_SUCCESS);
 
 exit0:

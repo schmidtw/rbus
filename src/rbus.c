@@ -2716,8 +2716,9 @@ rbusError_t rbusEvent_Unsubscribe(
     else
     {
         rtLog_Error("rbusEvent_Unsubscribe unexpected -- we should have found a sub but didn't");
-
+        errorcode = RBUS_ERROR_INVALID_EVENT;
     }
+
     return errorcode;
 }
 
@@ -3042,6 +3043,8 @@ rbusError_t rbusMethod_InvokeInternal(
         rtLog_Info("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
         if(err == RTMESSAGE_BUS_ERROR_REMOTE_TIMED_OUT)
             return RBUS_ERROR_TIMEOUT;
+        else if(err == RTMESSAGE_BUS_ERROR_DESTINATION_UNREACHABLE)
+            return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
         else
             return RBUS_ERROR_BUS_ERROR;
     }
