@@ -19,6 +19,7 @@
 #include "gtest/gtest.h"
 #include <rbus.h>
 #include <limits.h>
+#include <errno.h>
 #include "../src/rbus_buffer.h"
 
 TEST(rbusValueTest, validate_types)

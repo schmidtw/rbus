@@ -340,7 +340,7 @@ static int rbusConsumer(rbusGtest_t test)
             handle,
             "Device.Provider1.Param1",
             eventReceiveHandler,
-            user_data);
+            user_data,0);
         EXPECT_EQ(rc,RBUS_ERROR_SUCCESS);
 
         sleep(runtime-10);
@@ -362,7 +362,7 @@ static int rbusConsumer(rbusGtest_t test)
 
         subscription.filter = filter;
 
-        rc = rbusEvent_SubscribeEx(handle, &subscription, 1);
+        rc = rbusEvent_SubscribeEx(handle, &subscription, 1, 0);
         EXPECT_EQ(rc,RBUS_ERROR_SUCCESS);
 
         rbusValue_Release(filterValue);
