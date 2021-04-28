@@ -34,6 +34,54 @@
 #define rbusHostToLittleInt64(n) htole64(n)
 #define rbusLittleToHostInt64(n) le64toh(n)
 
+float rbusHostToLittleSingle(float n)
+{
+    union
+    {
+        float f32;
+        uint32_t u32;
+    } u;
+    u.f32 = n;
+    u.u32 = rbusHostToLittleInt32(u.u32);
+    return u.f32;
+}
+
+float rbusLittleToHostSingle(float n)
+{
+    union
+    {
+        float f32;
+        uint32_t u32;
+    } u;
+    u.f32 = n;
+    u.u32 = rbusLittleToHostInt32(u.u32);
+    return u.f32;
+}
+
+double rbusHostToLittleDouble(double n)
+{
+    union
+    {
+        double f64;
+        uint64_t u64;
+    } u;
+    u.f64 = n;
+    u.u64 = rbusHostToLittleInt64(u.u64);
+    return u.f64;
+}
+
+double rbusLittleToHostDouble(double n)
+{
+    union
+    {
+        double f64;
+        uint64_t u64;
+    } u;
+    u.f64 = n;
+    u.u64 = rbusLittleToHostInt64(u.u64);
+    return u.f64;
+}
+
 void rbusBuffer_Create(rbusBuffer_t* buff)
 {
     (*buff) = malloc(sizeof(struct _rbusBuffer));
@@ -165,13 +213,13 @@ void rbusBuffer_WriteUInt64TLV(rbusBuffer_t buff, uint64_t u64)
 
 void rbusBuffer_WriteSingleTLV(rbusBuffer_t buff, float f32)
 {
-    float temp = rbusHostToLittleInt32((uint32_t)f32);
+    float temp = rbusHostToLittleSingle(f32);
     rbusBuffer_WriteTypeLengthValue(buff, RBUS_SINGLE, sizeof(float), &temp);
 }
 
 void rbusBuffer_WriteDoubleTLV(rbusBuffer_t buff, double f64)
 {
-    double temp = (double)rbusHostToLittleInt64((uint64_t)f64);
+    double temp = rbusHostToLittleDouble(f64);
     rbusBuffer_WriteTypeLengthValue(buff, RBUS_DOUBLE, sizeof(double), &temp);
 }
 
@@ -296,7 +344,7 @@ int rbusBuffer_ReadSingle(rbusBuffer_t const buff, float* f32)
 {
     float temp;
     int rc = rbusBuffer_Read(buff, &temp, sizeof(float));
-    *f32 = rbusLittleToHostInt32(temp);
+    *f32 = rbusLittleToHostSingle(temp);
     return rc;
 }
 
@@ -304,7 +352,7 @@ int rbusBuffer_ReadDouble(rbusBuffer_t const buff, double* f64)
 {
     double temp;
     int rc = rbusBuffer_Read(buff, &temp, sizeof(double));
-    *f64 = (double)rbusLittleToHostInt64((uint64_t)temp);
+    *f64 = rbusLittleToHostDouble(temp);
     return rc;
 }
 

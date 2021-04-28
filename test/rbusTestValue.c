@@ -560,6 +560,19 @@ void testValue_Bytes()
     rbusValue_Release(val);
 }
 
+#define TEST_VALUE_COERCE(F1,V1,F2,V2,RES)\
+{\
+    rbusValue_t v1;\
+    rbusValue_t v2;\
+    rbusValue_Init(&v1);\
+    rbusValue_Init(&v2);\
+    rbusValue_Set##F1(v1, V1);\
+    rbusValue_Set##F2(v2, V2);\
+    TEST(rbusValue_Compare(v1, v2)==RES);\
+    rbusValue_Release(v1);\
+    rbusValue_Release(v2);\
+}
+
 void testValue_Compare()
 {
     rbusValue_t v1;
@@ -598,6 +611,44 @@ void testValue_Compare()
     bytes[900] = bytes[900]+1;
     rbusValue_SetBytes(v2, bytes, 1000);
     TEST(rbusValue_Compare(v1, v2)!=0);
+
+
+    TEST_VALUE_COERCE(Int32,0,UInt32,0,0);
+    TEST_VALUE_COERCE(UInt32,0,Int32,0,0);
+    TEST_VALUE_COERCE(Int32,-1,UInt32,0,-1);
+    TEST_VALUE_COERCE(UInt32,0,Int32,-1,1);
+
+    TEST_VALUE_COERCE(Int32,1,UInt32,2,-1);
+    TEST_VALUE_COERCE(Int32,1,UInt32,1,0);
+    TEST_VALUE_COERCE(Int32,1,UInt32,0,1);
+    TEST_VALUE_COERCE(UInt32,100,Int32,101,-1);
+    TEST_VALUE_COERCE(UInt32,100,Int32,100,0);
+    TEST_VALUE_COERCE(UInt32,100,Int32,99,1);
+
+    TEST_VALUE_COERCE(Boolean,true,Int32,-1,1);
+    TEST_VALUE_COERCE(Boolean,true,Int32,0,1);
+    TEST_VALUE_COERCE(Boolean,true,Int32,1,0);
+    TEST_VALUE_COERCE(Boolean,true,Int32,2,-1);
+    TEST_VALUE_COERCE(Boolean,false,Int32,-1,1);
+    TEST_VALUE_COERCE(Boolean,false,Int32,0,0);
+    TEST_VALUE_COERCE(Boolean,false,Int32,1,-1);
+    TEST_VALUE_COERCE(Boolean,false,Int32,2,-1);
+    TEST_VALUE_COERCE(Int32,-1,Boolean,true,-1);
+    TEST_VALUE_COERCE(Int32,0,Boolean,true,-1);
+    TEST_VALUE_COERCE(Int32,1,Boolean,true,0);
+    TEST_VALUE_COERCE(Int32,2,Boolean,true,1);
+    TEST_VALUE_COERCE(Int32,-1,Boolean,false,-1);
+    TEST_VALUE_COERCE(Int32,0,Boolean,false,0);
+    TEST_VALUE_COERCE(Int32,1,Boolean,false,1);
+    TEST_VALUE_COERCE(Int32,2,Boolean,false,1);
+    TEST_VALUE_COERCE(Int32,1,Single,0.999f,1);
+    TEST_VALUE_COERCE(Int32,1,Single,1.0f,0);
+    TEST_VALUE_COERCE(Int32,1,Single,1.001f,-1);
+    TEST_VALUE_COERCE(Double,1000.0001,UInt32,999,1);
+    TEST_VALUE_COERCE(Double,1000.0001,UInt32,1000,1);
+    TEST_VALUE_COERCE(Double,1000.0001,UInt32,1001,-1);
+    TEST_VALUE_COERCE(Double,1000.0001,UInt32,1000,1);
+    TEST_VALUE_COERCE(Double,1000.0001,UInt32,1001,-1);
 
     rbusValue_Release(v1);
     rbusValue_Release(v2);
@@ -648,21 +699,18 @@ void testValue_Copy()
     rbusValue_Copy(dest, src);
     TEST(rbusValue_GetType(dest) == RBUS_STRING);
     TEST(strcmp(rbusValue_GetString(dest,NULL), "s1")==0);
-    TEST(rbusValue_GetType(src) == RBUS_NONE);
+    TEST(rbusValue_GetType(src) == RBUS_STRING);
 
     rbusValue_SetInt32(src, -1234567);
     rbusValue_Copy(dest, src);
     TEST(rbusValue_GetType(dest) == RBUS_INT32);
     TEST(rbusValue_GetInt32(dest) == -1234567);
-    TEST(rbusValue_GetType(src) == RBUS_STRING);
-    TEST(strcmp(rbusValue_GetString(src,NULL), "s1")==0);
+    TEST(rbusValue_GetType(src) == RBUS_INT32);
 
     rbusValue_SetBoolean(src, false);
     rbusValue_Copy(dest, src);
     TEST(rbusValue_GetType(dest) == RBUS_BOOLEAN);
     TEST(rbusValue_GetBoolean(dest) == false);
-    TEST(rbusValue_GetType(src) == RBUS_INT32);
-    TEST(rbusValue_GetInt32(src) == -1234567);
 
     rbusValue_Release(src);
     rbusValue_Release(dest);

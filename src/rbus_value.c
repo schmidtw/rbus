@@ -830,17 +830,37 @@ void rbusValue_Encode(rbusValue_t value, rbusBuffer_t buff)
     }
 }
 
-#define RETURN_COMPARE_VALUE(TYPE,FUNC) \
-{ \
-    TYPE t1, t2; \
-    t1 = (FUNC)(v1); \
-    t2 = (FUNC)(v2); \
-    if(t1==t2) \
-        return 0; \
-    else if(t1<t2) \
-        return -1; \
-    else \
-        return 1; \
+static double rbusValue_CoerceNumericToDouble(rbusValue_t v)
+{
+    switch(v->type)
+    {
+    case RBUS_INT32:
+        return (double)rbusValue_GetInt32(v);
+    case RBUS_UINT32:
+        return (double)rbusValue_GetUInt32(v);
+    case RBUS_BOOLEAN:
+        return (double)rbusValue_GetBoolean(v);
+    case RBUS_CHAR:
+        return (double)rbusValue_GetChar(v);
+    case RBUS_BYTE:
+        return (double)rbusValue_GetByte(v);
+    case RBUS_INT8:
+        return (double)rbusValue_GetInt8(v);
+    case RBUS_UINT8:
+        return (double)rbusValue_GetUInt8(v);
+    case RBUS_INT16:
+        return (double)rbusValue_GetInt16(v);
+    case RBUS_UINT16:
+        return (double)rbusValue_GetUInt16(v);
+    case RBUS_INT64:
+        return (double)rbusValue_GetInt64(v);
+    case RBUS_UINT64:
+        return (double)rbusValue_GetUInt64(v);
+    case RBUS_SINGLE:
+        return (double)rbusValue_GetSingle(v);
+    default:
+        return rbusValue_GetDouble(v);
+    }
 }
 
 int rbusValue_Compare(rbusValue_t v1, rbusValue_t v2)
@@ -848,13 +868,34 @@ int rbusValue_Compare(rbusValue_t v1, rbusValue_t v2)
     if(v1 == v2)
         return 0;
 
+    /*compare integral values being type insensitive*/
+    if(v1->type <= RBUS_DOUBLE && v2->type <= RBUS_DOUBLE)
+    {
+        double d1 = rbusValue_CoerceNumericToDouble(v1);
+        double d2 = rbusValue_CoerceNumericToDouble(v2);
+
+        if(d1 == d2)
+            return 0;
+        else if(d1 < d2)
+            return -1;
+        else
+            return 1;
+    }
+
     if(v1->type != v2->type)
-        return 1;
+    {
+        if(v1->type < v2->type)
+            return -1;
+        else
+            return 1;
+    }
 
     switch(v1->type)
     {
     case RBUS_STRING:
+    {
         return strcmp((char const*)v1->d.bytes->data, (char const*)v2->d.bytes->data);
+    }
     case RBUS_BYTES:
     {
         int c = memcmp(v1->d.bytes->data, v2->d.bytes->data, v1->d.bytes->posWrite);
@@ -864,34 +905,6 @@ int rbusValue_Compare(rbusValue_t v1, rbusValue_t v2)
             c = 1;
         return c;
     }
-    case RBUS_NONE:
-        return 0;
-    case RBUS_INT32:
-        RETURN_COMPARE_VALUE(int32_t, rbusValue_GetInt32);
-    case RBUS_UINT32:
-        RETURN_COMPARE_VALUE(uint32_t, rbusValue_GetUInt32);
-    case RBUS_BOOLEAN:
-        RETURN_COMPARE_VALUE(bool, rbusValue_GetBoolean);
-    case RBUS_CHAR:
-        RETURN_COMPARE_VALUE(char, rbusValue_GetChar);
-    case RBUS_BYTE:
-        RETURN_COMPARE_VALUE(unsigned char, rbusValue_GetByte);
-    case RBUS_INT8:
-        RETURN_COMPARE_VALUE(int8_t, rbusValue_GetInt8);
-    case RBUS_UINT8:
-        RETURN_COMPARE_VALUE(uint8_t, rbusValue_GetUInt8);
-    case RBUS_INT16:
-        RETURN_COMPARE_VALUE(int16_t, rbusValue_GetInt16);
-    case RBUS_UINT16:
-        RETURN_COMPARE_VALUE(uint16_t, rbusValue_GetUInt16);
-    case RBUS_INT64:
-        RETURN_COMPARE_VALUE(int64_t, rbusValue_GetInt64);
-    case RBUS_UINT64:
-        RETURN_COMPARE_VALUE(uint64_t, rbusValue_GetUInt64);
-    case RBUS_SINGLE:
-        RETURN_COMPARE_VALUE(float, rbusValue_GetSingle);
-    case RBUS_DOUBLE:
-        RETURN_COMPARE_VALUE(double, rbusValue_GetDouble);
     case RBUS_DATETIME:
     {
         if(memcmp(rbusValue_GetTime(v1), rbusValue_GetTime(v2), sizeof(rbusDateTime_t)))
@@ -927,24 +940,27 @@ int rbusValue_Compare(rbusValue_t v1, rbusValue_t v2)
             return 1;
     }
     case RBUS_PROPERTY:
+    {
         if(rbusValue_GetProperty(v1) && rbusValue_GetProperty(v2))
             return rbusProperty_Compare(rbusValue_GetProperty(v1), rbusValue_GetProperty(v2));
         else if(rbusValue_GetProperty(v1))
             return 1;
         else
             return -1;
+    }
     case RBUS_OBJECT:
+    {
         if(rbusValue_GetObject(v1) && rbusValue_GetObject(v2))
             return rbusObject_Compare(rbusValue_GetObject(v1), rbusValue_GetObject(v2), true);
         else if(rbusValue_GetObject(v1))
             return 1;
         else
             return -1;
-    default:
-        assert(false);
-        break;
     }
-    return 1;
+    case RBUS_NONE:
+    default:
+        return 0;
+    }
 }
 
 void rbusValue_SetPointer(rbusValue_t* value1, rbusValue_t value2)
@@ -972,7 +988,7 @@ void rbusValue_Copy(rbusValue_t dest, rbusValue_t source)
 
     rbusValue_FreeInternal(dest);
 
-    switch(dest->type)
+    switch(source->type)
     {
     case RBUS_STRING:
         rbusValue_SetString(dest, rbusValue_GetString(source, NULL));

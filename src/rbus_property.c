@@ -85,6 +85,7 @@ void rbusProperty_fwrite(rbusProperty_t prop, int depth, FILE* fout)
         fprintf(fout, " ");
     fprintf(fout, "rbusProperty name=%s\n", rbusProperty_GetName(prop));
     rbusValue_fwrite(rbusProperty_GetValue(prop), depth+1, fout);
+    fprintf(fout,"\n");
 }
 
 #if 0

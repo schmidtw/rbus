@@ -206,19 +206,19 @@ static void _parse_rbusData_to_value (char const* pBuff, rbusLegacyDataType_t le
 //*************************** SERIALIZE/DERIALIZE FUNCTIONS ***************************//
 #define DEBUG_SERIALIZER 0
 
-static void rbusValue_initFromMessage(rbusValue_t* value, rbusMessage msg);
-static void rbusValue_appendToMessage(char const* name, rbusValue_t value, rbusMessage msg);
-static void rbusProperty_initFromMessage(rbusProperty_t* property, rbusMessage msg);
-static void rbusPropertyList_initFromMessage(rbusProperty_t* prop, rbusMessage msg);
-static void rbusPropertyList_appendToMessage(rbusProperty_t prop, rbusMessage msg);
-static void rbusObject_initFromMessage(rbusObject_t* obj, rbusMessage msg);
-static void rbusObject_appendToMessage(rbusObject_t obj, rbusMessage msg);
-static void rbusEvent_updateFromMessage(rbusEvent_t* event, rbusMessage msg);
-static void rbusEvent_appendToMessage(rbusEvent_t* event, rbusMessage msg);
-static void rbusFilter_AppendToMessage(rbusFilter_t filter, rbusMessage msg);
-static void rbusFilter_InitFromMessage(rbusFilter_t* filter, rbusMessage msg);
+void rbusValue_initFromMessage(rbusValue_t* value, rbusMessage msg);
+void rbusValue_appendToMessage(char const* name, rbusValue_t value, rbusMessage msg);
+void rbusProperty_initFromMessage(rbusProperty_t* property, rbusMessage msg);
+void rbusPropertyList_initFromMessage(rbusProperty_t* prop, rbusMessage msg);
+void rbusPropertyList_appendToMessage(rbusProperty_t prop, rbusMessage msg);
+void rbusObject_initFromMessage(rbusObject_t* obj, rbusMessage msg);
+void rbusObject_appendToMessage(rbusObject_t obj, rbusMessage msg);
+void rbusEvent_updateFromMessage(rbusEvent_t* event, rbusMessage msg);
+void rbusEvent_appendToMessage(rbusEvent_t* event, rbusMessage msg);
+void rbusFilter_AppendToMessage(rbusFilter_t filter, rbusMessage msg);
+void rbusFilter_InitFromMessage(rbusFilter_t* filter, rbusMessage msg);
 
-static void rbusValue_initFromMessage(rbusValue_t* value, rbusMessage msg)
+void rbusValue_initFromMessage(rbusValue_t* value, rbusMessage msg)
 {
     uint8_t const* data;
     uint32_t length;
@@ -330,7 +330,7 @@ static void rbusValue_initFromMessage(rbusValue_t* value, rbusMessage msg)
     }
 }
 
-static void rbusProperty_initFromMessage(rbusProperty_t* property, rbusMessage msg)
+void rbusProperty_initFromMessage(rbusProperty_t* property, rbusMessage msg)
 {
     char const* name;
     rbusValue_t value;
@@ -345,7 +345,7 @@ static void rbusProperty_initFromMessage(rbusProperty_t* property, rbusMessage m
     rbusValue_Release(value);
 }
 
-static void rbusEvent_updateFromMessage(rbusEvent_t* event, rbusMessage msg)
+void rbusEvent_updateFromMessage(rbusEvent_t* event, rbusMessage msg)
 {
     char const* name;
     int type;
@@ -364,7 +364,7 @@ static void rbusEvent_updateFromMessage(rbusEvent_t* event, rbusMessage msg)
     event->data = data;/*caller must call rbusValue_Release*/
 }
 
-static void rbusPropertyList_appendToMessage(rbusProperty_t prop, rbusMessage msg)
+void rbusPropertyList_appendToMessage(rbusProperty_t prop, rbusMessage msg)
 {
     int numProps = 0;
     rbusProperty_t first = prop;
@@ -385,7 +385,7 @@ static void rbusPropertyList_appendToMessage(rbusProperty_t prop, rbusMessage ms
     }
 }
 
-static void rbusPropertyList_initFromMessage(rbusProperty_t* prop, rbusMessage msg)
+void rbusPropertyList_initFromMessage(rbusProperty_t* prop, rbusMessage msg)
 {
     rbusProperty_t previous = NULL, first = NULL;
     int numProps = 0;
@@ -410,7 +410,7 @@ static void rbusPropertyList_initFromMessage(rbusProperty_t* prop, rbusMessage m
     *prop = first;
 }
 
-static void rbusObject_appendToMessage(rbusObject_t obj, rbusMessage msg)
+void rbusObject_appendToMessage(rbusObject_t obj, rbusMessage msg)
 {
     int numChild = 0;
     rbusObject_t child;
@@ -442,7 +442,7 @@ static void rbusObject_appendToMessage(rbusObject_t obj, rbusMessage msg)
 }
 
 
-static void rbusObject_initFromMessage(rbusObject_t* obj, rbusMessage msg)
+void rbusObject_initFromMessage(rbusObject_t* obj, rbusMessage msg)
 {
     char const* name;
     int type;
@@ -488,7 +488,7 @@ static void rbusObject_initFromMessage(rbusObject_t* obj, rbusMessage msg)
     rbusObject_Release(children);
 }
 
-static void rbusValue_appendToMessage(char const* name, rbusValue_t value, rbusMessage msg)
+void rbusValue_appendToMessage(char const* name, rbusValue_t value, rbusMessage msg)
 {
     rbusValueType_t type = rbusValue_GetType(value);
 
@@ -569,7 +569,7 @@ static void rbusValue_appendToMessage(char const* name, rbusValue_t value, rbusM
     }
 }
 
-static void rbusEvent_appendToMessage(rbusEvent_t* event, rbusMessage msg)
+void rbusEvent_appendToMessage(rbusEvent_t* event, rbusMessage msg)
 {
     rbusMessage_SetString(msg, event->name);
     rbusMessage_SetInt32(msg, event->type);
@@ -1816,7 +1816,10 @@ rbusError_t rbus_close(rbusHandle_t handle)
             rbusEventSubscription_t* sub = (rbusEventSubscription_t*)rtVector_At(ci->eventSubs, 0);
             if(sub)
             {
-                rbusEvent_Unsubscribe(handle, sub->eventName);
+                if(sub->filter)
+                    rbusEvent_UnsubscribeEx(handle, sub, 1);
+                else
+                    rbusEvent_Unsubscribe(handle, sub->eventName);
             }
         }
         rtVector_Destroy(ci->eventSubs, NULL);
