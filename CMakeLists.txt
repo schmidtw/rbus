@@ -54,6 +54,9 @@ set(CMAKE_C_FLAGS_RELEASE "-Werror -Wall -Wextra")
 
 if (ENABLE_CODE_COVERAGE)
     include (CodeCoverage)
+    if (NOT BUILD_FOR_DESKTOP)
+        string(APPEND COVERAGE_COMPILER_FLAGS " -fprofile-generate=/tmp/")
+    endif()
     append_coverage_compiler_flags()
     set(COVERAGE_EXCLUDES
       "${CMAKE_CURRENT_BINARY_DIR}/unittests/gtest/*"
