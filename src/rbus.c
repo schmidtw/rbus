@@ -960,7 +960,6 @@ static int _event_subscribe_callback_handler(char const* object,  char const* ev
             if(hasFilter)
             {
                 rbusFilter_InitFromMessage(&filter, payload);
-                rbusFilter_fwrite(filter, stdout, NULL);
             }
         }
 

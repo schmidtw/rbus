@@ -255,7 +255,7 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
             }
             else
             {
-                RBUSLOG_INFO("%s: value change not detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
+                RBUSLOG_DEBUG("%s: value change not detected for %s", __FUNCTION__, rbusProperty_GetName(rec->property));
                 rbusProperty_Release(property);
             }
         }

@@ -289,7 +289,13 @@ elementNode* insertElement(elementNode* root, rbusDataElement_t* elem)
 #endif
                     currentNode->nextSibling = getEmptyElementNode();
                     currentNode->nextSibling->parent = currentNode->parent;
-                    snprintf(buff, RBUS_MAX_NAME_LENGTH, "%s.%s", currentNode->parent->fullName, token);
+                    if(currentNode->parent->fullName)
+                        snprintf(buff, RBUS_MAX_NAME_LENGTH, "%s.%s", currentNode->parent->fullName, token);
+                    else
+                        snprintf(buff, RBUS_MAX_NAME_LENGTH, "%s", token);
+#if DEBUG_ELEMENTS
+                    RBUSLOG_INFO("Full name [%s]", buff);
+#endif
                     currentNode->nextSibling->fullName = strdup(buff);
                     currentNode = currentNode->nextSibling;
                     currentNode->name = strdup(token);

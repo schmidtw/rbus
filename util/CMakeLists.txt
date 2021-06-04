@@ -24,11 +24,45 @@ include_directories(
 
 if (BUILD_RBUS_INTERFACE_UTIL_APPS)
 
-add_executable(rbuscli rbuscli.c)
-add_dependencies(rbuscli rbus)
-target_link_libraries(rbuscli rbus)
+    if (BUILD_FOR_DESKTOP)
 
-install (TARGETS rbuscli RUNTIME DESTINATION bin)
+        include(ExternalProject)
+
+        ExternalProject_Add(
+            linenoise
+            GIT_REPOSITORY https://github.com/antirez/linenoise.git
+            PREFIX deps
+            UPDATE_DISCONNECTED 1
+            INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}
+            INSTALL_COMMAND ""
+            CONFIGURE_COMMAND ""
+            BUILD_IN_SOURCE 1
+            CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}"
+            #PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/003-linenoise-oflag.patch
+            BUILD_COMMAND gcc -c -Wall -Werror -fpic linenoise.c COMMAND gcc --shared -o liblinenoise.so linenoise.o)
+
+        include_directories(
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_CURRENT_BINARY_DIR}/deps/src/linenoise)
+
+        link_directories(
+            ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_CURRENT_BINARY_DIR}/deps/src/linenoise
+            ${CMAKE_BINARY_DIR}
+            ${LIBRARY_DIR})
+
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/deps/src/linenoise/liblinenoise.so DESTINATION lib)
+        add_executable(rbuscli rbuscli.c)
+        target_link_libraries(rbuscli rbus -llinenoise)
+
+    else (BUILD_FOR_DESKTOP)
+        add_executable(rbuscli rbuscli.c)
+        target_link_libraries(rbuscli rbus ${LINENOISE_LIBRARIES})
+        target_include_directories (rbuscli PUBLIC ${LINENOISE_INCLUDE_DIRS})
+    endif (BUILD_FOR_DESKTOP)
+    add_dependencies(rbuscli rbus linenoise)
+
+    install (TARGETS rbuscli RUNTIME DESTINATION bin)
 
 endif (BUILD_RBUS_INTERFACE_UTIL_APPS)
 

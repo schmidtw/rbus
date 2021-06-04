@@ -31,6 +31,7 @@ enable_testing()
 find_package(PkgConfig REQUIRED)
 find_package(rbus-core REQUIRED)
 find_package(rtMessage REQUIRED)
+find_package(linenoise REQUIRED)
 
 if (BUILD_FOR_DESKTOP)
   message("Building for desktop")
