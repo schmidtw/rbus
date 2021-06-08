@@ -81,6 +81,16 @@ set (CMAKE_C_FLAGS "-Wno-overflow ${CMAKE_C_FLAGS}")
 install (TARGETS rbusTestValue
         RUNTIME DESTINATION bin)
 
+add_executable(rbusTestElementTree
+rbusTestElementTree.c)
+add_dependencies(rbusTestElementTree rbus)
+target_link_libraries(rbusTestElementTree rbus)
+
+set (CMAKE_C_FLAGS "-Wno-overflow ${CMAKE_C_FLAGS}")
+
+install (TARGETS rbusTestElementTree
+        RUNTIME DESTINATION bin)
+
 add_executable(rbusRecoveryConsumer 
     consumer/rbusRecoveryConsumer.c
     common/runningParamHelper.c)

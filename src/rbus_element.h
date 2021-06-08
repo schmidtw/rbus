@@ -42,6 +42,7 @@ typedef struct elementNode
     elementNode*            parent;         /* Up */
     elementNode*            child;          /* Downward */
     elementNode*            nextSibling;    /* Right */
+    elementNode*            nextPrune;
     rbusElementType_t       type;           /* Type w/ Object=0 */
     rbusCallbackTable_t     cbTable;        /* Callback table for the element */
     rtList                  subscriptions;  /* The list of rbusSubscription_t to this element */
@@ -52,12 +53,12 @@ typedef struct elementNode
 /******************************** FUNCTIONS **********************************/
 elementNode* getEmptyElementNode(void);
 void freeElementNode(elementNode* node);
-void freeAllElements(elementNode** elementRoot);
-elementNode* insertElement(elementNode** root, rbusDataElement_t* elem);
-int removeElement(elementNode** root, char const* name);
+elementNode* insertElement(elementNode* root, rbusDataElement_t* elem);
+void removeElement(elementNode* element);
 elementNode* retrieveElement(elementNode* root, const char* name);
 elementNode* retrieveInstanceElement(elementNode* root, const char* name);
 void printRegisteredElements(elementNode* root, int level);
+void fprintRegisteredElements(FILE* f, elementNode* root, int level);
 void addElementSubscription(elementNode* node, rbusSubscription_t* sub, bool checkIfExists);
 void removeElementSubscription(elementNode* node, rbusSubscription_t* sub);
 bool elementHasAutoPubSubscriptions(elementNode* node, rbusSubscription_t* excluding);

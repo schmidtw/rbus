@@ -132,7 +132,7 @@ bool rbusFilter_RelationApply(struct _rbusFilter_RelationExpression* ex, rbusVal
 
 bool rbusFilter_LogicApply(struct _rbusFilter_LogicExpression* ex, rbusValue_t value)
 {
-    bool left, right;
+    bool left = false, right = false;
 
     left = rbusFilter_Apply(ex->left, value);
 

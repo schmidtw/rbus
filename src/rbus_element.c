@@ -27,19 +27,9 @@
 
 #define DEBUG_ELEMENTS 0
 
-//****************************** UTILITY FUNCTIONS ***************************//
-void printNtimes(char* s, int n)
-{
-    (void)(s);
-    if(n == 0)
-        return;
+elementNode* pruneNode = NULL;
 
-    while(n!=0)
-    {
-        RBUSLOG_INFO("%s", s);
-        n--;
-    }
-}
+//****************************** UTILITY FUNCTIONS ***************************//
 char const* getTypeString(rbusElementType_t type)
 {
     switch(type)
@@ -64,8 +54,17 @@ elementNode* getEmptyElementNode(void)
     return node;
 }
 
-void freeElementNode(elementNode* node)
+static void freeElementRecurse(elementNode* node)
 {
+    elementNode* child = node->child;
+
+    while(child)
+    {
+        elementNode* tmp = child;
+        child = child->nextSibling;
+        freeElementRecurse(tmp);
+    }
+
     if (node->name)
     {
         free(node->name);
@@ -84,31 +83,118 @@ void freeElementNode(elementNode* node)
     }
 
     free(node);
+
 }
 
-void freeAllElements(elementNode** elementRoot)
+void freeElementNode(elementNode* node)
 {
-    elementNode* node = *elementRoot;
+    elementNode* parent = node->parent;
+    elementNode* child = node->child;
 
-    if(node)
+    while(child)
     {
-        elementNode* ch = node->child;
-        elementNode* sib = node->nextSibling;
+        elementNode* tmp = child;
+        child = child->nextSibling;
+        freeElementRecurse(tmp);
+    }
 
-        freeElementNode(node);
+    if(parent)
+    {
+        if(parent->child == node)
+        {
+            parent->child = node->nextSibling;
+        }
+        else
+        {
+            child = parent->child;
+            while(child)
+            {
+                if(child->nextSibling == node)
+                {
+                    child->nextSibling = node->nextSibling;
+                    break;
+                }
+                child = child->nextSibling;
+            }
+        }
+    }
 
-        if(ch)
-            freeAllElements(&ch);
-        if(sib)
-            freeAllElements(&sib);
+    if (node->name)
+    {
+        free(node->name);
+    }
+    if (node->fullName)
+    {
+        free(node->fullName);
+    }
+    if (node->alias)
+    {
+        free(node->alias);
+    }
+    if (node->subscriptions)
+    {
+        rtList_Destroy(node->subscriptions, NULL);
+    }
+
+    free(node);
+
+    /*remove objects with no children
+     could be an intermitent object added during insertElem
+     or it could be a table which no longer has the {i}
+     however don't remove rows which are allowed to exist without child) */
+    if(parent && parent->parent && parent->child == NULL && parent->parent->type != RBUS_ELEMENT_TYPE_TABLE)
+    {
+        if(pruneNode)
+            parent->nextPrune = pruneNode;
+        pruneNode = parent;
     }
 }
 
-elementNode* insertElement(elementNode** root, rbusDataElement_t* elem)
+static void pruneTree()
+{
+    while(pruneNode)
+    {
+        elementNode* tmp = pruneNode;
+        pruneNode = pruneNode->nextPrune;
+        freeElementNode(tmp);
+    }
+}
+
+static void createElementChain(elementNode* node, elementNode*** chainOut, int* numChain)
+{
+    elementNode** chain;
+    elementNode* parent;
+    int num = 0;
+    int i = 0;
+    parent = node;
+    while(parent)
+    {
+        num++;
+        parent = parent->parent;
+    }
+    chain = malloc(num * sizeof(elementNode*));
+    parent = node;
+    while(parent)
+    {
+        chain[num - (i++) - 1] = parent;
+        parent = parent->parent;
+    }
+#if DEBUG_ELEMENTS
+    printf("createElementChain %s\n", node->fullName);
+    for(i = 0; i < num; ++i)
+        printf( "Chain %d: %s\n", i, chain[i]->name );
+#endif
+    *chainOut = chain;
+    *numChain = num;
+}
+
+static void replicateAcrossTableRowInstances(elementNode* newNode);
+
+elementNode* insertElement(elementNode* root, rbusDataElement_t* elem)
 {
     char* token = NULL;
     char* name = NULL;
-    elementNode* currentNode = *root;
+    elementNode* currentNode = root;
     elementNode* nextNode = NULL;
     int ret = 0, createChild = 0;
     char buff[RBUS_MAX_NAME_LENGTH];
@@ -164,7 +250,7 @@ elementNode* insertElement(elementNode** root, rbusDataElement_t* elem)
 #endif
                 currentNode->child = getEmptyElementNode();
                 currentNode->child->parent = currentNode;
-                if(currentNode == *root)    
+                if(currentNode == root)    
                 {
                     currentNode->child->fullName = strdup(token);
                 }
@@ -235,10 +321,17 @@ elementNode* insertElement(elementNode** root, rbusDataElement_t* elem)
         }
     }
     free(name);
+
     if(ret == 0)
+    {
+        replicateAcrossTableRowInstances(currentNode);
+
         return currentNode;
+    }
     else
+    {
         return NULL;
+    }
 }
 
 elementNode* retrieveElement(elementNode* root, const char* elmentName)
@@ -463,133 +556,122 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
     }
 }
 
+static void removeElementInternal(elementNode* rowNode, elementNode** chain, int numChain)
+{
+    elementNode* currentNode = rowNode;
+    int i = 0;
+#if DEBUG_ELEMENTS
+    printf("\n\nremoveElementInternal %s\n", rowNode->fullName);
+    for(i = 0; i < numChain; ++i)
+        printf( "Chain %d: %s\n", i, chain[i]->name );
+    i = 0; 
+#endif
+    while(currentNode && i < numChain)
+    {
+        elementNode* chainNode = chain[i];
+        elementNode* childNode = NULL;
 
-int findImmediateMatchingNode(elementNode* parent, char* token, elementNode** curr, elementNode** prev)
-{
-    elementNode *prevSibling = NULL, *sibling = NULL;
-    int ret = -1;
-    if(parent == NULL || token == NULL)
-    {
-        return ret;
-    }
-    //RBUSLOG_DEBUG("child name=[%s], Token = [%s]", parent->name, token);
-    if(parent->child)
-    {
-        if(strcmp(parent->child->name, token) == 0)
+        /*if node is table then recurse into all row instances*/
+        if(currentNode && currentNode->type == RBUS_ELEMENT_TYPE_TABLE)
         {
-            //RBUSLOG_DEBUG("tokenFound!");
-            *curr = parent->child;
-            *prev = parent;
-            ret = 0;
-        }
-        else if(parent->child->nextSibling)
-        {
-            prevSibling = parent->child;
-            sibling = parent->child->nextSibling;
-            while(sibling)
+            /* if removing template, then remove all rows first */
+            if(strcmp(chainNode->name, "{i}") == 0)
             {
-                if(strcmp(sibling->name, token) == 0)
+                childNode = currentNode->child;
+                while(childNode)
                 {
-                    //RBUSLOG_DEBUG("tokenFound!");
-                    *curr = sibling;
-                    *prev = prevSibling;
-                    ret = 0;
-                    break;
-                }
-                prevSibling = sibling;
-                sibling = sibling->nextSibling;
-            }
-        }
-    }
-    return ret;
-}
-int findAndFreeNodeRecursively(elementNode* parent, char* token)
-{
-    elementNode *curr = NULL, *prev = NULL;
-    int ret = -1;
-    //RBUSLOG_DEBUG("parent node = [%s], token = [%s]", parent->name, token);
-    ret = findImmediateMatchingNode(parent, token, &curr, &prev);
-    if(ret == 0)
-    {
-        int ret = -1;
-        token = strtok(NULL, ".");
-        if(token == NULL)
-        {
-	    //RBUSLOG_DEBUG("All tokens found!!");
-            if(prev->nextSibling == curr)
-            {
-                prev->nextSibling = curr->nextSibling;
-                freeElementNode(curr);
-            }
-            else if(prev->child == curr)
-            {
-                prev->child = curr->nextSibling? curr->nextSibling: curr->child;
-                freeElementNode(curr);
-            }
-            ret = 0;
-        }
-        else
-        {
-            ret = findAndFreeNodeRecursively(curr, token);
-            if(ret == 0)
-            {
-                if(curr->child == NULL)
-                {
-                    if(prev == parent)
+                    elementNode* nextNode = childNode->nextSibling;
+
+                    if(strcmp(childNode->name, "{i}") != 0)
                     {
-                        prev->child = curr->nextSibling? curr->nextSibling: curr->child;
-                        freeElementNode(curr);
+                        if(numChain-i-1 > 0)
+                        {
+                            removeElementInternal(childNode, &chain[i+1], numChain-i-1);
+                        }
+                        else
+                        {
+                            freeElementNode(childNode);
+                        }                            
+                    }
+                    childNode = nextNode;
+                }
+            }
+
+            /* remove the matching node (either the template or a specific row (if not template)*/
+            childNode = currentNode->child;
+            
+            while(childNode)
+            {
+                if(strcmp(childNode->name, chainNode->name) == 0)
+                {
+                    if(numChain-i-1 > 0)
+                    {
+                        removeElementInternal(childNode, &chain[i+1], numChain-i-1);
                     }
                     else
                     {
-                        prev->nextSibling = curr->nextSibling;
-                        freeElementNode(curr);
+                        freeElementNode(childNode);
                     }
+                    break;
                 }
-                else
+                childNode = childNode->nextSibling;
+            }
+            break;
+        }
+        else
+        {
+            /*search for node in children*/
+            elementNode* childNode = currentNode->child;
+
+            while(childNode)
+            {
+                if(strcmp(childNode->name, chainNode->name) == 0)
                 {
-                    ret = -1;
+                    if(i == numChain-1)
+                    {
+                        freeElementNode(childNode);
+                        return;
+                    }
+                    else
+                    {
+                        /*go deeper*/
+                        currentNode = childNode;
+                        i++;
+                    }
+                    break;
                 }
+                childNode = childNode->nextSibling;
+            }
+
+            if(!childNode)
+            {
+                RBUSLOG_INFO("Couldn't find node %s\n", chainNode->fullName);
+                return;
             }
         }
     }
-    else
-    {
-       //RBUSLOG_DEBUG("ERROR finding immediate matching node!");
-    }
-    return ret;
 }
 
-int removeElement(elementNode** root, char const* elementName)
+void removeElement(elementNode* element)
 {
-    char* token = NULL;
-    char* name = NULL;
-    elementNode* parent = *root;
-    int ret = -1;
-
-    if(parent == NULL)
-    {
-        return -1;
-    }
-
-    name = strdup(elementName);
-
-    //RBUSLOG_DEBUG("<%s>: Request to remove element [%s]!!", __FUNCTION__, elementName);
-    token = strtok(name, ".");
-    //RBUSLOG_DEBUG("Token = [%s]", token);
-    ret = findAndFreeNodeRecursively(parent, token);
-    free(name);
-    if(ret != 0)
-    {
-        //RBUSLOG_DEBUG("Element not found[%s]", elementName);
-    }
-    return ret;
+    elementNode** chain = NULL;
+    int numChain = 0;
+#if DEBUG_ELEMENTS
+    printf("removeElement %s\n", element->fullName);
+#endif
+    createElementChain(element, &chain, &numChain);
+    if(numChain > 1)
+        removeElementInternal(chain[0], &chain[1], numChain-1);
+    else
+        freeElementNode(chain[0]);
+    free(chain);
+    pruneTree();    
 }
 
 static void printElement(elementNode* node, int level)
 {
-    printNtimes("  ", level);
-    RBUSLOG_INFO("[name:%s type:%s fullName:%s addr:%p, parent:%p %s%s]", 
+    RBUSLOG_INFO("%*s[name:%s type:%s fullName:%s addr:%p, parent:%p %s%s]", 
+        level*2, level ? " " : "",
         node->name, 
         getTypeString(node->type),
         node->fullName,
@@ -618,6 +700,43 @@ void printRegisteredElements(elementNode* root, int level)
             if(sibling->child)
             {
                 printRegisteredElements(sibling->child, level+1);
+            }
+            sibling = sibling->nextSibling;
+        }
+    }
+}
+
+static void fprintElement(FILE* f, elementNode* node, int level)
+{
+    /*this format is used by unit test so don't change w/o updating rbusTestElementTree.c*/
+    fprintf(f, "%*s%s:%s %s %s%s\n", 
+        level*2, level ? " " : "",
+        node->name, 
+        getTypeString(node->type),
+        node->fullName,
+        node->alias ? "alias:" : "",
+        node->alias ? node->alias : "");
+}
+
+void fprintRegisteredElements(FILE* f, elementNode* root, int level)
+{
+    elementNode* child = root;
+    elementNode* sibling = NULL;
+
+    if(child)
+    {
+        fprintElement(f, child, level);
+        if(child->child)
+        {
+            fprintRegisteredElements(f, child->child, level+1);
+        }
+        sibling = child->nextSibling;
+        while(sibling)
+        {
+            fprintElement(f, sibling, level);
+            if(sibling->child)
+            {
+                fprintRegisteredElements(f, sibling->child, level+1);
             }
             sibling = sibling->nextSibling;
         }
@@ -866,14 +985,15 @@ elementNode* instantiateTableRow(elementNode* tableNode, uint32_t instNum, char 
 void deleteTableRow(elementNode* rowNode)
 {
     elementNode* parent = rowNode->parent;
-
+    
+    if(!parent)
+    {
+        RBUSLOG_INFO("%s: row doesn't have a parent", __FUNCTION__);
+    }
 #if DEBUG_ELEMENTS
     RBUSLOG_INFO("%s: row=%s", __FUNCTION__, rowNode->fullName);
     printElement(rowNode, 0);
     printElement(rowNode->parent, 0);
-#endif
-
-#if DEBUG_ELEMENTS
     {
         elementNode* root = rowNode;
         while(root->parent)
@@ -883,51 +1003,7 @@ void deleteTableRow(elementNode* rowNode)
         RBUSLOG_INFO("#####################################################");
     }
 #endif
-
-    /*remove node from parent*/
-    if(parent)
-    {
-        bool found = false;
-        if(parent->child == rowNode)
-        {
-            found = true;
-            parent->child = rowNode->nextSibling;
-        }
-        else
-        {
-            elementNode* child = parent->child;
-            while(child)
-            {
-                if(child->nextSibling == rowNode)
-                {
-                    found = true;
-                    child->nextSibling = rowNode->nextSibling;
-                    break;
-                }
-                child = child->nextSibling;
-            }
-        }
-
-        if(found)
-        {
-#if DEBUG_ELEMENTS
-            RBUSLOG_INFO("%s: row removed from parent %s", __FUNCTION__, parent->fullName);
-#endif
-        }
-        else
-        {
-            RBUSLOG_INFO("%s: failed to find child in parent", __FUNCTION__);
-        }
-    }
-    else
-    {
-        RBUSLOG_INFO("%s: row doesn't have a parent", __FUNCTION__);
-    }
-
-    /* free node's children then free node */
-    freeAllElements(&rowNode->child);
     freeElementNode(rowNode);
-
 #if DEBUG_ELEMENTS
     if(parent)
     {
@@ -939,6 +1015,98 @@ void deleteTableRow(elementNode* rowNode)
         RBUSLOG_INFO("#####################################################");
     }
 #endif
+}
 
+void replicateAcrossTableRowInstancesInternal(elementNode* rowNode, elementNode* chain[], int numChain)
+{
+    elementNode* currentNode;
+    int i;
+#if DEBUG_ELEMENTS
+    printf("replicateAcrossTableRowInstancesInternal %s\n", rowNode->fullName);
+    for(i = 0; i < numChain; ++i)
+        printf( "Chain %d: %s\n", i, chain[i]->name );
+#endif
+    i = 0;    
+    currentNode = rowNode;
+
+    while(currentNode && i < numChain)
+    {
+        /*if node is table then recurse into all row instances*/
+        if(currentNode && currentNode->type == RBUS_ELEMENT_TYPE_TABLE)
+        {
+            elementNode* childNode = currentNode->child;
+
+            while(childNode)
+            {
+                //replicate for instance and template (this is internal table)
+                replicateAcrossTableRowInstancesInternal(childNode, &chain[i+1], numChain-i-1);
+                childNode = childNode->nextSibling;
+            }
+
+            break;
+        }
+        else
+        {
+            /*search for node in children*/
+            elementNode* childNode = currentNode->child;
+
+            while(childNode)
+            {
+                if(strcmp(childNode->name, chain[i]->name) == 0)
+                {
+                    break;
+                }
+                else
+                {
+                    childNode = childNode->nextSibling;
+                }
+            }
+
+            if(childNode)
+            {
+                /*go deeper*/
+                currentNode = childNode;
+                i++;
+            }
+            else
+            {
+                duplicateNode(chain[i], currentNode, chain[i]->name);
+                break;
+            }
+        }
+    }
+}
+
+void replicateAcrossTableRowInstances(elementNode* newNode)
+{
+    elementNode** chain = NULL;
+    int numChain = 0;
+    int i = 0;
+
+    createElementChain(newNode, &chain, &numChain);
+
+    for(i = 0; i < numChain; ++i)
+    {
+        elementNode* node = chain[i];
+
+        if(node->parent && node->parent->type == RBUS_ELEMENT_TYPE_TABLE)
+        {
+            elementNode* childNode = node->parent->child;
+
+            while(childNode)
+            {
+                /*if row*/
+                if(childNode->type == 0 && strcmp(childNode->name, "{i}") != 0)
+                {
+                    replicateAcrossTableRowInstancesInternal(childNode, &chain[i+1], numChain-i-1);
+                }
+
+                childNode = childNode->nextSibling;
+            }
+
+            break;
+        }
+    }
+    free(chain);
 }
 

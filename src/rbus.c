@@ -828,6 +828,109 @@ int subscribeHandlerImpl(rbusHandle_t handle, bool added, elementNode* el, char 
     return RTMESSAGE_BUS_SUCCESS;
 }
 
+static void registerTableRow (rbusHandle_t handle, elementNode* tableInstElem, char const* tableName, char const* aliasName, uint32_t instNum)
+{
+    comp_info* ci = (comp_info*)handle;
+    elementNode* rowElem;
+
+    RBUSLOG_DEBUG("%s table [%s] alias [%s] instNum [%u]", __FUNCTION__, tableName, aliasName, instNum);
+
+    rowElem = instantiateTableRow(tableInstElem, instNum, aliasName);
+
+    rbusSubscriptions_onTableRowAdded(ci->subscriptions, rowElem);
+
+    /*update ValueChange after rbusSubscriptions_onTableRowAdded */
+    valueChangeTableRowUpdate(handle, rowElem, true);
+
+    /*send OBJECT_CREATED event after we create the row*/
+    {
+        rbusEvent_t event;
+        rbusError_t respub;
+        rbusObject_t data;
+        rbusValue_t instNumVal;
+        rbusValue_t aliasVal;
+        rbusValue_t rowNameVal;
+
+        rbusValue_Init(&rowNameVal);
+        rbusValue_Init(&instNumVal);
+        rbusValue_Init(&aliasVal);
+
+        rbusValue_SetString(rowNameVal, rowElem->fullName);
+        rbusValue_SetUInt32(instNumVal, instNum);
+        rbusValue_SetString(aliasVal, aliasName ? aliasName : "");
+
+        rbusObject_Init(&data, NULL);
+        rbusObject_SetValue(data, "rowName", rowNameVal);
+        rbusObject_SetValue(data, "instNum", instNumVal);
+        rbusObject_SetValue(data, "alias", aliasVal);
+
+        event.name = tableName;
+        event.type = RBUS_EVENT_OBJECT_CREATED;
+        event.data = data;
+
+        RBUSLOG_INFO("%s publishing ObjectCreated table=%s rowName=%s", __FUNCTION__, tableName, rowElem->fullName);
+        respub = rbusEvent_Publish(handle, &event);
+
+        if(respub != RBUS_ERROR_SUCCESS)
+        {
+            RBUSLOG_WARN("failed to publish ObjectCreated event err:%d", respub);
+        }
+
+        rbusValue_Release(rowNameVal);
+        rbusValue_Release(instNumVal);
+        rbusValue_Release(aliasVal);
+        rbusObject_Release(data);
+    }
+}
+
+static void unregisterTableRow (rbusHandle_t handle, elementNode* rowInstElem)
+{
+    comp_info* ci = (comp_info*)handle;
+    char* rowInstName = strdup(rowInstElem->fullName); /*must dup because we are deleting the instance*/
+    elementNode* tableInstElem = rowInstElem->parent;
+
+    RBUSLOG_DEBUG("%s [%s]", __FUNCTION__, rowInstElem->fullName);
+
+    /*update ValueChange before rbusSubscriptions_onTableRowRemoved */
+    valueChangeTableRowUpdate(handle, rowInstElem, false);
+
+    rbusSubscriptions_onTableRowRemoved(ci->subscriptions, rowInstElem);
+
+    deleteTableRow(rowInstElem);
+
+    /*send OBJECT_DELETED event after we delete the row*/
+    {
+        rbusEvent_t event;
+        rbusError_t respub;
+        rbusValue_t rowNameVal;
+        rbusObject_t data;
+        char tableName[RBUS_MAX_NAME_LENGTH];
+
+        /*must end the table name with a dot(.)*/
+        snprintf(tableName, RBUS_MAX_NAME_LENGTH, "%s.", tableInstElem->fullName);
+
+        rbusValue_Init(&rowNameVal);
+        rbusValue_SetString(rowNameVal, rowInstName);
+
+        rbusObject_Init(&data, NULL);
+        rbusObject_SetValue(data, "rowName", rowNameVal);
+
+        event.name = tableName;
+        event.data = data;
+        event.type = RBUS_EVENT_OBJECT_DELETED;
+        RBUSLOG_INFO("%s publishing ObjectDeleted table=%s rowName=%s", __FUNCTION__, tableInstElem->fullName, rowInstName);
+        respub = rbusEvent_Publish(handle, &event);
+
+        rbusValue_Release(rowNameVal);
+        rbusObject_Release(data);
+        free(rowInstName);
+
+        if(respub != RBUS_ERROR_SUCCESS)
+        {
+            RBUSLOG_WARN("failed to publish ObjectDeleted event err:%d", respub);
+        }
+    }
+}
 //******************************* CALLBACKS *************************************//
 static int _event_subscribe_callback_handler(char const* object,  char const* eventName, char const* listener, int added, const rbusMessage payload, void* userData)
 {
@@ -1250,7 +1353,6 @@ static void _get_callback_handler (rbusHandle_t handle, rbusMessage request, rbu
                 rbusMessage_Init(response);
 
                 el = retrieveInstanceElement(ci->elementRoot, parameterName);
-
                 if(el == NULL)
                 {
                     el = retrieveElement(ci->elementRoot, parameterName);
@@ -1397,56 +1499,7 @@ static void _table_add_row_callback_handler (rbusHandle_t handle, rbusMessage re
 
             if (result == RBUS_ERROR_SUCCESS)
             {
-                elementNode* rowElem;
-
-                RBUSLOG_DEBUG("%s tableAddRowHandler success table [%s] alias [%s]", __FUNCTION__, tableName, aliasName);
-
-                rowElem = instantiateTableRow(tableInstElem, instNum, aliasName);
-
-                rbusSubscriptions_onTableRowAdded(ci->subscriptions, rowElem);
-
-                /*update ValueChange after rbusSubscriptions_onTableRowAdded */
-                valueChangeTableRowUpdate(handle, rowElem, true);
-
-                /*send OBJECT_CREATED event after we create the row*/
-                {
-                    rbusEvent_t event;
-                    rbusError_t respub;
-                    rbusObject_t data;
-                    rbusValue_t instNumVal;
-                    rbusValue_t aliasVal;
-                    rbusValue_t rowNameVal;
-
-                    rbusValue_Init(&rowNameVal);
-                    rbusValue_Init(&instNumVal);
-                    rbusValue_Init(&aliasVal);
-
-                    rbusValue_SetString(rowNameVal, rowElem->fullName);
-                    rbusValue_SetUInt32(instNumVal, instNum);
-                    rbusValue_SetString(aliasVal, aliasName ? aliasName : "");
-
-                    rbusObject_Init(&data, NULL);
-                    rbusObject_SetValue(data, "rowName", rowNameVal);
-                    rbusObject_SetValue(data, "instNum", instNumVal);
-                    rbusObject_SetValue(data, "alias", aliasVal);
-
-                    event.name = tableName;
-                    event.type = RBUS_EVENT_OBJECT_CREATED;
-                    event.data = data;
-
-                    RBUSLOG_INFO("%s publishing ObjectCreated table=%s rowName=%s", __FUNCTION__, tableName, rowElem->fullName);
-                    respub = rbusEvent_Publish(handle, &event);
-
-                    if(respub != RBUS_ERROR_SUCCESS)
-                    {
-                        RBUSLOG_WARN("failed to publish ObjectCreated event err:%d", respub);
-                    }
-
-                    rbusValue_Release(rowNameVal);
-                    rbusValue_Release(instNumVal);
-                    rbusValue_Release(aliasVal);
-                    rbusObject_Release(data);
-                }
+                registerTableRow(handle, tableInstElem, tableName, aliasName, instNum);
             }
             else
             {
@@ -1486,7 +1539,6 @@ static void _table_remove_row_callback_handler (rbusHandle_t handle, rbusMessage
     elementNode* rowRegElem = retrieveElement(ci->elementRoot, rowName);
     elementNode* rowInstElem = retrieveInstanceElement(ci->elementRoot, rowName);
 
-
     if(rowRegElem && rowInstElem)
     {
         /*switch to the row's table */
@@ -1503,49 +1555,7 @@ static void _table_remove_row_callback_handler (rbusHandle_t handle, rbusMessage
 
                 if (result == RBUS_ERROR_SUCCESS)
                 {
-                    RBUSLOG_INFO("%s tableRemoveRowHandler success row [%s]", __FUNCTION__, rowName);
-
-                    char* rowInstName = strdup(rowInstElem->fullName); /*must dup because we are deleting the instance*/
-
-                    /*update ValueChange before rbusSubscriptions_onTableRowRemoved */
-                    valueChangeTableRowUpdate(handle, rowInstElem, false);
-
-                    rbusSubscriptions_onTableRowRemoved(ci->subscriptions, rowInstElem);
-
-                    deleteTableRow(rowInstElem);
-
-                    /*send OBJECT_DELETED event after we delete the row*/
-                    {
-                        rbusEvent_t event;
-                        rbusError_t respub;
-                        rbusValue_t rowNameVal;
-                        rbusObject_t data;
-                        char tableName[RBUS_MAX_NAME_LENGTH];
-
-                        /*must end the table name with a dot(.)*/
-                        snprintf(tableName, RBUS_MAX_NAME_LENGTH, "%s.", tableInstElem->fullName);
-
-                        rbusValue_Init(&rowNameVal);
-                        rbusValue_SetString(rowNameVal, rowInstName);
-
-                        rbusObject_Init(&data, NULL);
-                        rbusObject_SetValue(data, "rowName", rowNameVal);
-
-                        event.name = tableName;
-                        event.data = data;
-                        event.type = RBUS_EVENT_OBJECT_DELETED;
-                        RBUSLOG_INFO("%s publishing ObjectDeleted table=%s rowName=%s", __FUNCTION__, tableInstElem->fullName, rowName);
-                        respub = rbusEvent_Publish(handle, &event);
-
-                        rbusValue_Release(rowNameVal);
-                        rbusObject_Release(data);
-                        free(rowInstName);
-
-                        if(respub != RBUS_ERROR_SUCCESS)
-                        {
-                            RBUSLOG_WARN("failed to publish ObjectDeleted event err:%d", respub);
-                        }
-                    }
+                    unregisterTableRow(handle, rowInstElem);
                 }
                 else
                 {
@@ -1819,14 +1829,13 @@ rbusError_t rbus_close(rbusHandle_t handle)
         ci->subscriptions = NULL;
     }
 
-    rbusValueChange_CloseHandle(handle);//called before freeAllElements below
+    rbusValueChange_CloseHandle(handle);//called before freeElementNode below
 
     rbusAsyncSubscribe_CloseHandle(handle);
 
     if(ci->elementRoot)
     {
-        freeAllElements(&(ci->elementRoot));
-        //free(ci->elementRoot); valgrind reported this and I saw that freeAllElements actually frees this . leaving comment so others won't wonder why this is gone
+        freeElementNode(ci->elementRoot);
         ci->elementRoot = NULL;
     }
 
@@ -1910,7 +1919,7 @@ rbusError_t rbus_regDataElements(
         }
 
         elementNode* node;
-        if((node = insertElement(&(ci->elementRoot), &elements[i])) == NULL)
+        if((node = insertElement(ci->elementRoot, &elements[i])) == NULL)
         {
             RBUSLOG_ERROR("<%s>: failed to insert element [%s]!!", __FUNCTION__, name);
             rc = RBUS_ERROR_OUT_OF_RESOURCES;
@@ -1921,7 +1930,7 @@ rbusError_t rbus_regDataElements(
             if((err = rbus_addElement(ci->componentName, name)) != RTMESSAGE_BUS_SUCCESS)
             {
                 RBUSLOG_ERROR("<%s>: failed to add element with core [%s] err=%d!!", __FUNCTION__, name, err);
-                removeElement(&(ci->elementRoot), name);
+                removeElement(node);
                 rc = RBUS_ERROR_OUT_OF_RESOURCES;
                 break;
             }
@@ -2612,13 +2621,29 @@ rbusError_t rbusTable_addRow(
     char const* aliasName,
     uint32_t* instNum)
 {
-    (void)handle;
     rbus_error_t err;
     int returnCode = 0;
     int32_t instanceId = 0;
     rbusMessage request, response;
+    (void)handle;
 
     RBUSLOG_INFO("%s: %s %s", __FUNCTION__, tableName, aliasName);
+
+#if 0
+    /*bit of a backdoor way to allow ccsp to register table rows
+      would be better to add an official rbusTable_registerRow but until then
+      if an instNum was provided and the table belongs to us, then just register the row directly*/
+    if(instNum && *instNum != 0)
+    {
+        comp_info* ci = (comp_info*)handle;
+        elementNode* tableInstElem = retrieveInstanceElement(ci->elementRoot, tableName);
+        if(tableInstElem)
+        {
+            registerTableRow(handle, tableInstElem, tableName, aliasName, *instNum);
+            return RBUS_ERROR_SUCCESS;
+        }
+    }
+#endif
 
     rbusMessage_Init(&request);
     rbusMessage_SetInt32(request, 0);/*TODO: this should be the session ID*/
@@ -2656,13 +2681,22 @@ rbusError_t rbusTable_removeRow(
     rbusHandle_t handle,
     char const* rowName)
 {
-    (void)handle;
     rbus_error_t err;
     int returnCode = 0;
     rbusMessage request, response;
+    (void)handle;
 
     RBUSLOG_INFO("%s: %s", __FUNCTION__, rowName);
-
+#if 0
+    /*if row belongs to me, then just unregister the row*/
+    comp_info* ci = (comp_info*)handle;
+    elementNode* rowInstElem = retrieveInstanceElement(ci->elementRoot, rowName);
+    if(rowInstElem)
+    {
+        unregisterTableRow(handle, rowInstElem);
+        return RBUS_ERROR_SUCCESS;
+    }
+#endif
     rbusMessage_Init(&request);
     rbusMessage_SetInt32(request, 0);/*TODO: this should be the session ID*/
     rbusMessage_SetString(request, rowName);/*TODO: do we need to append the name as well as pass the name as the 1st arg to rbus_invokeRemoteMethod ?*/
