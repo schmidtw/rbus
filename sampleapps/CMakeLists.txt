@@ -36,6 +36,10 @@ add_executable(rbusTableProvider provider/rbusTableProvider.c provider/utilities
 add_dependencies(rbusTableProvider rbus)
 target_link_libraries(rbusTableProvider rbus)
 
+add_executable(rbusSampleTableProvider provider/rbusSampleTableProvider.c)
+add_dependencies(rbusSampleTableProvider rbus)
+target_link_libraries(rbusSampleTableProvider rbus)
+
 add_executable(rbusTableConsumer consumer/rbusTableConsumer.c)
 add_dependencies(rbusTableConsumer rbus)
 target_link_libraries(rbusTableConsumer rbus)
@@ -81,6 +85,7 @@ install (TARGETS
     rbusSampleProvider
     rbusSampleConsumer
     rbusTableProvider
+    rbusSampleTableProvider
     rbusTableConsumer
     rbusEventProvider
     rbusEventConsumer
