@@ -328,9 +328,10 @@ void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode)
 
         if(result != RBUS_ERROR_SUCCESS)
         {
-            rtLog_Warn("%s: failed to get current value for %s", __FUNCTION__, propNode->fullName);
+            rtLog_Warn("%s: failed to get current value for %s as the node is not found", __FUNCTION__, propNode->fullName);
             vcParams_Free(rec);
             rec = NULL;
+            return;
         }
 
         char* sValue;
