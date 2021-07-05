@@ -227,88 +227,157 @@ static int testSetStrMulti(rbusHandle_t handle, char const* user1, char const* u
 
 static int testTableEvents(rbusHandle_t handle)
 {
+    int rc = RBUS_ERROR_BUS_ERROR;
+
     SUBSCRIBE("Device.TestProvider.Table1.");
-    VERIFY(testAddRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.1", "t_1"));
-    VERIFY(testAddRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.2", "t_2"));
+    rc = testAddRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.1", "t_1");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
+    rc = testAddRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.2", "t_2");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
 
     SUBSCRIBE("Device.TestProvider.Table1.[t_1].Table2.");
-    VERIFY(testAddRow(handle, "Device.TestProvider.Table1.[t_1].Table2.", "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.1", "t_1_1"));
-    VERIFY(testAddRow(handle, "Device.TestProvider.Table1.[t_1].Table2.", "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.2", "t_1_2"));
+    rc = testAddRow(handle, "Device.TestProvider.Table1.[t_1].Table2.", "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.1", "t_1_1");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
+    rc = testAddRow(handle, "Device.TestProvider.Table1.[t_1].Table2.", "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.2", "t_1_2");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
 
     SUBSCRIBE("Device.TestProvider.Table1.*.Table2.");
-    VERIFY(testAddRow(handle, "Device.TestProvider.Table1.*.Table2.", "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.2.Table2.1", "t_2_1"));
-    VERIFY(testAddRow(handle, "Device.TestProvider.Table1.*.Table2.", "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.2.Table2.2", "t_2_2"));
-    VERIFY(testAddRowMulti(handle, "Device.TestProvider.Table1.*.Table2.", "Device.TestProvider.Table1.[t_1].Table2.", NULL,
-        "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.3", "t_1_3"));
+    rc = testAddRow(handle, "Device.TestProvider.Table1.*.Table2.", "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.2.Table2.1", "t_2_1");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
+    rc = testAddRow(handle, "Device.TestProvider.Table1.*.Table2.", "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.2.Table2.2", "t_2_2");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
+    rc = testAddRowMulti(handle, "Device.TestProvider.Table1.*.Table2.", "Device.TestProvider.Table1.[t_1].Table2.", NULL,
+        "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.3", "t_1_3");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
 
     SUBSCRIBE("Device.TestProvider.Table1.*.Table2.1.Table3.");
-    VERIFY(testAddRow(handle, "Device.TestProvider.Table1.*.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.1", "t_1_1_1"));
-    VERIFY(testAddRow(handle, "Device.TestProvider.Table1.*.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.2", "t_1_1_2"));
+    rc = testAddRow(handle, "Device.TestProvider.Table1.*.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.1", "t_1_1_1");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
+    rc = testAddRow(handle, "Device.TestProvider.Table1.*.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.2", "t_1_1_2");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
 
-    VERIFY(testRemoveRow(handle, "Device.TestProvider.Table1.*.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.1"));
-    VERIFY(testRemoveRowMulti(handle, "Device.TestProvider.Table1.*.Table2.", "Device.TestProvider.Table1.[t_1].Table2.", NULL,
-        "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.3"));
+    rc = testRemoveRow(handle, "Device.TestProvider.Table1.*.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.", "Device.TestProvider.Table1.1.Table2.1.Table3.1");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
+    rc = testRemoveRowMulti(handle, "Device.TestProvider.Table1.*.Table2.", "Device.TestProvider.Table1.[t_1].Table2.", NULL,
+        "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.3");
 
+exit:
     VERIFY(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1."));
     VERIFY(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.[t_1].Table2."));
     VERIFY(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.*.Table2."));
     VERIFY(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.*.Table2.1.Table3."));
 
-    return RBUS_ERROR_SUCCESS;
+    return rc;
 }
 
 static int testTableRemoveAllEvents(rbusHandle_t handle)
 {
+    int rc = RBUS_ERROR_BUS_ERROR;
     SUBSCRIBE("Device.TestProvider.Table1.");
 
     SUBSCRIBE("Device.TestProvider.Table1.1.Table2.");
     SUBSCRIBE("Device.TestProvider.Table1.[t_1].Table2.");
-    VERIFY(testRemoveRowMulti(handle, "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.[t_1].Table2.", NULL, 
-        "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.1"));
-    VERIFY(testRemoveRowMulti(handle, "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.[t_1].Table2.", NULL, 
-        "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.2"));
+    rc = testRemoveRowMulti(handle, "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.[t_1].Table2.", NULL, 
+        "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.1");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
+    rc = testRemoveRowMulti(handle, "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.[t_1].Table2.", NULL, 
+        "Device.TestProvider.Table1.1.Table2.", "Device.TestProvider.Table1.1.Table2.2");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
 
     SUBSCRIBE("Device.TestProvider.Table1.2.Table2.");
     SUBSCRIBE("Device.TestProvider.Table1.*.Table2.");
-    VERIFY(testRemoveRowMulti(handle, "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.*.Table2.", NULL,
-        "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.2.Table2.2"));
-    VERIFY(testRemoveRowMulti(handle, "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.*.Table2.", NULL,
-        "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.2.Table2.1"));
+    rc = testRemoveRowMulti(handle, "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.*.Table2.", NULL,
+        "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.2.Table2.2");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
+    rc = testRemoveRowMulti(handle, "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.*.Table2.", NULL,
+        "Device.TestProvider.Table1.2.Table2.", "Device.TestProvider.Table1.2.Table2.1");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
 
-    VERIFY(testRemoveRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.2"));
-    VERIFY(testRemoveRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.1"));
+    rc = testRemoveRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.2");
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        goto exit;
+    }
+    rc = testRemoveRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.1");
 
+exit:
     VERIFY(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1."));
     VERIFY(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.1.Table2."));
     VERIFY(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.[t_1].Table2."));
     VERIFY(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.2.Table2."));
     VERIFY(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.*.Table2."));
 
-    return RBUS_ERROR_SUCCESS;    
+    return rc;
 }
 
 static int testSingleValueChange(rbusHandle_t handle, char const* user, char const* name, char const* value, bool ok)
 {
+    int rc = RBUS_ERROR_BUS_ERROR;
+
     SUBSCRIBE((char*)user);
-    VERIFY(testSetStr(handle, user, name, value, ok));
+    rc = testSetStr(handle, user, name, value, ok);
     VERIFY(rbusEvent_Unsubscribe(handle, user));
-    return RBUS_ERROR_SUCCESS;
+    return rc;
 }
 
 static int testMultiValueChange(rbusHandle_t handle, char const* user1, char const* user2, char const* user3, char const* name, char const* value, bool ok)
 {
+    int rc = RBUS_ERROR_BUS_ERROR;
+
     SUBSCRIBE((char*)user1);
     if(user2)
         SUBSCRIBE((char*)user2);
     if(user3)
         SUBSCRIBE((char*)user3);
-    VERIFY(testSetStrMulti(handle, user1, user2, user3, name, value, ok));
+    rc = testSetStrMulti(handle, user1, user2, user3, name, value, ok);
     VERIFY(rbusEvent_Unsubscribe(handle, user1));
     if(user2)
         VERIFY(rbusEvent_Unsubscribe(handle, user2));
     if(user3)
         VERIFY(rbusEvent_Unsubscribe(handle, user3));
-    return RBUS_ERROR_SUCCESS;
+    return rc;
 }
 
 static int testAllSingleValueChange(rbusHandle_t handle)
