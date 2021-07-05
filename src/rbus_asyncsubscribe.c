@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
+#include <errno.h>
 
 #define ERROR_CHECK(CMD) \
 { \
@@ -243,13 +244,19 @@ static void* AsyncSubscribeRetrier_threadFunc(void* data)
         {
             char tbuff[200];
             rtTimespec_t ts;
-            RBUSLOG_INFO("%s timedwait until %s", __FUNCTION__, rtTime_ToString(&nextSendTime, tbuff));
+            int err;
 
-            int rc = pthread_cond_timedwait(&gRetrier->condItemAdded, 
-                                            &gRetrier->mutexQueue, 
-                                            rtTime_ToTimespec(&nextSendTime, &ts));
-            (void)rc;
-            RBUSLOG_INFO("%s waked up", __FUNCTION__);
+            RBUSLOG_DEBUG("%s timedwait until %s", __FUNCTION__, rtTime_ToString(&nextSendTime, tbuff));
+ 
+            err = pthread_cond_timedwait(&gRetrier->condItemAdded,
+                                         &gRetrier->mutexQueue,
+                                         rtTime_ToTimespec(&nextSendTime, &ts));
+            if(err != 0 && err != ETIMEDOUT)
+            {
+                RBUSLOG_ERROR("Error %d:%s running command pthread_cond_timedwait", err, strerror(err));
+            }
+
+            RBUSLOG_DEBUG("%s waked up", __FUNCTION__);
             //either we timed out or a new subscription was added
             //in either case, loop back to top and things will get handled properly
         }

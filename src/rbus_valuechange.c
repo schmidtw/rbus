@@ -33,23 +33,36 @@
 #define _GNU_SOURCE 1 //needed for pthread_mutexattr_settype
 
 #include "rbus_valuechange.h"
+#include "rbus_config.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <memory.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <rtVector.h>
 #include <assert.h>
+#include <errno.h>
+#include <rtVector.h>
+#include <rtTime.h>
 
-#define VC_LOCK() {int rc = pthread_mutex_lock(&vcmutex); (void)rc;}
-#define VC_UNLOCK() {pthread_mutex_unlock(&vcmutex);}
+#define ERROR_CHECK(CMD) \
+{ \
+  int err; \
+  if((err=CMD) != 0) \
+  { \
+    RBUSLOG_ERROR("Error %d:%s running command " #CMD, err, strerror(err)); \
+  } \
+}
+#define LOCK() ERROR_CHECK(pthread_mutex_lock(&gVC->mutex))
+#define UNLOCK() ERROR_CHECK(pthread_mutex_unlock(&gVC->mutex))
 
-static int              vcinit      = 0;
-static int              vcrunning   = 0;
-static int              vcperiod    = 30;//seconds
-static rtVector         vcparams    = NULL;
-static pthread_mutex_t  vcmutex;
-static pthread_t        vcthread;
+typedef struct ValueChangeDetector_t
+{
+    int              running;
+    rtVector         params;
+    pthread_mutex_t  mutex;
+    pthread_t        thread;
+    pthread_cond_t   cond;
+} ValueChangeDetector_t;
 
 typedef struct ValueChangeRecord
 {
@@ -58,24 +71,27 @@ typedef struct ValueChangeRecord
     rbusProperty_t property;    //the parameter with value that gets cached
 } ValueChangeRecord;
 
+ValueChangeDetector_t* gVC = NULL;
+
 static void rbusValueChange_Init()
 {
     RBUSLOG_DEBUG("%s", __FUNCTION__);
 
-    if(vcinit)
+    if(gVC)
         return;
 
-    vcinit = 1;
+    gVC = malloc(sizeof(struct ValueChangeDetector_t));
 
-    rtVector_Create(&vcparams);
+    gVC->running = 0;
+    gVC->params = NULL;
+
+    rtVector_Create(&gVC->params);
 
     pthread_mutexattr_t attrib;
-    pthread_mutexattr_init(&attrib);
-    pthread_mutexattr_settype(&attrib, PTHREAD_MUTEX_ERRORCHECK);
-    if(0 != pthread_mutex_init(&vcmutex, &attrib))
-    {
-        RBUSLOG_WARN("%s: failed to initialize mutex", __FUNCTION__);
-    }
+    ERROR_CHECK(pthread_mutexattr_init(&attrib));
+    ERROR_CHECK(pthread_mutexattr_settype(&attrib, PTHREAD_MUTEX_ERRORCHECK));
+    ERROR_CHECK(pthread_mutex_init(&gVC->mutex, &attrib));
+    ERROR_CHECK(pthread_cond_init(&gVC->cond, NULL));
 }
 
 static void vcParams_Free(void* p)
@@ -88,9 +104,9 @@ static void vcParams_Free(void* p)
 static ValueChangeRecord* vcParams_Find(const elementNode* paramNode)
 {
     size_t i;
-    for(i=0; i < rtVector_Size(vcparams); ++i)
+    for(i=0; i < rtVector_Size(gVC->params); ++i)
     {
-        ValueChangeRecord* rec = (ValueChangeRecord*)rtVector_At(vcparams, i);
+        ValueChangeRecord* rec = (ValueChangeRecord*)rtVector_At(gVC->params, i);
         if(rec && rec->node == paramNode)
             return rec;
     }
@@ -101,26 +117,36 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
 {
     (void)(userData);
     RBUSLOG_DEBUG("%s: start", __FUNCTION__);
-    while(vcrunning)
+    LOCK();
+    while(gVC->running)
     {
         size_t i;
+        int err;
+        rtTime_t timeout;
+        rtTimespec_t ts;
+
+        rtTime_Later(NULL, rbusConfig_Get()->valueChangePeriod, &timeout);
         
-        sleep(vcperiod);
+        err = pthread_cond_timedwait(&gVC->cond, 
+                                    &gVC->mutex, 
+                                    rtTime_ToTimespec(&timeout, &ts));
+
+        if(err != 0 && err != ETIMEDOUT)
+        {
+            RBUSLOG_ERROR("Error %d:%s running command pthread_cond_timedwait", err, strerror(err));
+        }
         
-        if(!vcrunning)
+        if(!gVC->running)
+        {
             break;
+        }
 
-        VC_LOCK();//############ LOCK ############
-        //TODO: VC_LOCK around the whole for loop might not be efficient
-        //      What if rbusEvent_Publish takes too long.  
-        //      This could block the _callback_handler, which calls rbusValueChange_AddParameter, for too long
-
-        for(i=0; i < rtVector_Size(vcparams); ++i)
+        for(i=0; i < rtVector_Size(gVC->params); ++i)
         {
             rbusProperty_t property;
             rbusValue_t newVal, oldVal;
 
-            ValueChangeRecord* rec = (ValueChangeRecord*)rtVector_At(vcparams, i);
+            ValueChangeRecord* rec = (ValueChangeRecord*)rtVector_At(gVC->params, i);
             if(!rec)
                 continue;
 
@@ -259,17 +285,10 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
                 rbusProperty_Release(property);
             }
         }
-
-        VC_UNLOCK();//############ UNLOCK ############
     }
+    UNLOCK();
     RBUSLOG_DEBUG("%s: stop", __FUNCTION__);
     return NULL;
-}
-
-void rbusValueChange_SetPollingPeriod(int seconds)
-{
-    RBUSLOG_DEBUG("%s: %d", __FUNCTION__, seconds);
-    vcperiod = seconds;
 }
 
 void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode)
@@ -278,7 +297,7 @@ void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode)
 
     RBUSLOG_DEBUG("%s: %s", __FUNCTION__, propNode->fullName);
 
-    if(!vcinit)
+    if(!gVC)
     {
         rbusValueChange_Init();
     }
@@ -305,11 +324,11 @@ void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode)
 
     /* only add the property if its not already in the list */
 
-    VC_LOCK();//############ LOCK ############
+    LOCK();//############ LOCK ############
 
     rec = vcParams_Find(propNode);
 
-    VC_UNLOCK();//############ UNLOCK ############
+    UNLOCK();//############ UNLOCK ############
 
     if(!rec)
     {
@@ -338,71 +357,61 @@ void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode)
         rtLog_Debug("%s: %s=%s", __FUNCTION__, propNode->fullName, (sValue = rbusValue_ToString(rbusProperty_GetValue(rec->property), NULL, 0)));
         free(sValue);
 
-        VC_LOCK();//############ LOCK ############
+        LOCK();//############ LOCK ############
 
-        rtVector_PushBack(vcparams, rec);
+        rtVector_PushBack(gVC->params, rec);
 
         /* start polling thread if needed */
 
-        if(!vcrunning)
+        if(!gVC->running)
         {
-            vcrunning = 1;
-            pthread_create(&vcthread, NULL, rbusValueChange_pollingThreadFunc, NULL);
+            gVC->running = 1;
+            pthread_create(&gVC->thread, NULL, rbusValueChange_pollingThreadFunc, NULL);
         }
 
-        VC_UNLOCK();//############ UNLOCK ############
+        UNLOCK();//############ UNLOCK ############
     }
 }
 
 void rbusValueChange_RemovePropertyNode(rbusHandle_t handle, elementNode* propNode)
 {
     ValueChangeRecord* rec;
+    bool stopThread = false;
 
     (void)(handle);
 
     RBUSLOG_DEBUG("%s: %s", __FUNCTION__, propNode->fullName);
 
-    if(!vcinit)
+    if(!gVC)
     {
         return;
     }
 
-    VC_LOCK();//############ LOCK ############
-
+    LOCK();//############ LOCK ############
     rec = vcParams_Find(propNode);
-
-    VC_UNLOCK();//############ UNLOCK ############
-
     if(rec)
     {
-        bool stopThread;
-
-        VC_LOCK();//############ LOCK ############
-
-        rtVector_RemoveItem(vcparams, rec, vcParams_Free);
-
+        rtVector_RemoveItem(gVC->params, rec, vcParams_Free);
         /* if there's nothing left to poll then shutdown the polling thread */
-
-        if(vcrunning && rtVector_Size(vcparams) == 0)
+        if(gVC->running && rtVector_Size(gVC->params) == 0)
         {
             stopThread = true;
-            vcrunning = 0;
+            gVC->running = 0;
         }
         else 
         {
             stopThread = false;
         }
-
-        VC_UNLOCK();//############ UNLOCK ############
-
-        if(stopThread)
-        {
-            pthread_join(vcthread, NULL);
-        }
     }
     else
     {
         RBUSLOG_WARN("%s: value change param not found: %s", __FUNCTION__, propNode->fullName);
+    }
+    UNLOCK();//############ UNLOCK ############
+    if(stopThread)
+    {
+        ERROR_CHECK(pthread_cond_signal(&gVC->cond));
+        ERROR_CHECK(pthread_join(gVC->thread, NULL));
     }
 }
 
@@ -410,19 +419,19 @@ void rbusValueChange_CloseHandle(rbusHandle_t handle)
 {
     RBUSLOG_DEBUG("%s", __FUNCTION__);
 
-    if(!vcinit)
+    if(!gVC)
     {
         return;
     }
 
     //remove all params for this bus handle
     size_t i = 0;
-    while(i < rtVector_Size(vcparams))
+    while(i < rtVector_Size(gVC->params))
     {
-        ValueChangeRecord* rec = (ValueChangeRecord*)rtVector_At(vcparams, i);
+        ValueChangeRecord* rec = (ValueChangeRecord*)rtVector_At(gVC->params, i);
         if(rec && rec->handle == handle)
         {
-            rtVector_RemoveItem(vcparams, rec, vcParams_Free);
+            rtVector_RemoveItem(gVC->params, rec, vcParams_Free);
         }
         else
         {
@@ -433,17 +442,20 @@ void rbusValueChange_CloseHandle(rbusHandle_t handle)
 
     //clean up everything once all params are removed
     //but check the size to ensure we do not clean up if params for other rbus handles exist
-    if(rtVector_Size(vcparams) == 0)
+    if(rtVector_Size(gVC->params) == 0)
     {
-        if(vcrunning)
+        if(gVC->running)
         {
-            vcrunning = 0;
-            pthread_join(vcthread, NULL);
+            gVC->running = 0;
+            ERROR_CHECK(pthread_cond_signal(&gVC->cond));
+            ERROR_CHECK(pthread_join(gVC->thread, NULL));
         }
-        pthread_mutex_destroy(&vcmutex);
-        rtVector_Destroy(vcparams, NULL);
-        vcparams = NULL;
-        vcinit = 0;
+        ERROR_CHECK(pthread_mutex_destroy(&gVC->mutex));
+        ERROR_CHECK(pthread_cond_destroy(&gVC->cond));
+        rtVector_Destroy(gVC->params, NULL);
+        gVC->params = NULL;
+        free(gVC);
+        gVC = NULL;
     }
 }
 

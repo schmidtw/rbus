@@ -28,6 +28,7 @@
 #include <getopt.h>
 #include <rbus.h>
 #include "../common/test_macros.h"
+#include "rbus_config.h"
 
 static int gDuration = 60;
 
@@ -167,7 +168,7 @@ void testValueChange(rbusHandle_t handle, int* countPass, int* countFail)
     rbusValue_t intVal, strVal;
     rbusFilter_t filter[12];
 
-    rbusValueChange_SetPollingPeriod(1);
+    rbusConfig_Get()->valueChangePeriod = 1;
 
     /*
      *test simply subscribe

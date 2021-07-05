@@ -26,7 +26,6 @@
 extern "C" {
 #endif
 
-void rbusValueChange_SetPollingPeriod(int seconds);
 void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode);
 void rbusValueChange_RemovePropertyNode(rbusHandle_t handle, elementNode* propNode);
 void rbusValueChange_CloseHandle(rbusHandle_t handle);

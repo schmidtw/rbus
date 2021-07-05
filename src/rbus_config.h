@@ -31,6 +31,7 @@ typedef struct _rbusConfig_t
     char*           tmpDir;           /*temp directory where rbus can persist data*/
     int             subscribeTimeout; /*max time to attempt subscribe retries in milisecond*/
     int             subscribeMaxWait; /*max time to wait between subscribe retries in miliseconds*/
+    int             valueChangePeriod;/*polling period for valuechange detector in miliseconds*/
 } rbusConfig_t;
 
 void rbusConfig_CreateOnce();

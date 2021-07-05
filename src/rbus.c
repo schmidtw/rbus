@@ -50,7 +50,6 @@
 #ifndef TRUE
 #define TRUE                                1
 #endif
-#define VALUE_CHANGE_POLLING_PERIOD         2   //seconds
 //********************************************************************************//
 
 
@@ -1712,7 +1711,6 @@ rbusError_t rbus_open(rbusHandle_t* handle, char *componentName)
 
     rbusConfig_CreateOnce();
 
-//    rtLog_SetLevel(RT_LOG_DEBUG);
     /*
         Per spec: If a component calls this API more than once, any previous busHandle 
         and all previous data element registrations will be canceled.
@@ -1790,9 +1788,6 @@ rbusError_t rbus_open(rbusHandle_t* handle, char *componentName)
     comp_array[foundIndex].componentName = strdup(componentName);
     *handle = tmpHandle;
     rtVector_Create(&comp_array[foundIndex].eventSubs);
-
-    /*you really only need to call once per process but it doesn't hurt to call here*/
-    rbusValueChange_SetPollingPeriod(VALUE_CHANGE_POLLING_PERIOD);
 
     return errorcode;
 }

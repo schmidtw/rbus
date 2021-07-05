@@ -9,7 +9,7 @@
 #define RBUS_TMP_DIRECTORY      "/tmp"      /*temp directory where persistent data can be stored*/
 #define RBUS_SUBSCRIBE_TIMEOUT   600000     /*subscribe retry timeout in miliseconds*/
 #define RBUS_SUBSCRIBE_MAXWAIT   60000      /*subscribe retry max wait between retries in miliseconds*/
-
+#define RBUS_VALUECHANGE_PERIOD  2000       /*polling period for valuechange detector*/
 
 #define initStr(P,N) \
 { \
@@ -39,6 +39,7 @@ void rbusConfig_CreateOnce()
     initStr(gConfig->tmpDir,                RBUS_TMP_DIRECTORY);
     initInt(gConfig->subscribeTimeout,      RBUS_SUBSCRIBE_TIMEOUT);
     initInt(gConfig->subscribeMaxWait,      RBUS_SUBSCRIBE_MAXWAIT);
+    initInt(gConfig->valueChangePeriod,     RBUS_VALUECHANGE_PERIOD);
 }
 
 void rbusConfig_Destroy()
