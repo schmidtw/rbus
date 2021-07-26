@@ -228,6 +228,37 @@ void show_menu(const char* command)
             printf ("\tpub Example.MyEvent! \"Hello World\"\n\r");
             printf ("\n\r");
         }
+        else if(matchCmd(command, 3, "addlistener"))
+        {
+            printf ("\e[1maddl\e[0mistener \e[4mexpression\e[0m\n\r");
+            printf ("Add a message listener.\n\r");
+            printf ("Args:\n\r");
+            printf ("\t%-20sA topic name or topic expression\n\r", "expression");
+            printf ("Examples:\n\r");
+            printf ("\taddl A.B.C\n\r");
+            printf ("\n\r");
+        }
+        else if(matchCmd(command, 3, "remlistener"))
+        {
+            printf ("\e[1mreml\e[0mistener \e[4mexpression\e[0m\n\r");
+            printf ("Remove a message listener.\n\r");
+            printf ("Args:\n\r");
+            printf ("\t%-20sA topic name or topic expression\n\r", "expression");
+            printf ("Examples:\n\r");
+            printf ("\treml A.B.C\n\r");
+            printf ("\n\r");
+        }        
+        else if(matchCmd(command, 3, "send"))
+        {
+            printf ("\e[1msend\e[0m \e[4mtopic\e[0m [\e[4mdata\e[0m]\n\r");
+            printf ("Send a message to a topic.\n\r");
+            printf ("Args:\n\r");
+            printf ("\t%-20sThe topic to send the message to\n\r", "message");
+            printf ("\t%-20sThe message data to send (as a string)\n\r", "data");
+            printf ("Examples:\n\r");
+            printf ("\tsend A.B.C \"Hello World\"\n\r");
+            printf ("\n\r");
+        }
         else if(matchCmd(command, 3, "log"))
         {
             printf ("\t\e[1mlog\e[0m \e[4mlevel\e[0m\n\r");
@@ -287,6 +318,9 @@ void show_menu(const char* command)
         printf ("\t\e[1msub\e[0mscribe \e[4mevent\e[0m [\e[4moperator\e[0m \e[4mvalue\e[0m]\n\r");
         printf ("\t\e[1munsub\e[0mscribe \e[4mevent\e[0m [\e[4moperator\e[0m \e[4mvalue\e[0m]\n\r");
         printf ("\t\e[1mpub\e[0mlish \e[4mevent\e[0m [\e[4mdata\e[0m]\n\r");
+        printf ("\t\e[1maddl\e[0mistener \e[4mexpression\e[0m\n\r");
+        printf ("\t\e[1mreml\e[0mistener \e[4mexpression\e[0m\n\r");
+        printf ("\t\e[1msend\e[0m \e[4mtopic\e[0m [\e[4mdata\e[0m]\n\r");
         printf ("\t\e[1mlog\e[0m \e[4mlevel\e[0m\n\r");
         printf ("\t\e[1mquit\e[0m\n\r");
         if(g_isInteractive)    
@@ -596,10 +630,37 @@ void event_receive_handler(rbusHandle_t handle, rbusEvent_t const* event, rbusEv
     }
 }
 
+void message_receive_handler(rbusHandle_t handle, rbusMessage_t* msg, void * userData)
+{
+    (void)handle;
+    (void)userData;
+    if(g_logEvents)
+    {
+        printf("Message received on topic %s\n\r",  msg->topic);
+        printf("Message data: %.*s\n\r", msg->length, (char const *)msg->data);
+        printf("User data: %s\n\r", (const char*)userData);
+    }
+}
+
+static bool verify_rbus_open()
+{
+    if(!g_busHandle)
+    {
+        rbusError_t rc;
+        char compName[50] = "";
+        snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
+        rc = rbus_open(&g_busHandle, compName);
+        if(rc != RBUS_ERROR_SUCCESS)
+        {
+            printf("rbus_open failed err: %d\n\r", rc);
+            return false;
+        }
+    }
+    return true;
+}
 void execute_discover_registered_components_cmd(int argc, char* argv[])
 {
     rbus_error_t ret = RTMESSAGE_BUS_SUCCESS;
-    rbusError_t rc = RBUS_ERROR_SUCCESS;
     int loopCnt = 0;
     int componentCnt = 0;
     char **pComponentNames;
@@ -607,37 +668,24 @@ void execute_discover_registered_components_cmd(int argc, char* argv[])
     (void)argc;
     (void)argv;
 
-    /* We will have it opened already in case of interactive mode */
-    if (0 == g_busHandle)
-    {
-        char compName[50] = "";
-        snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
-        rc = rbus_open(&g_busHandle, compName);
-    }
+    if (!verify_rbus_open())
+        return;
 
-    if ((RBUS_ERROR_SUCCESS == rc) && (0 != g_busHandle))
+    ret = rbus_discoverRegisteredComponents(&componentCnt, &pComponentNames);
+    if(RTMESSAGE_BUS_SUCCESS == ret)
     {
-        ret = rbus_discoverRegisteredComponents(&componentCnt, &pComponentNames);
-        if(RTMESSAGE_BUS_SUCCESS == ret)
+        printf ("Discovered registered components..\n\r");
+        for (loopCnt = 0; loopCnt < componentCnt; loopCnt++)
         {
-            printf ("Discovered registered components..\n\r");
-            for (loopCnt = 0; loopCnt < componentCnt; loopCnt++)
-            {
-                printf ("\tComponent %d: %s\n\r", (loopCnt + 1), pComponentNames[loopCnt]);
-                free(pComponentNames[loopCnt]);
-            }
-            free(pComponentNames);
+            printf ("\tComponent %d: %s\n\r", (loopCnt + 1), pComponentNames[loopCnt]);
+            free(pComponentNames[loopCnt]);
         }
-        else
-        {
-            printf ("Failed to discover component. Error Code = %s\n\r", "");
-        }
+        free(pComponentNames);
     }
     else
     {
-        printf ("Invalid Handle to communicate with\n\r");
+        printf ("Failed to discover component. Error Code = %s\n\r", "");
     }
-    return;
 }
 
 void execute_discover_component_cmd(int argc, char* argv[])
@@ -650,42 +698,29 @@ void execute_discover_component_cmd(int argc, char* argv[])
     char **pComponentNames;
     char *pElementNames[RBUS_CLI_MAX_PARAM] = {0, 0};
 
+    if (!verify_rbus_open())
+        return;
+
     for (index = 0, loopCnt = 2; index < elementCnt; index++, loopCnt++)
     {
         pElementNames[index] = argv[loopCnt];
     }
 
-    /* We will have it opened already in case of interactive mode */
-    if (0 == g_busHandle)
+    rc = rbus_discoverComponentName (g_busHandle, elementCnt, pElementNames, &componentCnt, &pComponentNames);
+    if(RBUS_ERROR_SUCCESS == rc)
     {
-        char compName[50] = "";
-        snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
-        rc = rbus_open(&g_busHandle, compName);
-    }
-
-    if ((RBUS_ERROR_SUCCESS == rc) && (0 != g_busHandle))
-    {
-        rc = rbus_discoverComponentName (g_busHandle, elementCnt, pElementNames, &componentCnt, &pComponentNames);
-        if(RBUS_ERROR_SUCCESS == rc)
+        printf ("Discovered components for the given elements.\n\r");
+        for (loopCnt = 0; loopCnt < componentCnt; loopCnt++)
         {
-            printf ("Discovered components for the given elements.\n\r");
-            for (loopCnt = 0; loopCnt < componentCnt; loopCnt++)
-            {
-                printf ("\tComponent %d: %s\n\r", (loopCnt + 1), pComponentNames[loopCnt]);
-                free(pComponentNames[loopCnt]);
-            }
-            free(pComponentNames);
+            printf ("\tComponent %d: %s\n\r", (loopCnt + 1), pComponentNames[loopCnt]);
+            free(pComponentNames[loopCnt]);
         }
-        else
-        {
-            printf ("Failed to discover component. Error Code = %s\n\r", "");
-        }
+        free(pComponentNames);
     }
     else
     {
-        printf ("Invalid Handle to communicate with\n\r");
+        printf ("Failed to discover component. Error Code = %s\n\r", "");
     }
-    return;
 }
 
 void execute_discover_elements_cmd(int argc, char *argv[])
@@ -697,6 +732,9 @@ void execute_discover_elements_cmd(int argc, char *argv[])
     int loopCnt = 0;
     char** pElementNames; // FIXME: every component will have more than RBUS_CLI_MAX_PARAM elements right?
 
+    if (!verify_rbus_open())
+        return;
+
     if (2 == numOfInputParams)
     {
         if (0 == strncmp (argv[3], "all", 3))
@@ -705,45 +743,28 @@ void execute_discover_elements_cmd(int argc, char *argv[])
         }
     }
 
-    /* We will have it opened already in case of interactive mode */
-    if (0 == g_busHandle)
+    rc = rbus_discoverComponentDataElements (g_busHandle, argv[2], nextLevel, &numElements, &pElementNames);
+    if(RBUS_ERROR_SUCCESS == rc)
     {
-        char compName[50] = "";
-        snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
-        rc = rbus_open(&g_busHandle, compName);
-    }
-
-    if ((RBUS_ERROR_SUCCESS == rc) && (0 != g_busHandle))
-    {
-        rc = rbus_discoverComponentDataElements (g_busHandle, argv[2], nextLevel, &numElements, &pElementNames);
-        if(RBUS_ERROR_SUCCESS == rc)
+        if(numElements)
         {
-            if(numElements)
+            printf ("Discovered elements are:\n\r");
+            for (loopCnt = 0; loopCnt < numElements; loopCnt++)
             {
-                printf ("Discovered elements are:\n\r");
-                for (loopCnt = 0; loopCnt < numElements; loopCnt++)
-                {
-                    printf ("\tElement %d: %s\n\r", (loopCnt + 1), pElementNames[loopCnt]);
-                    free(pElementNames[loopCnt]);
-                }
-                free(pElementNames);
+                printf ("\tElement %d: %s\n\r", (loopCnt + 1), pElementNames[loopCnt]);
+                free(pElementNames[loopCnt]);
             }
-            else
-            {
-                printf("No elements discovered!\n\r");
-            }
+            free(pElementNames);
         }
         else
         {
-            printf ("Failed to discover element array. Error Code = %s\n\r", "");
+            printf("No elements discovered!\n\r");
         }
     }
     else
     {
-        printf ("Invalid Handle to communicate with\n\r");
+        printf ("Failed to discover element array. Error Code = %s\n\r", "");
     }
-
-    return;
 }
 
 void validate_and_execute_get_cmd (int argc, char *argv[])
@@ -763,6 +784,9 @@ void validate_and_execute_get_cmd (int argc, char *argv[])
         return;
     }
 
+    if (!verify_rbus_open())
+        return;
+
     for (index = 0, i = 2; index < numOfInputParams; index++, i++)
         pInputParam[index] = argv[i];
 
@@ -772,60 +796,45 @@ void validate_and_execute_get_cmd (int argc, char *argv[])
             isWildCard = true;
     }
 
-    /* We will have it opened already in case of interactive mode */
-    if (0 == g_busHandle)
+    if ((!isWildCard) && (1 == numOfInputParams))
     {
-        char compName[50] = "";
-        snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
-        rc = rbus_open(&g_busHandle, compName);
-    }
-
-    if ((RBUS_ERROR_SUCCESS == rc) && (0 != g_busHandle))
-    {
-        if ((!isWildCard) && (1 == numOfInputParams))
-        {
-            rbusValue_t getVal;
-            rc = rbus_get(g_busHandle, pInputParam[0], &getVal);
-            if(RBUS_ERROR_SUCCESS == rc)
-            {
-                numOfOutVals = 1;
-                rbusProperty_Init(&outputVals, pInputParam[0], getVal);
-                rbusValue_Release(getVal);
-            }
-        }
-        else
-            rc = rbus_getExt(g_busHandle, numOfInputParams, pInputParam, &numOfOutVals, &outputVals);
-
+        rbusValue_t getVal;
+        rc = rbus_get(g_busHandle, pInputParam[0], &getVal);
         if(RBUS_ERROR_SUCCESS == rc)
         {
-            rbusProperty_t next = outputVals;
-            for (i = 0; i < numOfOutVals; i++)
-            {
-                rbusValue_t val = rbusProperty_GetValue(next);
-                rbusValueType_t type = rbusValue_GetType(val);
-                char *pStrVal = rbusValue_ToString(val,NULL,0);
-
-                printf ("Parameter %2d:\n\r", i+1);
-                printf ("              Name  : %s\n\r", rbusProperty_GetName(next));
-                printf ("              Type  : %s\n\r", getDataType_toString(type));
-                printf ("              Value : %s\n\r", pStrVal);
-
-                if(pStrVal)
-                    free(pStrVal);
-
-                next = rbusProperty_GetNext(next);
-            }
-            /* Free the memory */
-            rbusProperty_Release(outputVals);
-        }
-        else
-        {
-            printf ("Failed to get the data\n\r");
+            numOfOutVals = 1;
+            rbusProperty_Init(&outputVals, pInputParam[0], getVal);
+            rbusValue_Release(getVal);
         }
     }
     else
+        rc = rbus_getExt(g_busHandle, numOfInputParams, pInputParam, &numOfOutVals, &outputVals);
+
+    if(RBUS_ERROR_SUCCESS == rc)
     {
-        printf ("Invalid Handle to communicate with\n\r");
+        rbusProperty_t next = outputVals;
+        for (i = 0; i < numOfOutVals; i++)
+        {
+            rbusValue_t val = rbusProperty_GetValue(next);
+            rbusValueType_t type = rbusValue_GetType(val);
+            char *pStrVal = rbusValue_ToString(val,NULL,0);
+
+            printf ("Parameter %2d:\n\r", i+1);
+            printf ("              Name  : %s\n\r", rbusProperty_GetName(next));
+            printf ("              Type  : %s\n\r", getDataType_toString(type));
+            printf ("              Value : %s\n\r", pStrVal);
+
+            if(pStrVal)
+                free(pStrVal);
+
+            next = rbusProperty_GetNext(next);
+        }
+        /* Free the memory */
+        rbusProperty_Release(outputVals);
+    }
+    else
+    {
+        printf ("Failed to get the data\n\r");
     }
 }
 
@@ -836,42 +845,30 @@ void validate_and_execute_addrow_cmd (int argc, char *argv[])
     char *pTableAliasName = NULL;
     uint32_t instanceNum = 0;
 
-    /* Is Alias Passed */
-    if (argc >= 3)
+    if (argc < 3)
     {
-        pTablePathName = argv[2];
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
 
-        if (argc == 4)
-            pTableAliasName = argv[3];
+    if (!verify_rbus_open())
+        return;
 
-        /* We will have it opened already in case of interactive mode */
-        if (0 == g_busHandle)
-        {
-            char compName[50] = "";
-            snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
-            rc = rbus_open(&g_busHandle, compName);
-        }
+    pTablePathName = argv[2];
 
-        if ((RBUS_ERROR_SUCCESS == rc) && (0 != g_busHandle))
-        {
-            rc = rbusTable_addRow(g_busHandle, pTablePathName, pTableAliasName, &instanceNum);
-        }
+    if (argc == 4)
+        pTableAliasName = argv[3];
 
-        if(RBUS_ERROR_SUCCESS == rc)
-        {
-            printf ("\n\n%s%d added\n\n\r", pTablePathName, instanceNum);
-        }
-        else
-        {
-            printf ("Add row to a table failed ..\n\r");
-        }
+    rc = rbusTable_addRow(g_busHandle, pTablePathName, pTableAliasName, &instanceNum);
+
+    if(RBUS_ERROR_SUCCESS == rc)
+    {
+        printf ("\n\n%s%d added\n\n\r", pTablePathName, instanceNum);
     }
     else
     {
-        printf ("Invalid arguments. Please see the help\n\r");
+        printf ("Add row to a table failed ..\n\r");
     }
-
-
 }
 
 void validate_and_execute_delrow_cmd (int argc, char *argv[])
@@ -879,381 +876,343 @@ void validate_and_execute_delrow_cmd (int argc, char *argv[])
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     char *pTablePathName = NULL;
 
-    if (argc == 3)
+    if (argc < 3)
     {
-        pTablePathName = argv[2];
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
 
-        /* We will have it opened already in case of interactive mode */
-        if (0 == g_busHandle)
-        {
-            char compName[50] = "";
-            snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
-            rc = rbus_open(&g_busHandle, compName);
-        }
+    if (!verify_rbus_open())
+        return;
 
-        if ((RBUS_ERROR_SUCCESS == rc) && (0 != g_busHandle))
-        {
-            rc = rbusTable_removeRow(g_busHandle, pTablePathName);
-        }
+    pTablePathName = argv[2];
 
-        if(RBUS_ERROR_SUCCESS == rc)
-        {
-            printf ("\n\n%s deleted successfully\n\n\r", pTablePathName);
-        }
-        else
-        {
-            printf ("\n\nDeletion of a row from table failed ..\n\r");
-        }
+    rc = rbusTable_removeRow(g_busHandle, pTablePathName);
+
+    if(RBUS_ERROR_SUCCESS == rc)
+    {
+        printf ("\n\n%s deleted successfully\n\n\r", pTablePathName);
     }
     else
     {
-        printf ("Invalid arguments. Please see the help\n\r");
+        printf ("\n\nDeletion of a row from table failed ..\n\r");
     }
-
-
 }
 
 void validate_and_execute_set_cmd (int argc, char *argv[])
 {
+    rbusError_t rc = RBUS_ERROR_SUCCESS;
     int i = argc - 2;
+    bool isCommit = true;
+    int sessionId = 0;
+    static bool g_pendingCommit = false;
 
     /* must have 3 or multiples of 3 parameters.. it could possibliy have 1 extra param which
      * could be having commit and set to true/false */
-    if ((i >= 3) && ((i % 3 == 0) || (i % 3 == 1)))
+    if (!((i >= 3) && ((i % 3 == 0) || (i % 3 == 1))))
     {
-        rbusError_t rc = RBUS_ERROR_SUCCESS;
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
 
-        /* We will have it opened already in case of interactive mode */
-        if (0 == g_busHandle)
+    if (!verify_rbus_open())
+        return;
+
+    if (i > 4) /* Multiple set commands; Lets use rbusValue_t */
+    {
+        int isInvalid = 0;
+        int index = 0;
+        int loopCnt = 0;
+        int paramCnt = i/3;
+        rbusProperty_t properties = NULL, last = NULL;
+        rbusValue_t setVal[RBUS_CLI_MAX_PARAM];
+        char const* setNames[RBUS_CLI_MAX_PARAM];
+
+        for (index = 0, loopCnt = 0; index < paramCnt; loopCnt+=3, index++)
         {
-            char compName[50] = "";
-            snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
-            rc = rbus_open(&g_busHandle, compName);
-        }
+            /* Create Param w/ Name */
+            rbusValue_Init(&setVal[index]);
+            setNames[index] = argv[loopCnt+2];
 
-        if ((RBUS_ERROR_SUCCESS == rc) && (0 != g_busHandle))
-        {
-            bool isCommit = true;
-            int sessionId = 0;
-            static bool g_pendingCommit = false;
-            if (i > 4) /* Multiple set commands; Lets use rbusValue_t */
+            printf ("Name = %s \n\r", argv[loopCnt+2]);
+
+            /* Get Param Type */
+            rbusValueType_t type = getDataType_fromString(argv[loopCnt+3]);
+
+            if (type == RBUS_NONE)
             {
-                int isInvalid = 0;
-                int index = 0;
-                int loopCnt = 0;
-                int paramCnt = i/3;
-                rbusProperty_t properties = NULL, last = NULL;
-                rbusValue_t setVal[RBUS_CLI_MAX_PARAM];
-                char const* setNames[RBUS_CLI_MAX_PARAM];
-
-                for (index = 0, loopCnt = 0; index < paramCnt; loopCnt+=3, index++)
-                {
-                    /* Create Param w/ Name */
-                    rbusValue_Init(&setVal[index]);
-                    setNames[index] = argv[loopCnt+2];
-
-                    printf ("Name = %s \n\r", argv[loopCnt+2]);
-
-                    /* Get Param Type */
-                    rbusValueType_t type = getDataType_fromString(argv[loopCnt+3]);
-
-                    if (type == RBUS_NONE)
-                    {
-                        printf ("Invalid data type. Please see the help\n\r");
-                        isInvalid = 1;
-                        break;
-                    }
-
-                    rbusValue_SetFromString(setVal[index], type, argv[loopCnt+4]);
-
-                    rbusProperty_t next;
-                    rbusProperty_Init(&next, setNames[index], setVal[index]);
-                    if(properties == NULL)
-                    {
-                        properties = last = next;
-                    }
-                    else
-                    {
-                        rbusProperty_SetNext(last, next);
-                        last=next;
-                    }
-                }
-
-                if (0 == isInvalid)
-                {
-                    /* Set Session ID & Commit value */
-                    if (g_isInteractive)
-                    {
-                        /* Do we have commit param? (n*3) + 1 */
-                        if (i % 3 == 1)
-                        {
-                            /* Is commit */
-                            if (strncasecmp ("true", argv[argc - 1], 4) == 0)
-                                isCommit = true;
-                            else if (strncasecmp ("false", argv[argc - 1], 5) == 0)
-                                isCommit = false;
-                            else
-                                isCommit = true;
-
-                            if (isCommit == false)
-                            {
-                                g_pendingCommit = true;
-                                sessionId = RBUS_CLI_SESSION_ID;
-                            }
-                            else
-                            {
-                                if (g_pendingCommit)
-                                    sessionId = RBUS_CLI_SESSION_ID;
-                                else
-                                    sessionId = 0;
-                            }
-                        }
-                        else
-                        {
-                            isCommit = true;
-                            if (g_pendingCommit)
-                                sessionId = RBUS_CLI_SESSION_ID;
-                            else
-                                sessionId = 0;
-                        }
-                    }
-                    else
-                    {
-                        /* For non-interactive mode, regardless of COMMIT value tha is passed, we assume the isCommit as TRUE */
-                        isCommit = true;
-                        sessionId = 0;
-                    }
-
-                    /* Reset the flag */
-                    if (isCommit == true)
-                        g_pendingCommit = false;
-
-
-                    rbusSetOptions_t opts = {isCommit,sessionId};
-                    rc = rbus_setMulti(g_busHandle, paramCnt, properties/*setNames, setVal*/, &opts);
-                }
-                else
-                {
-                    /* Since we allocated memory for `loopCnt` times, we must free them.. lets update the `paramCnt` to `loopCnt`; so that the below free function will take care */
-                    paramCnt = index;
-                    rc = RBUS_ERROR_INVALID_INPUT;
-                }
-
-                /* free the memory that was allocated */
-                for (loopCnt = 0; loopCnt < paramCnt; loopCnt++)
-                {
-                    rbusValue_Release(setVal[loopCnt]);
-                }
-                rbusProperty_Release(properties);
-            }
-            else /* Single Set Command */
-            {
-                /* Get Param Type */
-                rbusValueType_t type = getDataType_fromString(argv[3]);
-
-                if (type != RBUS_NONE)
-                {
-                    rbusValue_t setVal;
-
-                    /* Create Param w/ Name */
-                    rbusValue_Init(&setVal);
-                    rbusValue_SetFromString(setVal, type, argv[4]);
-                    /* Set Session ID & Commit value */
-                    if (g_isInteractive)
-                    {
-                        if (4 == i)
-                        {
-                            /* Is commit */
-                            if (strncasecmp ("true", argv[argc - 1], 4) == 0)
-                                isCommit = true;
-                            else if (strncasecmp ("false", argv[argc - 1], 5) == 0)
-                                isCommit = false;
-                            else
-                                isCommit = true;
-
-                            if (isCommit == false)
-                            {
-                                g_pendingCommit = true;
-                                sessionId = RBUS_CLI_SESSION_ID;
-                            }
-                            else
-                            {
-                                if (g_pendingCommit)
-                                    sessionId = RBUS_CLI_SESSION_ID;
-                                else
-                                    sessionId = 0;
-                            }
-                        }
-                        else
-                        {
-                            isCommit = true;
-                            if (g_pendingCommit)
-                                sessionId = RBUS_CLI_SESSION_ID;
-                            else
-                                sessionId = 0;
-                        }
-                    }
-                    else
-                    {
-                        /* For non-interactive mode, regardless of COMMIT value tha is passed, we assume the isCommit as TRUE */
-                        isCommit = true;
-                        sessionId = 0;
-                    }
-                    (void)sessionId;
-                    /* Reset the flag */
-                    if (isCommit == true)
-                        g_pendingCommit = false;
-
-                    /* Assume a sessionId as it is going to be single entry thro this cli app; */
-                    rbusSetOptions_t opts = {isCommit,sessionId};
-                    rc = rbus_set(g_busHandle, argv[2], setVal, &opts);
-
-                    /* Free the data pointer that was allocated */
-                    rbusValue_Release(setVal);
-                }
-                else
-                {
-                    rc = RBUS_ERROR_INVALID_INPUT;
-                    printf ("Invalid data type. Please see the help\n\r");
-                }
+                printf ("Invalid data type. Please see the help\n\r");
+                isInvalid = 1;
+                break;
             }
 
-            if(RBUS_ERROR_SUCCESS == rc)
+            rbusValue_SetFromString(setVal[index], type, argv[loopCnt+4]);
+
+            rbusProperty_t next;
+            rbusProperty_Init(&next, setNames[index], setVal[index]);
+            if(properties == NULL)
             {
-                printf ("setvalues succeeded..\n\r");
+                properties = last = next;
             }
             else
             {
-                printf ("setvalues failed ..\n\r");
+                rbusProperty_SetNext(last, next);
+                last=next;
             }
+        }
+
+        if (0 == isInvalid)
+        {
+            /* Set Session ID & Commit value */
+            if (g_isInteractive)
+            {
+                /* Do we have commit param? (n*3) + 1 */
+                if (i % 3 == 1)
+                {
+                    /* Is commit */
+                    if (strncasecmp ("true", argv[argc - 1], 4) == 0)
+                        isCommit = true;
+                    else if (strncasecmp ("false", argv[argc - 1], 5) == 0)
+                        isCommit = false;
+                    else
+                        isCommit = true;
+
+                    if (isCommit == false)
+                    {
+                        g_pendingCommit = true;
+                        sessionId = RBUS_CLI_SESSION_ID;
+                    }
+                    else
+                    {
+                        if (g_pendingCommit)
+                            sessionId = RBUS_CLI_SESSION_ID;
+                        else
+                            sessionId = 0;
+                    }
+                }
+                else
+                {
+                    isCommit = true;
+                    if (g_pendingCommit)
+                        sessionId = RBUS_CLI_SESSION_ID;
+                    else
+                        sessionId = 0;
+                }
+            }
+            else
+            {
+                /* For non-interactive mode, regardless of COMMIT value tha is passed, we assume the isCommit as TRUE */
+                isCommit = true;
+                sessionId = 0;
+            }
+
+            /* Reset the flag */
+            if (isCommit == true)
+                g_pendingCommit = false;
+
+
+            rbusSetOptions_t opts = {isCommit,sessionId};
+            rc = rbus_setMulti(g_busHandle, paramCnt, properties/*setNames, setVal*/, &opts);
         }
         else
         {
-            printf ("Invalid Handle to communicate with\n\r");
+            /* Since we allocated memory for `loopCnt` times, we must free them.. lets update the `paramCnt` to `loopCnt`; so that the below free function will take care */
+            paramCnt = index;
+            rc = RBUS_ERROR_INVALID_INPUT;
         }
+
+        /* free the memory that was allocated */
+        for (loopCnt = 0; loopCnt < paramCnt; loopCnt++)
+        {
+            rbusValue_Release(setVal[loopCnt]);
+        }
+        rbusProperty_Release(properties);
+    }
+    else /* Single Set Command */
+    {
+        /* Get Param Type */
+        rbusValueType_t type = getDataType_fromString(argv[3]);
+
+        if (type != RBUS_NONE)
+        {
+            rbusValue_t setVal;
+
+            /* Create Param w/ Name */
+            rbusValue_Init(&setVal);
+            rbusValue_SetFromString(setVal, type, argv[4]);
+            /* Set Session ID & Commit value */
+            if (g_isInteractive)
+            {
+                if (4 == i)
+                {
+                    /* Is commit */
+                    if (strncasecmp ("true", argv[argc - 1], 4) == 0)
+                        isCommit = true;
+                    else if (strncasecmp ("false", argv[argc - 1], 5) == 0)
+                        isCommit = false;
+                    else
+                        isCommit = true;
+
+                    if (isCommit == false)
+                    {
+                        g_pendingCommit = true;
+                        sessionId = RBUS_CLI_SESSION_ID;
+                    }
+                    else
+                    {
+                        if (g_pendingCommit)
+                            sessionId = RBUS_CLI_SESSION_ID;
+                        else
+                            sessionId = 0;
+                    }
+                }
+                else
+                {
+                    isCommit = true;
+                    if (g_pendingCommit)
+                        sessionId = RBUS_CLI_SESSION_ID;
+                    else
+                        sessionId = 0;
+                }
+            }
+            else
+            {
+                /* For non-interactive mode, regardless of COMMIT value tha is passed, we assume the isCommit as TRUE */
+                isCommit = true;
+                sessionId = 0;
+            }
+            (void)sessionId;
+            /* Reset the flag */
+            if (isCommit == true)
+                g_pendingCommit = false;
+
+            /* Assume a sessionId as it is going to be single entry thro this cli app; */
+            rbusSetOptions_t opts = {isCommit,sessionId};
+            rc = rbus_set(g_busHandle, argv[2], setVal, &opts);
+
+            /* Free the data pointer that was allocated */
+            rbusValue_Release(setVal);
+        }
+        else
+        {
+            rc = RBUS_ERROR_INVALID_INPUT;
+            printf ("Invalid data type. Please see the help\n\r");
+        }
+    }
+
+    if(RBUS_ERROR_SUCCESS == rc)
+    {
+        printf ("setvalues succeeded..\n\r");
     }
     else
     {
-        printf ("Invalid arguments. Please see the help\n\r");
+        printf ("setvalues failed ..\n\r");
     }
 }
 
 
 void validate_and_execute_register_command (int argc, char *argv[], bool add)
 {
-    if (argc >= 4 && (argc % 2) == 0)
-    {
-        rbusError_t rc = RBUS_ERROR_SUCCESS;
+    rbusError_t rc = RBUS_ERROR_SUCCESS;
+    int i;
 
-        if (0 == g_busHandle)
+    if( !(argc >= 4 && (argc % 2) == 0))
+    {
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
+
+    if (!verify_rbus_open())
+        return; 
+
+    if(NULL == g_registeredProps)
+    {
+        rtList_Create(&g_registeredProps);
+    }
+
+    for(i = 2; i < argc; i += 2)
+    {
+        const char* stype = argv[i];
+        const char* name = argv[i+1];
+
+        rbusDataElement_t elem = {(char*)name, 0, {NULL}};
+
+        if(strncmp(stype, "property", 4) == 0)
         {
-            char compName[50] = "";
-            snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
-            rc = rbus_open(&g_busHandle, compName);
+            elem.type = RBUS_ELEMENT_TYPE_PROPERTY;
+            elem.cbTable.getHandler = property_get_handler;
+            elem.cbTable.setHandler = property_set_handler;
+        }
+        else if(strncmp(stype, "table", 4) == 0)
+        {
+            elem.type = RBUS_ELEMENT_TYPE_TABLE;
+            elem.cbTable.tableAddRowHandler = table_add_row_handler;
+            elem.cbTable.tableRemoveRowHandler = table_remove_row_handler;
+        }
+        else if(strncmp(stype, "event", 4) == 0)
+        {
+            elem.type = RBUS_ELEMENT_TYPE_EVENT;
+            elem.cbTable.eventSubHandler = event_subscribe_handler;
+        }
+        else if(strncmp(stype, "method", 4) == 0)
+        {
+            elem.type = RBUS_ELEMENT_TYPE_METHOD;
+            elem.cbTable.methodHandler = method_invoke_handler;
+        }
+        else 
+        {
+            printf("Invalid element type: %s.  Must be prop, table, event, or method.\n\r", stype);
+            continue;
+        }
+
+        if(add)
+        {
+            rc = rbus_regDataElements(g_busHandle, 1, &elem);
+        }
+        else
+        {
+            rc = rbus_unregDataElements(g_busHandle, 1, &elem);
         }
 
         if(rc == RBUS_ERROR_SUCCESS)
         {
-            int i;
+            printf("%s %s\n\r", add ? "Registered" : "Unregistered", name);
 
-            if(NULL == g_registeredProps)
+            if(add)
             {
-                rtList_Create(&g_registeredProps);
+                rbusProperty_t prop;
+                rbusValue_t value;
+
+                rbusValue_Init(&value);
+                rbusValue_SetString(value, "default value");
+
+                rbusProperty_Init(&prop, name, value);
+                rbusValue_Release(value);
+
+                rtList_PushBack(g_registeredProps, prop, NULL);
+            
             }
-
-            for(i = 2; i < argc; i += 2)
+            else
             {
-                const char* stype = argv[i];
-                const char* name = argv[i+1];
-
-                rbusDataElement_t elem = {(char*)name, 0, {NULL}};
-
-                if(strncmp(stype, "property", 4) == 0)
+                rtListItem li;
+                rtList_GetFront(g_registeredProps, &li);
+                while(li)
                 {
-                    elem.type = RBUS_ELEMENT_TYPE_PROPERTY;
-                    elem.cbTable.getHandler = property_get_handler;
-                    elem.cbTable.setHandler = property_set_handler;
-                }
-                else if(strncmp(stype, "table", 4) == 0)
-                {
-                    elem.type = RBUS_ELEMENT_TYPE_TABLE;
-                    elem.cbTable.tableAddRowHandler = table_add_row_handler;
-                    elem.cbTable.tableRemoveRowHandler = table_remove_row_handler;
-                }
-                else if(strncmp(stype, "event", 4) == 0)
-                {
-                    elem.type = RBUS_ELEMENT_TYPE_EVENT;
-                    elem.cbTable.eventSubHandler = event_subscribe_handler;
-                }
-                else if(strncmp(stype, "method", 4) == 0)
-                {
-                    elem.type = RBUS_ELEMENT_TYPE_METHOD;
-                    elem.cbTable.methodHandler = method_invoke_handler;
-                }
-                else 
-                {
-                    printf("Invalid element type: %s.  Must be prop, table, event, or method.", stype);
-                    continue;
-                }
-
-                if(add)
-                {
-                    rc = rbus_regDataElements(g_busHandle, 1, &elem);
-                }
-                else
-                {
-                    rc = rbus_unregDataElements(g_busHandle, 1, &elem);
-                }
-
-                if(rc == RBUS_ERROR_SUCCESS)
-                {
-                    printf("%s %s\n\r", add ? "Registered" : "Unregistered", name);
-
-                    if(add)
+                    rbusProperty_t prop;
+                    rtListItem_GetData(li, (void**)&prop);
+                    if(strcmp(rbusProperty_GetName(prop), name) == 0)
                     {
-                        rbusProperty_t prop;
-                        rbusValue_t value;
-
-                        rbusValue_Init(&value);
-                        rbusValue_SetString(value, "default value");
-
-                        rbusProperty_Init(&prop, name, value);
-                        rbusValue_Release(value);
-
-                        rtList_PushBack(g_registeredProps, prop, NULL);
-                    
-                    }
-                    else
-                    {
-                        rtListItem li;
-                        rtList_GetFront(g_registeredProps, &li);
-                        while(li)
-                        {
-                            rbusProperty_t prop;
-                            rtListItem_GetData(li, (void**)&prop);
-                            if(strcmp(rbusProperty_GetName(prop), name) == 0)
-                            {
-                                rtList_RemoveItem(g_registeredProps, li, free_registered_property);
-                                break;
-                            }                            
-                            rtListItem_GetNext(li, &li);
-                        }
-                    }
-                }
-                else
-                {
-                    printf("Failed to %s %s, error: %d\n\r", add ? "register" : "unregister", name, rc);
+                        rtList_RemoveItem(g_registeredProps, li, free_registered_property);
+                        break;
+                    }                            
+                    rtListItem_GetNext(li, &li);
                 }
             }
         }
         else
         {
-            printf ("Invalid Handle to communicate with\n\r");
+            printf("Failed to %s %s, error: %d\n\r", add ? "register" : "unregister", name, rc);
         }
-    }
-    else
-    {
-        printf ("Invalid arguments. Please see the help\n\r");
     }
 }
 
@@ -1300,133 +1259,180 @@ void set_filter_value(const char* arg, rbusValue_t value)
 
 void validate_and_execute_subscribe_cmd (int argc, char *argv[], bool add)
 {
-    if (argc >= 3)
+    rbusError_t rc = RBUS_ERROR_SUCCESS;
+    rbusFilter_t filter = NULL;
+    rbusValue_t filterValue = NULL;
+    rbusFilter_RelationOperator_t relOp;
+    char* userData = NULL;
+
+    if (argc < 3)
     {
-        rbusError_t rc = RBUS_ERROR_SUCCESS;
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
 
-        if (0 == g_busHandle)
-        {
-            char compName[50] = "";
-            snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
-            rc = rbus_open(&g_busHandle, compName);
-        }
+    if(strlen(argv[2]) + (argc>3 ? strlen(argv[3]):0) + (argc>4 ? strlen(argv[4]):0) > 255)
+    {
+        printf("Query too long.");
+        return;
+    }
 
-        if(rc == RBUS_ERROR_SUCCESS)
-        {
-            rbusFilter_t filter = NULL;
-            rbusValue_t filterValue = NULL;
-            rbusFilter_RelationOperator_t relOp;
-            char* userData = NULL;
+    if (!verify_rbus_open())
+        return;    
 
-            if(strlen(argv[2]) + (argc>3 ? strlen(argv[3]):0) + (argc>4 ? strlen(argv[4]):0) > 255)
-            {
-                printf("Query too long.");
-                return;
-            }
+    if(add)
+    {
+        userData = calloc(1, 256);//fixme - never gets freed
+        strcat(userData, "sub ");
+        strcat(userData, argv[2]);
+    }
 
-            if(add)
-            {
-                userData = calloc(1, 256);//fixme - never gets freed
-                strcat(userData, "sub ");
-                strcat(userData, argv[2]);
-            }
-
-
-            if(argc > 3) /*filter*/
-            {
-                if(strcmp(argv[3], ">") == 0)
-                    relOp = RBUS_FILTER_OPERATOR_GREATER_THAN;
-                else if(strcmp(argv[3], ">=") == 0)
-                    relOp = RBUS_FILTER_OPERATOR_GREATER_THAN_OR_EQUAL;
-                else if(strcmp(argv[3], "<") == 0)
-                    relOp = RBUS_FILTER_OPERATOR_LESS_THAN;
-                else if(strcmp(argv[3], "<=") == 0)
-                    relOp = RBUS_FILTER_OPERATOR_LESS_THAN_OR_EQUAL;
-                else if(strcmp(argv[3], "=") == 0)
-                    relOp = RBUS_FILTER_OPERATOR_EQUAL;
-                else if(strcmp(argv[3], "!=") == 0)
-                    relOp = RBUS_FILTER_OPERATOR_NOT_EQUAL;
-                else
-                {
-                    printf ("Invalid arguments. Please see the help\n\r");
-                    return;
-                }
-
-                if(add)
-                {
-                    strcat(userData, " ");
-                    strcat(userData, argv[3]);
-                    strcat(userData, " ");
-                    strcat(userData, argv[4]);
-                }
-
-                rbusValue_Init(&filterValue);
-
-                set_filter_value(argv[4], filterValue);
-
-                rbusFilter_InitRelation(&filter, relOp, filterValue);
-            }
-
-
-            rbusEventSubscription_t subscription = {argv[2], filter, 0, 0, event_receive_handler, userData, NULL, NULL};
-
-            if(add)
-            {
-                rc = rbusEvent_SubscribeEx(g_busHandle, &subscription, 1, 0);
-            }
-            else
-            {
-                rc = rbusEvent_UnsubscribeEx(g_busHandle, &subscription, 1);
-            }
-
-            if(filterValue)
-                rbusValue_Release(filterValue);
-            if(filter)
-                rbusFilter_Release(filter);
-
-            if(rc != RBUS_ERROR_SUCCESS)
-            {
-                printf("Invalid Subscription err:%d\n\r", rc);
-            }
-        }
+    if(argc > 3) /*filter*/
+    {
+        if(strcmp(argv[3], ">") == 0)
+            relOp = RBUS_FILTER_OPERATOR_GREATER_THAN;
+        else if(strcmp(argv[3], ">=") == 0)
+            relOp = RBUS_FILTER_OPERATOR_GREATER_THAN_OR_EQUAL;
+        else if(strcmp(argv[3], "<") == 0)
+            relOp = RBUS_FILTER_OPERATOR_LESS_THAN;
+        else if(strcmp(argv[3], "<=") == 0)
+            relOp = RBUS_FILTER_OPERATOR_LESS_THAN_OR_EQUAL;
+        else if(strcmp(argv[3], "=") == 0)
+            relOp = RBUS_FILTER_OPERATOR_EQUAL;
+        else if(strcmp(argv[3], "!=") == 0)
+            relOp = RBUS_FILTER_OPERATOR_NOT_EQUAL;
         else
         {
-            printf ("Invalid Handle to communicate with\n\r");
+            printf ("Invalid arguments. Please see the help\n\r");
+            return;
         }
+
+        if(add)
+        {
+            strcat(userData, " ");
+            strcat(userData, argv[3]);
+            strcat(userData, " ");
+            strcat(userData, argv[4]);
+        }
+
+        rbusValue_Init(&filterValue);
+
+        set_filter_value(argv[4], filterValue);
+
+        rbusFilter_InitRelation(&filter, relOp, filterValue);
+    }
+
+    rbusEventSubscription_t subscription = {argv[2], filter, 0, 0, event_receive_handler, userData, NULL, NULL};
+
+    if(add)
+    {
+        rc = rbusEvent_SubscribeEx(g_busHandle, &subscription, 1, 0);
     }
     else
     {
-        printf ("Invalid arguments. Please see the help\n\r");
+        rc = rbusEvent_UnsubscribeEx(g_busHandle, &subscription, 1);
+    }
+
+    if(filterValue)
+        rbusValue_Release(filterValue);
+    if(filter)
+        rbusFilter_Release(filter);
+
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        printf("Invalid Subscription err:%d\n\r", rc);
     }
 }
 
 void validate_and_execute_publish_command(int argc, char *argv[])
 {
-    if (argc >= 3)
+    rbusError_t rc;
+    rbusEvent_t event;
+    rbusObject_t data;
+    rbusValue_t value;
+
+    if (argc < 3)
     {
-        rbusError_t rc;
-        rbusEvent_t event;
-        rbusObject_t data;
-        rbusValue_t value;
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
 
-        rbusValue_Init(&value);
-        rbusValue_SetString(value, argc > 5 ? argv[4] : "default event data");
-        rbusObject_Init(&data, NULL);
-        rbusObject_SetValue(data, "value", value);
+    if (!verify_rbus_open())
+        return;    
 
-        event.name = argv[2];
-        event.data = data;
-        event.type = RBUS_EVENT_GENERAL;
+    rbusValue_Init(&value);
+    rbusValue_SetString(value, argc < 4 ? "default event data" : argv[3]);
+    rbusObject_Init(&data, NULL);
+    rbusObject_SetValue(data, "value", value);
 
-        rc = rbusEvent_Publish(g_busHandle, &event);
+    event.name = argv[2];
+    event.data = data;
+    event.type = RBUS_EVENT_GENERAL;
 
-        rbusValue_Release(value);
-        rbusObject_Release(data);
+    rc = rbusEvent_Publish(g_busHandle, &event);
 
-        if(rc != RBUS_ERROR_SUCCESS)
-        {
-            printf("Publish failed err: %d\n\r", rc);
-        }
+    rbusValue_Release(value);
+    rbusObject_Release(data);
+
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        printf("Publish failed err: %d\n\r", rc);
+    }
+}
+
+void validate_and_execute_listen_command(int argc, char *argv[], bool add)
+{
+    rbusError_t rc;
+    
+    if (argc < 2)
+    {
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
+
+    if (!verify_rbus_open())
+        return;    
+
+    if(add)
+    {
+        char* userData = calloc(1, 256);//fixme - never gets freed
+        sprintf(userData, "listen %s", argv[2]);
+        rc = rbusMessage_AddListener(g_busHandle, argv[2], message_receive_handler, userData);
+    }
+    else
+    {
+        rc = rbusMessage_RemoveListener(g_busHandle, argv[2]);
+    }
+
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        printf("%sListener failed err: %d\n\r", add ? "Add" : "Remove", rc);
+    }
+}
+
+void validate_and_execute_send_command(int argc, char *argv[])
+{
+    rbusError_t rc;
+    rbusMessage_t msg;
+
+    if (argc < 3)
+    {
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
+
+    if (!verify_rbus_open())
+        return;  
+
+    msg.topic = argv[2];
+    msg.data = (uint8_t const*)argv[3];
+    msg.length = strlen(argv[3]);
+
+    rc = rbusMessage_Send(g_busHandle, &msg, RBUS_MESSAGE_CONFIRM_RECEIPT);
+
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        printf("Send failed err: %d\n\r", rc);
     }
 }
 
@@ -1501,6 +1507,18 @@ int handle_cmds (int argc, char *argv[])
     else if(matchCmd(command, 3, "publish"))
     {
         validate_and_execute_publish_command (argc, argv);
+    }
+    else if(matchCmd(command, 4, "addlistener"))
+    {
+        validate_and_execute_listen_command (argc, argv, true);
+    }
+    else if(matchCmd(command, 4, "remlistener"))
+    {
+        validate_and_execute_listen_command (argc, argv, false);
+    }
+    else if(matchCmd(command, 4, "send"))
+    {
+        validate_and_execute_send_command (argc, argv);
     }
     else if(matchCmd(command, 4, "help"))
     {
@@ -1665,7 +1683,7 @@ void completion(const char *buf, linenoiseCompletions *lc) {
 
     if(num == 1)
     {
-        completion = find_completion(tokens[0], 14, "get", "set", "add", "del", "discr", "discc", "disce", "sub", "unsub", "reg", "unreg", "pub", "log", "quit", "help");
+        completion = find_completion(tokens[0], 14, "get", "set", "add", "del", "discr", "discc", "disce", "sub", "unsub", "reg", "unreg", "pub", "addl", "reml", "send", "log", "quit", "help");
     }
     else if(num == 2)
     {
@@ -1767,6 +1785,18 @@ char *hints(const char *buf, int *color, int *bold) {
         {
             hint = " event [data]";
         }
+        else if(strcmp(tokens[0], "addl") == 0)
+        {
+            hint = " expression";
+        }
+        else if(strcmp(tokens[0], "reml") == 0)
+        {
+            hint = " expression";
+        }
+        else if(strcmp(tokens[0], "send") == 0)
+        {
+            hint = " topic [data]";
+        }                
         else if(strcmp(tokens[0], "log") == 0)
         {
             hint = " level(debug|info|warn|error|fatal|event)";

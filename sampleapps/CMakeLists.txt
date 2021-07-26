@@ -76,6 +76,14 @@ add_executable(rbusMethodConsumer consumer/rbusMethodConsumer.c)
 add_dependencies(rbusMethodConsumer rbus)
 target_link_libraries(rbusMethodConsumer rbus)
 
+add_executable(rbusMessageListener message/rbusMessageListener.c)
+add_dependencies(rbusMessageListener rbus)
+target_link_libraries(rbusMessageListener rbus)
+
+add_executable(rbusMessageSender message/rbusMessageSender.c)
+add_dependencies(rbusMessageSender rbus)
+target_link_libraries(rbusMessageSender rbus)
+
 add_executable(rbusTR104MtaAgentApp provider/mta_proxy_tr104.c
 provider/mta_hal_tr104.c provider/mta_hal_tr104.h)
 add_dependencies(rbusTR104MtaAgentApp rbus)
@@ -95,6 +103,8 @@ install (TARGETS
     rbusGeneralEventConsumer
     rbusValueChangeProvider
     rbusValueChangeConsumer
+    rbusMessageListener
+    rbusMessageSender
     RUNTIME DESTINATION bin)
 
 endif (BUILD_RBUS_INTERFACE_SAMPLE_APPS)

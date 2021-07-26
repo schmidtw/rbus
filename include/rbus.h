@@ -87,10 +87,10 @@ extern "C" {
 /** @addtogroup Common
  *  @{
  */
-struct _rbusHandle_t;
+struct _rbusHandle;
 
 ///  @brief     An RBus handle which identifies an opened component
-typedef struct _rbusHandle_t* rbusHandle_t;
+typedef struct _rbusHandle* rbusHandle_t;
 
 ///  @brief     The maximum length a name can be for any element.
 #define RBUS_MAX_NAME_LENGTH 256
@@ -138,6 +138,9 @@ typedef enum _rbusError
     RBUS_ERROR_TIMEOUT,                         /**< The operation timedout   */
     RBUS_ERROR_ASYNC_RESPONSE                   /**< The method request will be handle asynchronously by provider */
 } rbusError_t;
+
+
+char const * rbusError_ToString(rbusError_t e);
 
 /** @struct     rbusSetOptions_t
  *  @brief      Additional options a client can pass to a set function.
@@ -190,10 +193,10 @@ typedef struct _rbusSetHandlerOptions
     char const* requestingComponent;    /**< Component that invoking the SET method. */
 } rbusSetHandlerOptions_t;
 
-struct _rbusMethodAsyncHandle_t;
+struct _rbusMethodAsyncHandle;
 
 ///  @brief     An RBus handle used for async method responses
-typedef struct _rbusMethodAsyncHandle_t* rbusMethodAsyncHandle_t;
+typedef struct _rbusMethodAsyncHandle* rbusMethodAsyncHandle_t;
 
 /** @addtogroup Events
  *  @{
@@ -232,7 +235,7 @@ typedef struct
     rbusFilter_t  filter;       /**< Optional filter that was applied by provider*/
 } rbusEvent_t;
 
- typedef struct _rbusEventSubscription rbusEventSubscription_t;
+typedef struct _rbusEventSubscription rbusEventSubscription_t;
 
 /** @fn typedef void (* rbusSubscribeAsyncRespHandler_t)(
  *          rbusHandle_t              handle,
@@ -322,7 +325,7 @@ typedef void (*rbusMethodAsyncRespHandler_t)(
   * @{ 
   */
 
- /// @brief rbusElementType_t indicates the type of data elements which can be registered with RBus
+/// @brief rbusElementType_t indicates the type of data elements which can be registered with RBus
 typedef enum 
 {
     RBUS_ELEMENT_TYPE_PROPERTY  = 1,    /**< Property Element. 
@@ -359,7 +362,6 @@ typedef rbusError_t (*rbusGetHandler_t)(
     rbusProperty_t property,
     rbusGetHandlerOptions_t* options
 );
-
 
 /** @fn typedef rbusError_t (*rbusSetHandler_t)(
  *          rbusHandle_t handle, 
@@ -495,7 +497,6 @@ typedef rbusError_t (* rbusEventSubHandler_t)(
     bool* autoPublish
 );
 
-
 /** @struct rbusCallbackTable_t
  *  @brief The list of callback handlers supported by a data element.
  *
@@ -544,7 +545,6 @@ typedef struct
                                              callback can be NULL, if no usage*/
 }rbusDataElement_t;
 
-
 /**
  * @enum        rbusStatus_t
  * @brief       The type of events which can be subscribed to or published
@@ -564,12 +564,12 @@ typedef enum
   RBUS_LOG_WARN  = 2,
   RBUS_LOG_ERROR = 3,
   RBUS_LOG_FATAL = 4
-} rbusLogLevel;
+} rbusLogLevel_t;
 
-
+typedef rbusLogLevel_t rbusLogLevel;
 
 /** @fn typedef void (*rbusLogHandler)(
- *          rbusLogLevel level,
+ *          rbusLogLevel_t level,
  *          const char* file,
  *          int line,
  *          int threadId,
@@ -586,7 +586,7 @@ typedef enum
  *  @return                     None.
  */
 typedef void (*rbusLogHandler)(
-    rbusLogLevel level,
+    rbusLogLevel_t level,
     const char* file,
     int line,
     int threadId,
@@ -611,7 +611,7 @@ rbusStatus_t rbus_checkStatus(
 
 /** @fn rbusError_t rbus_open(
  *          rbusHandle_t* handle, 
- *          char *componentName)
+ *          char const* componentName)
  *  @brief  Open a bus connection for a software component.
  *  If multiple components share a software process, the first component that
  *  calls this API will establishes a new socket connection to the bus broker.
@@ -633,7 +633,7 @@ rbusStatus_t rbus_checkStatus(
  */
 rbusError_t rbus_open(
     rbusHandle_t* handle, 
-    char *componentName);
+    char const* componentName);
 
 /** @fn rbusError_t rbus_close(
  *          rbusHandle_t handle)
@@ -1420,7 +1420,7 @@ rbusError_t rbus_registerLogHandler(
     rbusLogHandler logHandler);
 
 /** @fn rbusError_t rbus_setLogLevel(
- *          rbusLogLevel level)
+ *          rbusLogLevel_t level)
  *
  *  @brief  Component use this API to set the log level to be printed
  *
@@ -1430,13 +1430,16 @@ rbusError_t rbus_registerLogHandler(
  *  @return RBus error code as defined by rbusError_t.
  */
 
-rbusError_t rbus_setLogLevel(rbusLogLevel level);
+rbusError_t rbus_setLogLevel(rbusLogLevel_t level);
 
 /** @} */
 
 #ifdef __cplusplus
 }
 #endif
+
+#include <rbus_message.h>
+
 #endif
 
 /** @} */

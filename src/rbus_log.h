@@ -43,12 +43,12 @@
 
 #else
 
-#define RBUSLOG_TRACE(format...)        rtLog_Debug(format)
-#define RBUSLOG_DEBUG(format...)        rtLog_Debug(format)
-#define RBUSLOG_INFO(format...)         rtLog_Info(format)
-#define RBUSLOG_WARN(format...)         rtLog_Warn(format)
-#define RBUSLOG_ERROR(format...)        rtLog_Error(format)
-#define RBUSLOG_FATAL(format...)        rtLog_Fatal(format)
+#define RBUSLOG_TRACE rtLog_Debug
+#define RBUSLOG_DEBUG rtLog_Debug
+#define RBUSLOG_INFO rtLog_Info
+#define RBUSLOG_WARN rtLog_Warn
+#define RBUSLOG_ERROR rtLog_Error
+#define RBUSLOG_FATAL rtLog_Fatal
 
 #endif /* ENABLE_RDKLOGGER */
 #endif
