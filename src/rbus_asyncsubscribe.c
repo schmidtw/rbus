@@ -268,6 +268,7 @@ static void* AsyncSubscribeRetrier_threadFunc(void* data)
 static void rbusAsyncSubscribeRetrier_Create()
 {
     pthread_mutexattr_t mattrib;
+    pthread_condattr_t cattrib;
 
     RBUSLOG_INFO("%s enter", __FUNCTION__);
 
@@ -275,11 +276,17 @@ static void rbusAsyncSubscribeRetrier_Create()
 
     gRetrier->isRunning = true;
     rtList_Create(&gRetrier->items);
+
     ERROR_CHECK(pthread_mutexattr_init(&mattrib));
     ERROR_CHECK(pthread_mutexattr_settype(&mattrib, PTHREAD_MUTEX_ERRORCHECK));
     ERROR_CHECK(pthread_mutex_init(&gRetrier->mutexQueue, &mattrib));  
     ERROR_CHECK(pthread_mutexattr_destroy(&mattrib));
-    ERROR_CHECK(pthread_cond_init(&gRetrier->condItemAdded, NULL));
+
+    ERROR_CHECK(pthread_condattr_init(&cattrib));
+    ERROR_CHECK(pthread_condattr_setclock(&cattrib, CLOCK_MONOTONIC));
+    ERROR_CHECK(pthread_cond_init(&gRetrier->condItemAdded, &cattrib));
+    ERROR_CHECK(pthread_condattr_destroy(&cattrib));
+
     ERROR_CHECK(pthread_create(&gRetrier->threadId, NULL, AsyncSubscribeRetrier_threadFunc, NULL));
 
     RBUSLOG_INFO("%s exit", __FUNCTION__);

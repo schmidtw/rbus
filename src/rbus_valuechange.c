@@ -75,6 +75,9 @@ ValueChangeDetector_t* gVC = NULL;
 
 static void rbusValueChange_Init()
 {
+    pthread_mutexattr_t attrib;
+    pthread_condattr_t cattrib;
+
     RBUSLOG_DEBUG("%s", __FUNCTION__);
 
     if(gVC)
@@ -87,11 +90,14 @@ static void rbusValueChange_Init()
 
     rtVector_Create(&gVC->params);
 
-    pthread_mutexattr_t attrib;
     ERROR_CHECK(pthread_mutexattr_init(&attrib));
     ERROR_CHECK(pthread_mutexattr_settype(&attrib, PTHREAD_MUTEX_ERRORCHECK));
     ERROR_CHECK(pthread_mutex_init(&gVC->mutex, &attrib));
-    ERROR_CHECK(pthread_cond_init(&gVC->cond, NULL));
+
+    ERROR_CHECK(pthread_condattr_init(&cattrib));
+    ERROR_CHECK(pthread_condattr_setclock(&cattrib, CLOCK_MONOTONIC));
+    ERROR_CHECK(pthread_cond_init(&gVC->cond, &cattrib));
+    ERROR_CHECK(pthread_condattr_destroy(&cattrib));
 }
 
 static void vcParams_Free(void* p)
@@ -347,14 +353,14 @@ void rbusValueChange_AddPropertyNode(rbusHandle_t handle, elementNode* propNode)
 
         if(result != RBUS_ERROR_SUCCESS)
         {
-            rtLog_Warn("%s: failed to get current value for %s as the node is not found", __FUNCTION__, propNode->fullName);
+            RBUSLOG_WARN("%s: failed to get current value for %s as the node is not found", __FUNCTION__, propNode->fullName);
             vcParams_Free(rec);
             rec = NULL;
             return;
         }
 
         char* sValue;
-        rtLog_Debug("%s: %s=%s", __FUNCTION__, propNode->fullName, (sValue = rbusValue_ToString(rbusProperty_GetValue(rec->property), NULL, 0)));
+        RBUSLOG_DEBUG("%s: %s=%s", __FUNCTION__, propNode->fullName, (sValue = rbusValue_ToString(rbusProperty_GetValue(rec->property), NULL, 0)));
         free(sValue);
 
         LOCK();//############ LOCK ############

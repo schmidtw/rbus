@@ -108,6 +108,99 @@ void setAllValues(rbusHandle_t handle, TestValueProperty* properties, int index)
     }
 }
 
+void testLargeValues(rbusHandle_t handle)
+{
+    int rc = RBUS_ERROR_SUCCESS;
+    const int BIGSIZE = 5961;
+    char* valueStr = malloc(BIGSIZE);
+    rbusValue_t valBin;
+    int i;
+
+    for(i = 0; i < BIGSIZE-1; ++i)
+        valueStr[i] = (char)(32 + ((i+20) % 96));
+    valueStr[BIGSIZE-1] = 0;
+
+    rc = rbus_setStr(handle, "Device.TestProvider.BigString", valueStr);
+    if(rc ==  RBUS_ERROR_SUCCESS)
+    {
+        char* getResultStr = NULL;
+        rc = rbus_getStr(handle, "Device.TestProvider.BigString", &getResultStr);
+        if(rc ==  RBUS_ERROR_SUCCESS)
+        {
+            if(strcmp(valueStr, getResultStr) != 0)
+            {
+                printf("testLargeValues rbus_getStr BigString doesn't match original\n"); 
+                TALLY(0);
+                /*
+                FILE* f1 = fopen("rbusTestConsumer_value_BigString", "w");
+                fprintf(f1, "orig=[%s]\ngot=[%s]", valueStr, getResultStr);
+                fclose(f1);
+                */
+            }
+            free(getResultStr);
+        }
+        else
+        {
+            printf("testLargeValues rbus_getStr BigString failed err:%d\n", rc); 
+            TALLY(0);
+        }
+    }
+    else
+    {
+        printf("testLargeValues rbus_setStr BigString failed err:%d\n", rc); 
+        TALLY(0);
+    }
+
+    rbusValue_Init(&valBin);
+    rbusValue_SetBytes(valBin, (uint8_t const*)valueStr, BIGSIZE);
+    rc = rbus_set(handle, "Device.TestProvider.BigBytes", valBin, NULL);
+    if(rc ==  RBUS_ERROR_SUCCESS)
+    {
+        rbusValue_t getResultBin = NULL;
+        rc = rbus_get(handle, "Device.TestProvider.BigBytes", &getResultBin);
+        if(rc ==  RBUS_ERROR_SUCCESS)
+        {
+            if(rbusValue_Compare(valBin, getResultBin) == 0)
+            {
+                const uint8_t* getResultBytes = NULL;
+                int getResultBytesLen = 0;
+                getResultBytes = rbusValue_GetBytes(getResultBin, &getResultBytesLen);
+                if(getResultBytesLen == BIGSIZE)
+                {
+                    if(memcmp(getResultBytes, valueStr, BIGSIZE) != 0)
+                    {
+                        printf("testLargeValues rbus_get BigBytes byte doesn't match original\n"); 
+                        TALLY(0);        
+                    }
+                }
+                else
+                {
+                    printf("testLargeValues rbus_get BigBytes byte len not same: %d\n", getResultBytesLen); 
+                    TALLY(0);        
+                }
+            }
+            else
+            {
+                printf("testLargeValues rbus_get BigBytes doesn't match original\n"); 
+                TALLY(0);
+            }
+            rbusValue_Release(getResultBin);
+        }
+        else
+        {
+            printf("testLargeValues rbus_get BigBytes failed err:%d\n", rc); 
+            TALLY(0);
+        }
+    }
+    else
+    {
+        printf("testLargeValues rbus_set BigBytes failed err:%d\n", rc); 
+        TALLY(0);
+    }    
+    rbusValue_Release(valBin);
+    free(valueStr);
+}
+
 void testValue(rbusHandle_t handle, int* countPass, int* countFail)
 {
     TestValueProperty* properties;
@@ -118,6 +211,7 @@ void testValue(rbusHandle_t handle, int* countPass, int* countFail)
     setAllValues(handle, properties, 2);
     getAllValues(handle, properties, 2);
     TestValueProperties_Release(properties);
+    testLargeValues(handle);
     *countPass = gCountPass;
     *countFail = gCountFail;
     PRINT_TEST_RESULTS("_test_Value");
