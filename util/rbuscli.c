@@ -47,7 +47,7 @@ rbus_cli_tlv_t g_tlvParams[RBUS_CLI_MAX_PARAM];
 rbusHandle_t   g_busHandle = 0;
 rtList g_registeredProps = NULL;
 bool g_isInteractive = false;
-bool g_logEvents = false;
+bool g_logEvents = true;
 
 bool matchCmd(const char* sub, size_t lenmin,  const char* full)
 {
@@ -2036,7 +2036,7 @@ char *hints(const char *buf, int *color, int *bold) {
         }
         else if(strcmp(tokens[0], "unreg") == 0)
         {
-            hint = " name";
+            hint = " type(prop,table,event,method) name";
         }
         else if(strcmp(tokens[0], "sub") == 0)
         {

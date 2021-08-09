@@ -464,7 +464,7 @@ int main(int argc, char *argv[])
 
     (void)argc;
     (void)argv;
-
+    int retryCount = 80;
     printf("provider: start\n");
 
     rc = rbus_open(&rbusHandle, componentName);
@@ -474,21 +474,37 @@ int main(int argc, char *argv[])
         goto exit2;
     }
 
-    rc = rbus_regDataElements(rbusHandle, TotalParams, dataElements);
-    if(rc != RBUS_ERROR_SUCCESS)
-    {
-        printf("provider: rbus_regDataElements failed: %d\n", rc);
-        goto exit1;
-    }
-
-    rc = rbus_regDataElements(rbusHandle, 14, allTypeDataElements);
-    if(rc != RBUS_ERROR_SUCCESS)
-    {
-        printf("provider: rbus_regDataElements failed: %d\n", rc);
-        goto exit1;
-    }
     /* Sample Case for Build Response APIs that are proposed */
     _prepare_object_for_future_query();
+
+    while (retryCount--)
+    {
+        rc = rbus_regDataElements(rbusHandle, TotalParams, dataElements);
+        if(rc == RBUS_ERROR_SUCCESS)
+        {
+            printf("provider: rbus_regDataElements Successful:\n");
+            break;
+        }
+        sleep (1);
+    }
+
+    retryCount = 80;
+    while (retryCount--)
+    {
+        rc = rbus_regDataElements(rbusHandle, 14, allTypeDataElements);
+        if(rc == RBUS_ERROR_SUCCESS)
+        {
+            printf("provider: rbus_regDataElements Successful:\n");
+            break;
+        }
+        sleep (1);
+    }
+
+    if(rc != RBUS_ERROR_SUCCESS)
+    {
+        printf("provider: rbus_regDataElements failed: %d\n", rc);
+        goto exit1;
+    }
 
     while(loopFor--)
     {
@@ -499,9 +515,10 @@ int main(int argc, char *argv[])
     rbus_unregDataElements(rbusHandle, TotalParams, dataElements);
     rbus_unregDataElements(rbusHandle, 14, allTypeDataElements);
 
+exit1:
     /* Sample Case for freeing the Response that was prebuilt */
     _release_object_for_future_query();
-exit1:
+
     rbus_close(rbusHandle);
 
 exit2:

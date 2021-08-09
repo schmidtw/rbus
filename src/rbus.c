@@ -1827,6 +1827,8 @@ rbusError_t rbus_open(rbusHandle_t* handle, char const* componentName)
 
     rbusConfig_CreateOnce();
 
+    rtLog_SetLevel(RT_LOG_WARN);
+
     /*
         Per spec: If a component calls this API more than once, any previous busHandle 
         and all previous data element registrations will be canceled.
@@ -2053,7 +2055,7 @@ rbusError_t rbus_regDataElements(
             {
                 RBUSLOG_ERROR("<%s>: failed to add element with core [%s] err=%d!!", __FUNCTION__, name, err);
                 removeElement(node);
-                rc = RBUS_ERROR_OUT_OF_RESOURCES;
+                rc = RBUS_ERROR_ELEMENT_NAME_DUPLICATE;
                 break;
             }
             else
@@ -3949,7 +3951,6 @@ rbusError_t rbus_closeSession(rbusHandle_t handle, uint32_t sessionId)
 
 rbusStatus_t rbus_checkStatus(void)
 {
-    rtLog_SetLevel(RT_LOG_WARN);
     rbuscore_bus_status_t busStatus = rbuscore_checkBusStatus();
 
     return (rbusStatus_t) busStatus;
