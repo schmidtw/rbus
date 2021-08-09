@@ -1023,6 +1023,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
     long long tmpLL = 0;
     unsigned long long tmpULL = 0;
     errno = 0;
+    char *endptr = NULL;
+    char sign = *pStringInput;
     unsigned int tmp_strlen = strlen(pStringInput);
 
     if (pStringInput == NULL)
@@ -1037,10 +1039,15 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         rbusValue_SetBytes(value,(uint8_t const*)pStringInput,tmp_strlen);
         break;
     case RBUS_BOOLEAN:
-        if ((0 == strncasecmp("true", pStringInput, 4)) || (0 == strncasecmp("1", pStringInput, 1)))
+        if (((0 == strncasecmp("true", pStringInput, 4)) && (tmp_strlen == 4)) || ((0 == strncasecmp("1", pStringInput, 1)) && (tmp_strlen == 1)))
             tmpB = true;
-        else if ((0 == strncasecmp("false", pStringInput, 5)) || (0 == strncasecmp("0", pStringInput, 1)))
+        else if (((0 == strncasecmp("false", pStringInput, 5)) && (tmp_strlen == 5)) || ((0 == strncasecmp("0", pStringInput, 1)) && (tmp_strlen == 1)))
             tmpB = false;
+        else
+        {
+            RBUSLOG_INFO ("Invalid input string");
+            return false;
+        }
         rbusValue_SetBoolean(value, tmpB);
         break;
     case RBUS_CHAR:
@@ -1053,8 +1060,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         break;
     case RBUS_INT8:
     {
-        tmpL = strtol (pStringInput, NULL, 0);
-        if ((errno == ERANGE) || (tmpL < INT8_MIN  || tmpL > INT8_MAX))
+        tmpL = strtol (pStringInput, &endptr, 0);
+        if ((pStringInput == endptr) || (*endptr != 0) || (errno == ERANGE) || (tmpL < INT8_MIN  || tmpL > INT8_MAX))
         {
             RBUSLOG_INFO ("Invalid input string");
             return false;
@@ -1064,8 +1071,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
     }
     case RBUS_UINT8:
     {
-        tmpUL = strtoul (pStringInput, NULL, 0);
-        if ((errno == ERANGE) || (tmpUL > UINT8_MAX))
+        tmpUL = strtoul (pStringInput, &endptr, 0);
+        if ((pStringInput == endptr) || (*endptr != 0) || (sign == '-' && tmpUL != 0) || (errno == ERANGE) || (tmpUL > UINT8_MAX))
         {
             RBUSLOG_INFO ("Invalid input string");
             return false;
@@ -1074,8 +1081,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         break;
     }
     case RBUS_INT16:
-        tmpL = strtol (pStringInput, NULL, 0);
-        if ((errno == ERANGE && (tmpL == LONG_MAX || tmpL == LONG_MIN)) || (tmpL > INT16_MAX) || (tmpL < INT16_MIN))
+        tmpL = strtol (pStringInput, &endptr, 0);
+        if ((pStringInput == endptr) || (*endptr != 0) || (errno == ERANGE && (tmpL == LONG_MAX || tmpL == LONG_MIN)) || (tmpL > INT16_MAX) || (tmpL < INT16_MIN))
         {
             RBUSLOG_INFO ("Invalid input string");
             return false;
@@ -1087,8 +1094,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         }
         break;
     case RBUS_INT32:
-        tmpL = strtol (pStringInput, NULL, 0);
-        if ((errno == ERANGE && (tmpL == LONG_MAX || tmpL == LONG_MIN)) || (tmpL > INT32_MAX) || (tmpL < INT32_MIN))
+        tmpL = strtol (pStringInput, &endptr, 0);
+        if ((pStringInput == endptr) || (*endptr != 0) || (errno == ERANGE && (tmpL == LONG_MAX || tmpL == LONG_MIN)) || (tmpL > INT32_MAX) || (tmpL < INT32_MIN))
         {
             RBUSLOG_INFO ("Invalid input string");
             return false;
@@ -1100,8 +1107,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         }
         break;
     case RBUS_INT64:
-        tmpLL = strtoll (pStringInput, NULL, 0);
-        if ((errno == ERANGE && (tmpLL == LLONG_MAX || tmpLL == LLONG_MIN)) || (tmpLL > INT64_MAX) || (tmpLL < INT64_MIN))
+        tmpLL = strtoll (pStringInput, &endptr, 0);
+        if ((pStringInput == endptr) || (*endptr != 0) || (errno == ERANGE && (tmpLL == LLONG_MAX || tmpLL == LLONG_MIN)) || (tmpLL > INT64_MAX) || (tmpLL < INT64_MIN))
         {
             RBUSLOG_INFO ("Invalid input string");
             return false;
@@ -1113,8 +1120,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         }
         break;
     case RBUS_UINT16:
-        tmpUL = strtoul (pStringInput, NULL, 0);
-        if ((errno == ERANGE && (tmpUL == ULONG_MAX || tmpUL == 0)) || (tmpUL > UINT16_MAX))
+        tmpUL = strtoul (pStringInput, &endptr, 0);
+        if ((pStringInput == endptr) || (*endptr != 0) || (sign == '-' && tmpUL != 0) || (errno == ERANGE && (tmpUL == ULONG_MAX || tmpUL == 0)) || (tmpUL > UINT16_MAX))
         {
             RBUSLOG_INFO ("Invalid input string");
             return false;
@@ -1126,8 +1133,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
             break;
         }
     case RBUS_UINT32:
-        tmpUL = strtoul (pStringInput, NULL, 0);
-        if ((errno == ERANGE && (tmpUL == ULONG_MAX || tmpUL == 0)) || (tmpUL > UINT32_MAX))
+        tmpUL = strtoul (pStringInput, &endptr, 0);
+        if ((pStringInput == endptr) || (*endptr != 0) || (sign == '-' && tmpUL != 0) || (errno == ERANGE && (tmpUL == ULONG_MAX || tmpUL == 0)) || (tmpUL > UINT32_MAX))
         {
             RBUSLOG_INFO ("Invalid input string");
             return false;
@@ -1139,8 +1146,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
             break;
         }
     case RBUS_UINT64:
-        tmpULL = strtoull (pStringInput, NULL, 0);
-        if ((errno == ERANGE && (tmpULL == ULLONG_MAX || tmpULL == 0)) || (tmpULL > UINT64_MAX))
+        tmpULL = strtoull (pStringInput, &endptr, 0);
+        if ((pStringInput == endptr) || (*endptr != 0) || (sign == '-' && tmpULL != 0) || (errno == ERANGE && (tmpULL == ULLONG_MAX || tmpULL == 0)) || (tmpULL > UINT64_MAX))
         {
             RBUSLOG_INFO ("Invalid input string");
             return false;
@@ -1152,8 +1159,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
             break;
         }
     case RBUS_SINGLE:
-        tmpF = strtof(pStringInput, NULL);
-        if (errno == ERANGE)
+        tmpF = strtof(pStringInput, &endptr);
+        if ((pStringInput == endptr) || (*endptr != 0) || (errno == ERANGE))
         {
             RBUSLOG_INFO ("Invalid input string");
             return false;
@@ -1164,8 +1171,8 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
             break;
         }
     case RBUS_DOUBLE:
-        tmpD = strtod(pStringInput, NULL);
-        if (errno == ERANGE)
+        tmpD = strtod(pStringInput, &endptr);
+        if ((pStringInput == endptr) || (*endptr != 0) || (errno == ERANGE))
         {
             RBUSLOG_INFO ("Invalid input string");
             return false;
