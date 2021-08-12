@@ -113,30 +113,31 @@ typedef enum _rbusError
     RBUS_ERROR_INVALID_HANDLE,                  /**< Invalid Handle           */
     RBUS_ERROR_SESSION_ALREADY_EXIST,           /**< Session already opened   */
     //Initialization error codes
-    RBUS_ERROR_COMPONENT_NAME_DUPLICATE = 1001, /**< Comp name already exists */
+    RBUS_ERROR_COMPONENT_NAME_DUPLICATE,        /**< Comp name already exists */
     //Element Registration error codes
-    RBUS_ERROR_ELEMENT_NAME_DUPLICATE   = 2001, /**< One or more element name(s)
+    RBUS_ERROR_ELEMENT_NAME_DUPLICATE,          /**< One or more element name(s)
                                                    were previously registered */
     RBUS_ERROR_ELEMENT_NAME_MISSING,            /**< No names were provided in
                                                    the name field             */
     //Discovery operations error codes
-    RBUS_ERROR_COMPONENT_DOES_NOT_EXIST = 3001, /**< A bus connection for this
+    RBUS_ERROR_COMPONENT_DOES_NOT_EXIST,        /**< A bus connection for this
                                                    component name was not
                                                    previously opened.         */
     RBUS_ERROR_ELEMENT_DOES_NOT_EXIST,          /**< One or more data element
                                                    name(s) do not currently have
                                                    a valid registration       */
     //Access Control error codes
-    RBUS_ERROR_ACCESS_NOT_ALLOWED       = 4001, /**< Access to the requested data
+    RBUS_ERROR_ACCESS_NOT_ALLOWED,              /**< Access to the requested data
                                                    element was not permitted by
                                                    the provider component.    */
     //Get Response Builder error codes
-    RBUS_ERROR_INVALID_CONTEXT          = 5001,  /**< The Context is not same as
+    RBUS_ERROR_INVALID_CONTEXT,                 /**< The Context is not same as
                                                     what was sent in the get
                                                     callback handler.         */
 
     RBUS_ERROR_TIMEOUT,                         /**< The operation timedout   */
-    RBUS_ERROR_ASYNC_RESPONSE                   /**< The method request will be handle asynchronously by provider */
+    RBUS_ERROR_ASYNC_RESPONSE,                  /**< The method request will be handle asynchronously by provider */
+    RBUS_ERROR_INVALID_METHOD                   /**< Invalid Method           */
 } rbusError_t;
 
 

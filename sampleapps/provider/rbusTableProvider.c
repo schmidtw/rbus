@@ -143,6 +143,10 @@ rbusError_t tableAddRowHandler1(rbusHandle_t handle, char const* tableName, char
         "\taliasName=%s\n",
         tableName, aliasName);
 
+    if((gDM.t1InstNum) >= MAX_TABLE_ROWS)
+    {
+        return RBUS_ERROR_OUT_OF_RESOURCES;
+    }
     for(i = 0; i < MAX_TABLE_ROWS; ++i)
     {
         T1* t1 = &gDM.t1[i];
@@ -199,6 +203,10 @@ rbusError_t tableAddRowHandler2(rbusHandle_t handle, char const* tableName, char
 
     t1 = findT1(tableName);
 
+    if((gDM.t1InstNum) >= MAX_TABLE_ROWS)
+    {
+        return RBUS_ERROR_OUT_OF_RESOURCES;
+    }
     if(t1)
     {
         int i;

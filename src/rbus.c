@@ -93,12 +93,109 @@ typedef enum _rbus_legacy_returns {
     RBUS_LEGACY_ERR_TIMEOUT = 191,
     RBUS_LEGACY_ERR_NOT_EXIST = 192,
     RBUS_LEGACY_ERR_NOT_SUPPORT = 193,
-    RBUS_LEGACY_ERR_OTHERS
+    RBUS_LEGACY_ERR_RESOURCE_EXCEEDED = 9004,
+    RBUS_LEGACY_ERR_INVALID_PARAMETER_NAME = 9005,
 } rbusLegacyReturn_t;
 
 //********************************************************************************//
 
 //******************************* INTERNAL FUNCTIONS *****************************//
+static rbusError_t rbuscoreError_to_rbusError(rtError e)
+{
+  rbusError_t err;
+  switch (e)
+  {
+    case RTMESSAGE_BUS_SUCCESS:
+      err = RBUS_ERROR_SUCCESS;
+      break;
+    case RTMESSAGE_BUS_ERROR_GENERAL:
+      err = RBUS_ERROR_BUS_ERROR;
+      break;
+    case RTMESSAGE_BUS_ERROR_INVALID_PARAM:
+      err = RBUS_ERROR_INVALID_INPUT;
+      break;
+    case RTMESSAGE_BUS_ERROR_INVALID_STATE:
+      err = RBUS_ERROR_SESSION_ALREADY_EXIST;
+      break;
+    case RTMESSAGE_BUS_ERROR_INSUFFICIENT_MEMORY:
+      err = RBUS_ERROR_OUT_OF_RESOURCES;
+      break;
+    case RTMESSAGE_BUS_ERROR_REMOTE_END_DECLINED_TO_RESPOND:
+      err = RBUS_ERROR_DESTINATION_RESPONSE_FAILURE;
+      break;
+    case RTMESSAGE_BUS_ERROR_REMOTE_END_FAILED_TO_RESPOND:
+      err = RBUS_ERROR_DESTINATION_RESPONSE_FAILURE;
+      break;
+    case RTMESSAGE_BUS_ERROR_REMOTE_TIMED_OUT:
+      err = RBUS_ERROR_TIMEOUT;
+      break;
+    case RTMESSAGE_BUS_ERROR_MALFORMED_RESPONSE:
+      err = RBUS_ERROR_INVALID_RESPONSE_FROM_DESTINATION;
+      break;
+    case RTMESSAGE_BUS_ERROR_UNSUPPORTED_METHOD:
+      err = RBUS_ERROR_INVALID_METHOD;
+      break;
+    case RTMESSAGE_BUS_ERROR_UNSUPPORTED_EVENT:
+      err = RBUS_ERROR_INVALID_EVENT;
+      break;
+    case RTMESSAGE_BUS_ERROR_OUT_OF_RESOURCES:
+      err = RBUS_ERROR_OUT_OF_RESOURCES;
+      break;
+    case RTMESSAGE_BUS_ERROR_DESTINATION_UNREACHABLE:
+      err = RBUS_ERROR_DESTINATION_NOT_REACHABLE;
+      break;
+    case RTMESSAGE_BUS_SUCCESS_ASYNC:
+      err = RBUS_ERROR_ASYNC_RESPONSE;
+      break;
+    case RTMESSAGE_BUS_SUBSCRIBE_NOT_HANDLED:
+      err = RBUS_ERROR_INVALID_OPERATION;
+      break;
+    default:
+      err = RBUS_ERROR_BUS_ERROR;
+      break;
+  }
+  return err;
+}
+
+static rbusError_t CCSPError_to_rbusError(rtError e)
+{
+  rbusError_t err;
+  switch (e)
+  {
+    case RBUS_LEGACY_ERR_SUCCESS:
+      err = RBUS_ERROR_SUCCESS;
+      break;
+    case RBUS_LEGACY_ERR_MEMORY_ALLOC_FAIL:
+      err = RBUS_ERROR_OUT_OF_RESOURCES;
+      break;
+    case RBUS_LEGACY_ERR_FAILURE:
+      err = RBUS_ERROR_BUS_ERROR;
+      break;
+    case RBUS_LEGACY_ERR_NOT_CONNECT:
+      err = RBUS_ERROR_OUT_OF_RESOURCES;
+      break;
+    case RBUS_LEGACY_ERR_TIMEOUT:
+      err = RBUS_ERROR_TIMEOUT;
+      break;
+    case RBUS_LEGACY_ERR_NOT_EXIST:
+      err = RBUS_ERROR_DESTINATION_NOT_FOUND;
+      break;
+    case RBUS_LEGACY_ERR_NOT_SUPPORT:
+      err = RBUS_ERROR_BUS_ERROR;
+      break;
+    case RBUS_LEGACY_ERR_RESOURCE_EXCEEDED:
+      err = RBUS_ERROR_OUT_OF_RESOURCES;
+      break;
+    case RBUS_LEGACY_ERR_INVALID_PARAMETER_NAME:
+      err = RBUS_ERROR_INVALID_INPUT;
+      break;
+    default:
+      err = RBUS_ERROR_BUS_ERROR;
+      break;
+  }
+  return err;
+}
+
 static void rbusEventSubscription_free(void* p)
 {
     rbusEventSubscription_t* sub = (rbusEventSubscription_t*)p;
@@ -2067,7 +2164,7 @@ rbusError_t rbus_get(rbusHandle_t handle, char const* name, rbusValue_t* value)
     if((err = rbus_invokeRemoteMethod(name, METHOD_GETPARAMETERVALUES, request, 6000, &response)) != RTMESSAGE_BUS_SUCCESS)
     {
         RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-        errorcode = RBUS_ERROR_BUS_ERROR;
+        errorcode = rbuscoreError_to_rbusError(err);
     }
     else
     {
@@ -2107,7 +2204,10 @@ rbusError_t rbus_get(rbusHandle_t handle, char const* name, rbusValue_t* value)
         else
         {
             RBUSLOG_WARN("Response from remote method indicates the call failed!!");
-            errorcode = RBUS_ERROR_BUS_ERROR;
+            if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
+            {
+                errorcode = CCSPError_to_rbusError(legacyRetCode);
+            }
         }
 
         rbusMessage_Release(response);
@@ -2164,6 +2264,10 @@ rbusError_t _getExt_response_parser(rbusMessage response, int *numValues, rbusPr
     else
     {
         RBUSLOG_ERROR("Response from remote method indicates the call failed!!");
+        if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
+        {
+            errorcode = CCSPError_to_rbusError(legacyRetCode);
+        }
     }
     rbusMessage_Release(response);
 
@@ -2211,7 +2315,7 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
                     if((err = rbus_invokeRemoteMethod(destinations[i], METHOD_GETPARAMETERVALUES, request, 60000, &response)) != RTMESSAGE_BUS_SUCCESS)
                     {
                         RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-                        errorcode = RBUS_ERROR_BUS_ERROR;
+                        errorcode = rbuscoreError_to_rbusError(err);
                     }
                     else
                     {
@@ -2266,7 +2370,7 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
         if((err = rbus_invokeRemoteMethod(pParamNames[0], METHOD_GETPARAMETERVALUES, request, 6000, &response)) != RTMESSAGE_BUS_SUCCESS)
         {
             RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-            errorcode = RBUS_ERROR_BUS_ERROR;
+            errorcode = rbuscoreError_to_rbusError(err);
         }
         else
             errorcode = _getExt_response_parser(response, numValues, retProperties);
@@ -2361,7 +2465,7 @@ rbusError_t rbus_set(rbusHandle_t handle, char const* name,rbusValue_t value, rb
         if((err = rbus_invokeRemoteMethod(name, METHOD_SETPARAMETERVALUES, setRequest, 6000, &setResponse)) != RTMESSAGE_BUS_SUCCESS)
         {
             RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-            errorcode = RBUS_ERROR_BUS_ERROR;
+            errorcode = rbuscoreError_to_rbusError(err);
         }
         else
         {
@@ -2383,6 +2487,10 @@ rbusError_t rbus_set(rbusHandle_t handle, char const* name,rbusValue_t value, rb
             {
                 rbusMessage_GetString(setResponse, &pErrorReason);
                 RBUSLOG_WARN("Failed to Set the Value for %s", pErrorReason);
+                if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
+                {
+                    errorcode = CCSPError_to_rbusError(legacyRetCode);
+                }
             }
 
             /* Release the reponse message */
@@ -2448,7 +2556,7 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
         if((err = rbus_invokeRemoteMethod(rbusProperty_GetName(properties), METHOD_SETPARAMETERVALUES, setRequest, 6000, &setResponse)) != RTMESSAGE_BUS_SUCCESS)
         {
             RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-            errorcode = RBUS_ERROR_BUS_ERROR;
+            errorcode = rbuscoreError_to_rbusError(err);
         }
         else
         {
@@ -2470,6 +2578,10 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
             {
                 rbusMessage_GetString(setResponse, &pErrorReason);
                 RBUSLOG_WARN("Failed to Set the Value for %s", pErrorReason);
+                if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
+                {
+                    errorcode = CCSPError_to_rbusError(legacyRetCode);
+                }
             }
 
             /* Release the reponse message */
@@ -2622,6 +2734,7 @@ rbusError_t rbusTable_addRow(
     int32_t instanceId = 0;
     rbusMessage request, response;
     (void)handle;
+    rbusLegacyReturn_t legacyRetCode = RBUS_LEGACY_ERR_FAILURE;
 
     RBUSLOG_INFO("%s: %s %s", __FUNCTION__, tableName, aliasName);
 
@@ -2658,17 +2771,33 @@ rbusError_t rbusTable_addRow(
         &response)) != RTMESSAGE_BUS_SUCCESS)
     {
         RBUSLOG_INFO("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-        return RBUS_ERROR_BUS_ERROR;
+        return rbuscoreError_to_rbusError(err);
     }
+    else
+    {
+        rbusMessage_GetInt32(response, &returnCode);
+        rbusMessage_GetInt32(response, &instanceId);
+        legacyRetCode = (rbusLegacyReturn_t)returnCode;
 
-    rbusMessage_GetInt32(response, &returnCode);
-    rbusMessage_GetInt32(response, &instanceId); 
-    rbusMessage_Release(response);
+        if(instNum)
+            *instNum = (uint32_t)instanceId;/*FIXME we need an rbus_PopUInt32 to avoid loosing a bit */
 
-    if(instNum)
-        *instNum = (uint32_t)instanceId;/*FIXME we need an rbus_PopUInt32 to avoid loosing a bit */
-
-    RBUSLOG_INFO("%s rbus_invokeRemoteMethod success response returnCode:%d instanceId:%d", __FUNCTION__, returnCode, instanceId);
+        RBUSLOG_INFO("%s rbus_invokeRemoteMethod success response returnCode:%d instanceId:%d", __FUNCTION__, returnCode, instanceId);
+        if((returnCode == RBUS_ERROR_SUCCESS) || (legacyRetCode == RBUS_LEGACY_ERR_SUCCESS))
+        {
+            returnCode = RBUS_ERROR_SUCCESS;
+            RBUSLOG_DEBUG("Successfully Set the Value");
+        }
+        else
+        {
+            RBUSLOG_WARN("Response from remote method indicates the call failed!!");
+            if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
+            {
+                returnCode = CCSPError_to_rbusError(legacyRetCode);
+            }
+        }
+        rbusMessage_Release(response);
+    }
 
     return returnCode;
 }
@@ -2681,6 +2810,7 @@ rbusError_t rbusTable_removeRow(
     int returnCode = 0;
     rbusMessage request, response;
     (void)handle;
+    rbusLegacyReturn_t legacyRetCode = RBUS_LEGACY_ERR_FAILURE;
 
     RBUSLOG_INFO("%s: %s", __FUNCTION__, rowName);
 #if 0
@@ -2705,13 +2835,29 @@ rbusError_t rbusTable_removeRow(
         &response)) != RTMESSAGE_BUS_SUCCESS)
     {
         RBUSLOG_INFO("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-        return RBUS_ERROR_BUS_ERROR;
+        return rbuscoreError_to_rbusError(err);
     }
+    else
+    {
+        rbusMessage_GetInt32(response, &returnCode);
+        legacyRetCode = (rbusLegacyReturn_t)returnCode;
 
-    rbusMessage_GetInt32(response, &returnCode); //TODO: should we handle this ?
-    rbusMessage_Release(response);
-
-    RBUSLOG_INFO("%s rbus_invokeRemoteMethod success response returnCode:%d", __FUNCTION__, returnCode);
+        RBUSLOG_INFO("%s rbus_invokeRemoteMethod success response returnCode:%d", __FUNCTION__, returnCode);
+        if((returnCode == RBUS_ERROR_SUCCESS) || (legacyRetCode == RBUS_LEGACY_ERR_SUCCESS))
+        {
+            returnCode = RBUS_ERROR_SUCCESS;
+            RBUSLOG_DEBUG("Successfully Set the Value");
+        }
+        else
+        {
+            RBUSLOG_WARN("Response from remote method indicates the call failed!!");
+            if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
+            {
+                returnCode = CCSPError_to_rbusError(legacyRetCode);
+            }
+        }
+        rbusMessage_Release(response);
+    }
 
     return returnCode;
 }
@@ -3290,6 +3436,7 @@ rbusError_t rbusMethod_InvokeInternal(
     rbus_error_t err;
     int returnCode = 0;
     rbusMessage request, response;
+    rbusLegacyReturn_t legacyRetCode = RBUS_LEGACY_ERR_FAILURE;
 
     RBUSLOG_INFO("%s: %s", __FUNCTION__, methodName);
 
@@ -3307,19 +3454,22 @@ rbusError_t rbusMethod_InvokeInternal(
         &response)) != RTMESSAGE_BUS_SUCCESS)
     {
         RBUSLOG_INFO("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-        if(err == RTMESSAGE_BUS_ERROR_REMOTE_TIMED_OUT)
-            return RBUS_ERROR_TIMEOUT;
-        else if(err == RTMESSAGE_BUS_ERROR_DESTINATION_UNREACHABLE)
-            return RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
-        else
-            return RBUS_ERROR_BUS_ERROR;
+        return rbuscoreError_to_rbusError(err);
     }
 
     rbusMessage_GetInt32(response, &returnCode);
+    legacyRetCode = (rbusLegacyReturn_t)returnCode;
 
-    if(returnCode == RBUS_ERROR_SUCCESS)
+    if(returnCode == RBUS_ERROR_SUCCESS || (legacyRetCode == RBUS_LEGACY_ERR_SUCCESS))
     {
         rbusObject_initFromMessage(outParams, response);
+    }
+    else
+    {
+        if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
+        {
+            returnCode = CCSPError_to_rbusError(legacyRetCode);
+        }
     }
 
     rbusMessage_Release(response);
@@ -3447,7 +3597,7 @@ rbusError_t rbus_createSession(rbusHandle_t handle, uint32_t *pSessionId)
         else
         {
             RBUSLOG_ERROR("Failed to communicated with session manager.");
-            rc = RBUS_ERROR_BUS_ERROR;
+            rc = rbuscoreError_to_rbusError(err);
         }
     }
     else
@@ -3485,7 +3635,7 @@ rbusError_t rbus_getCurrentSession(rbusHandle_t handle, uint32_t *pSessionId)
         else
         {
             RBUSLOG_ERROR("Failed to communicated with session manager.");
-            rc = RBUS_ERROR_BUS_ERROR;
+            rc = rbuscoreError_to_rbusError(err);
         }
     }
     else
@@ -3523,7 +3673,7 @@ rbusError_t rbus_closeSession(rbusHandle_t handle, uint32_t sessionId)
         else
         {
             RBUSLOG_ERROR("Failed to communicated with session manager.");
-            rc = RBUS_ERROR_BUS_ERROR;
+            rc = rbuscoreError_to_rbusError(err);
         }
     }
     else
