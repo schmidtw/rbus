@@ -39,21 +39,25 @@ static void eventReceiveHandler(
 
     rbusValue_t newValue = rbusObject_GetValue(event->data, "value");
     rbusValue_t oldValue = rbusObject_GetValue(event->data, "oldValue");
+    rbusValue_t byValue = rbusObject_GetValue(event->data, "by");
     rbusValue_t filter = rbusObject_GetValue(event->data, "filter");
 
     printf("Consumer receiver ValueChange event for param %s\n", event->name);
 
     if(newValue)
-        printf("  New Value: %d\n", rbusValue_GetInt32(newValue));
+        printf("   New Value: %d\n", rbusValue_GetInt32(newValue));
 
     if(oldValue)
-        printf("  Old Value: %d\n", rbusValue_GetInt32(oldValue));
+        printf("   Old Value: %d\n", rbusValue_GetInt32(oldValue));
+
+    if(byValue)
+        printf("   By component: %s\n", rbusValue_GetString(byValue, NULL));
 
     if(filter)
-        printf("  filter: %d\n", rbusValue_GetBoolean(filter));
+        printf("   Filter: %d\n", rbusValue_GetBoolean(filter));
 
     if(subscription->userData)
-        printf("User data: %s\n", (char*)subscription->userData);
+        printf("   User data: %s\n", (char*)subscription->userData);
 }
 
 int main(int argc, char *argv[])
@@ -74,6 +78,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    printf("Subscribing to Device.Provider1.Param1\n");
     /* subscribe to all value change events on property "Device.Provider1.Param1" */
     rc = rbusEvent_Subscribe(
         handle,
@@ -82,7 +87,9 @@ int main(int argc, char *argv[])
         "My User Data",
         0);
 
-    sleep(10);
+    sleep(15);
+
+    printf("Unsubscribing Device.Provider1.Param1\n");
 
     rbusEvent_Unsubscribe(
         handle,
@@ -95,16 +102,18 @@ int main(int argc, char *argv[])
     rbusValue_Init(&filterValue);
     rbusValue_SetInt32(filterValue, 5);
 
-    rbusFilter_InitRelation(&filter, RBUS_FILTER_OPERATOR_GREATER_THAN_OR_EQUAL, filterValue);
+    rbusFilter_InitRelation(&filter, RBUS_FILTER_OPERATOR_GREATER_THAN, filterValue);
 
     subscription.filter = filter;
+
+    printf("Subscribing to Device.Provider1.Param1 with filter > 5\n");
 
     rc = rbusEvent_SubscribeEx(handle, &subscription, 1, 0);
 
     rbusValue_Release(filterValue);
     rbusFilter_Release(filter);
 
-    sleep(runtime-10);
+    sleep(25);
 
     rbus_close(handle);
     return rc;

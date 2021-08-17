@@ -30,44 +30,70 @@
 #include "../common/test_macros.h"
 #include "rbus_config.h"
 
-static int gDuration = 60;
-
-static int vcCount = 1;
+static int gDuration = 67;
 
 typedef struct IntResult
 {
-    int32_t newVal;
-    int32_t oldVal;
-    int32_t filter;
+    int32_t newValExp;
+    int32_t oldValExp;
+    int32_t filterExp;
+    char byExp[64];
+    int32_t newValAct;
+    int32_t oldValAct;
+    int32_t filterAct;
+    char byAct[64];
+    int status;
 } IntResult;
 
 typedef struct StrResult
 {
-    char* newVal;
-    char* oldVal;
-    int32_t filter;
+    char newValExp[64];
+    char oldValExp[64];
+    int32_t filterExp;
+    char byExp[64];
+    char newValAct[64];
+    char oldValAct[64];
+    int32_t filterAct;
+    char byAct[64];
+    int status;
 } StrResult;
 
+typedef struct Counter 
+{
+    int expected;
+    int actual;
+} Counter;
+
+static StrResult simpleResults [3] = {
+    { "value 1", "value 0", -1, "TestProvider", "", "", 0, "", -1 },  { "value 2", "value 1", -1, "TestProvider", "", "", 0, "", -1 }, { "value 3", "value 2", -1, "TestProvider", "", "", 0, "", -1 }
+};
+
 static IntResult intResults[6][5] = {
-    { { 4, 3, 1 }, { 3, 4, 0 }, {0}, {0}, {0} },
-    { { 3, 2, 1 }, { 2, 3, 0 }, {0}, {0}, {0} },
-    { { 3, 2, 0 }, { 2, 3, 1 }, {0}, {0}, {0} },
-    { { 4, 3, 0 }, { 3, 4, 1 }, {0}, {0}, {0} },
-    { { 3, 2, 1 }, { 4, 3, 0 }, { 3, 4, 1 }, { 2, 3, 0 }, {0} },
-    { { 3, 2, 0 }, { 4, 3, 1 }, { 3, 4, 0 }, { 2, 3, 1 }, {0} }
+    {{ 4, 3, 1, "TestProvider", 0, 0, 0, "", -1 }, { 3, 4, 0, "TestProvider", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }},
+    {{ 3, 2, 1, "TestProvider", 0, 0, 0, "", -1 }, { 2, 3, 0, "TestProvider", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }},
+    {{ 3, 2, 0, "TestProvider", 0, 0, 0, "", -1 }, { 2, 3, 1, "TestProvider", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }},
+    {{ 4, 3, 0, "TestProvider", 0, 0, 0, "", -1 }, { 3, 4, 1, "TestProvider", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1 }},
+    {{ 3, 2, 1, "TestProvider", 0, 0, 0, "", -1 }, { 4, 3, 0, "TestProvider", 0, 0, 0, "", -1 }, { 3, 4, 1, "TestProvider", 0, 0, 0, "", -1 }, { 2, 3, 0, "TestProvider", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1}},
+    {{ 3, 2, 0, "TestProvider", 0, 0, 0, "", -1 }, { 4, 3, 1, "TestProvider", 0, 0, 0, "", -1 }, { 3, 4, 0, "TestProvider", 0, 0, 0, "", -1 }, { 2, 3, 1, "TestProvider", 0, 0, 0, "", -1 }, {0, 0, 0, "", 0, 0, 0, "", -1}}
 };
     
 static StrResult strResults[6][5] = {
-    { { "eeee", "dddd", 1 }, { "dddd", "eeee", 0 }, {0}, {0}, {0} },
-    { { "dddd", "cccc", 1 }, { "cccc", "dddd", 0 }, {0}, {0}, {0} },
-    { { "dddd", "cccc", 0 }, { "cccc", "dddd", 1 }, {0}, {0}, {0} },
-    { { "eeee", "dddd", 0 }, { "dddd", "eeee", 1 }, {0}, {0}, {0} },
-    { { "dddd", "cccc", 1 }, { "eeee", "dddd", 0 }, { "dddd", "eeee", 1 }, { "cccc", "dddd", 0 }, {0} },
-    { { "dddd", "cccc", 0 }, { "eeee", "dddd", 1 }, { "dddd", "eeee", 0 }, { "cccc", "dddd", 1 }, {0} }
+    {{ "eeee", "dddd", 1, "TestProvider", "", "", 0, "", -1 }, { "dddd", "eeee", 0, "TestProvider", "", "", 0, "", -1 }, {"", "", 0, "", "", "", 0, "", -1}, {"", "", 0, "", "", "", 0, "", -1}, {"", "", 0, "", "", "", 0, "", -1}},
+    {{ "dddd", "cccc", 1, "TestProvider", "", "", 0, "", -1 }, { "cccc", "dddd", 0, "TestProvider", "", "", 0, "", -1 }, {"", "", 0, "", "", "", 0, "", -1}, {"", "", 0, "", "", "", 0, "", -1}, {"", "", 0, "", "", "", 0, "", -1}},
+    {{ "dddd", "cccc", 0, "TestProvider", "", "", 0, "", -1 }, { "cccc", "dddd", 1, "TestProvider", "", "", 0, "", -1 }, {"", "", 0, "", "", "", 0, "", -1}, {"", "", 0, "", "", "", 0, "", -1}, {"", "", 0, "", "", "", 0, "", -1}},
+    {{ "eeee", "dddd", 0, "TestProvider", "", "", 0, "", -1 }, { "dddd", "eeee", 1, "TestProvider", "", "", 0, "", -1 }, {"", "", 0, "", "", "", 0, "", -1}, {"", "", 0, "", "", "", 0, "", -1}, {"", "", 0, "", "", "", 0, "", -1}},
+    {{ "dddd", "cccc", 1, "TestProvider", "", "", 0, "", -1 }, { "eeee", "dddd", 0, "TestProvider", "", "", 0, "", -1 }, { "dddd", "eeee", 1, "TestProvider", "", "", 0, "", -1 }, { "cccc", "dddd", 0, "TestProvider", "", "", 0, "", -1 }, {"", "", 0, "", "", "", 0, "", -1}},
+    {{ "dddd", "cccc", 0, "TestProvider", "", "", 0, "", -1 }, { "eeee", "dddd", 1, "TestProvider", "", "", 0, "", -1 }, { "dddd", "eeee", 0, "TestProvider", "", "", 0, "", -1 }, { "cccc", "dddd", 1, "TestProvider", "", "", 0, "", -1 }, {"", "", 0, "", "", "", 0, "", -1}}
 };
 
-int intCounters[6] = {0};
-int strCounters[6] = {0};
+static IntResult byResults[3] = {
+    { 1000, 0, -1, "TestConsumer", 0, 0, 0, "", -1}, { 2000, 1000, -1, "TestConsumer", 0, 0, 0, "", -1 }, { 3000, 2000, -1, "TestConsumer", 0, 0, 0, "", -1 }
+};
+
+Counter simpleCounter = {3,0};
+Counter intCounter[6] = {{2,0}, {2,0}, {2,0}, {2,0}, {4,0}, {4,0}};
+Counter strCounter[6] = {{2,0}, {2,0}, {2,0}, {2,0}, {4,0}, {4,0}};
+Counter byCounter = {3,0};
 
 void rbusValueChange_SetPollingPeriod(int seconds);
 
@@ -82,28 +108,28 @@ static void simpleVCHandler(
     rbusEventSubscription_t* subscription)
 {
     (void)(handle);
-    char valExpectNew[32];
-    char valExpectOld[32];
-    char const* valActualNew;
-    char const* valActualOld;
-    bool pass;
+    int count = simpleCounter.actual;    
+    rbusValue_t byVal;
+    const char* byComponent = NULL;
 
-    PRINT_TEST_EVENT("test_ValueChange", event, subscription);
+    PRINT_TEST_EVENT("test_ValueChange_intVCHandler", event, subscription);
 
-    snprintf(valExpectNew, 32, "value %d", vcCount);
-    snprintf(valExpectOld, 32, "value %d", vcCount-1);
+    if(++simpleCounter.actual > simpleCounter.expected)
+    {
+        printf("test_ValueChange_simpleVCHandler Actual events exceeds expected\n");
+        return;
+    }
 
-    valActualNew = rbusValue_GetString(rbusObject_GetValue(event->data, "value"), NULL);
-    valActualOld = rbusValue_GetString(rbusObject_GetValue(event->data, "oldValue"), NULL);
+    byVal = rbusObject_GetValue(event->data, "by");
+    if(byVal)
+        byComponent = rbusValue_GetString(byVal, NULL);
 
-    pass = (strcmp(valExpectNew, valActualNew)==0 && strcmp(valExpectOld, valActualOld)==0);
-
-    TALLY(pass);
-
-    printf("_test_ValueChange %s: expect=[value:%s oldValue:%s] actual=[value:%s oldValue:%s]\n", 
-        pass ? "PASS" : "FAIL", valExpectNew, valExpectOld, valActualNew, valActualOld);
-
-    vcCount++;
+    simpleResults[count].status = 1;
+    strncpy(simpleResults[count].newValAct, rbusObject_GetValue(event->data, "value") ? rbusValue_GetString(rbusObject_GetValue(event->data, "value"), NULL) : "null", 64);
+    strncpy(simpleResults[count].oldValAct, rbusObject_GetValue(event->data, "value") ? rbusValue_GetString(rbusObject_GetValue(event->data, "oldValue"), NULL) : "null", 64);
+    simpleResults[count].filterAct = rbusObject_GetValue(event->data, "filter") ? rbusValue_GetBoolean(rbusObject_GetValue(event->data, "filter")) : -1;
+    if(byComponent)
+        strncpy(simpleResults[count].byAct, byComponent, 64);
 }
 
 static void intVCHandler(
@@ -113,25 +139,28 @@ static void intVCHandler(
 {
     (void)(handle);
     int index = atoi(&event->name[strlen(event->name)-1]);
-    int count = intCounters[index];    
+    int count = intCounter[index].actual;    
+    rbusValue_t byVal;
+    const char* byComponent = NULL;
 
     PRINT_TEST_EVENT("test_ValueChange_intVCHandler", event, subscription);
 
-    int pass =  intResults[index][count].newVal == rbusValue_GetInt32(rbusObject_GetValue(event->data, "value")) &&
-                intResults[index][count].oldVal == rbusValue_GetInt32(rbusObject_GetValue(event->data, "oldValue")) &&
-                intResults[index][count].filter == rbusValue_GetBoolean(rbusObject_GetValue(event->data, "filter"));
-    TALLY(pass);
+    if(++intCounter[index].actual > intCounter[index].expected)
+    {
+        printf("test_ValueChange_intVCHandler %d Actual events exceeds expected\n", index);
+        return;
+    }
 
-    printf("_test_ValueChange_intVCHandler %s: expect=[value:%d oldValue:%d filter:%d] actual=[value:%d oldValue:%d filter:%d]\n", 
-            pass ? "PASS" : "FAIL", 
-            intResults[index][count].newVal, 
-            intResults[index][count].oldVal, 
-            intResults[index][count].filter,
-            rbusValue_GetInt32(rbusObject_GetValue(event->data, "value")), 
-            rbusValue_GetInt32(rbusObject_GetValue(event->data, "oldValue")),
-            rbusValue_GetBoolean(rbusObject_GetValue(event->data, "filter")));
+    byVal = rbusObject_GetValue(event->data, "by");
+    if(byVal)
+        byComponent = rbusValue_GetString(byVal, NULL);
 
-    intCounters[index]++;
+    intResults[index][count].status = 1;
+    intResults[index][count].newValAct = rbusObject_GetValue(event->data, "value") ? rbusValue_GetInt32(rbusObject_GetValue(event->data, "value")) : -1;
+    intResults[index][count].oldValAct = rbusObject_GetValue(event->data, "oldValue") ? rbusValue_GetInt32(rbusObject_GetValue(event->data, "oldValue")) : -1;
+    intResults[index][count].filterAct = rbusObject_GetValue(event->data, "filter") ? rbusValue_GetBoolean(rbusObject_GetValue(event->data, "filter")) : -1;
+    if(byComponent)
+        strncpy(intResults[index][count].byAct, byComponent, 64);
 }
 
 static void stringVCHandler(
@@ -141,50 +170,112 @@ static void stringVCHandler(
 {
     (void)(handle);
     int index = atoi(&event->name[strlen(event->name)-1]);
-    int count = strCounters[index];    
+    int count = strCounter[index].actual;    
+    rbusValue_t byVal;
+    const char* byComponent = NULL;
+
     PRINT_TEST_EVENT("test_ValueChange_stringVCHandler", event, subscription);
-    int pass =  strcmp(strResults[index][count].newVal, rbusValue_GetString(rbusObject_GetValue(event->data, "value"), NULL))==0 &&
-                strcmp(strResults[index][count].oldVal, rbusValue_GetString(rbusObject_GetValue(event->data, "oldValue"), NULL))==0 &&
-                strResults[index][count].filter == rbusValue_GetBoolean(rbusObject_GetValue(event->data, "filter"));
 
-    TALLY(pass);
+    if(++strCounter[index].actual > strCounter[index].expected)
+    {
+        printf("test_ValueChange_strVCHandler %d Actual events exceeds expected\n", index);
+        return;
+    }
 
-    printf("_test_ValueChange_intVCHandler %s: expect=[value:%s oldValue:%s filter:%d] actual=[value:%s oldValue:%s filter:%d]\n", 
-            pass ? "PASS" : "FAIL", 
-            strResults[index][count].newVal, 
-            strResults[index][count].oldVal, 
-            strResults[index][count].filter,
-            rbusValue_GetString(rbusObject_GetValue(event->data, "value"), NULL), 
-            rbusValue_GetString(rbusObject_GetValue(event->data, "oldValue"), NULL),
-            rbusValue_GetBoolean(rbusObject_GetValue(event->data, "filter")));
+    byVal = rbusObject_GetValue(event->data, "by");
+    if(byVal)
+        byComponent = rbusValue_GetString(byVal, NULL);
 
-    strCounters[index]++;
+    strResults[index][count].status = 1;
+    strncpy(strResults[index][count].newValAct, rbusObject_GetValue(event->data, "value") ? rbusValue_GetString(rbusObject_GetValue(event->data, "value"), NULL) : "null", 64);
+    strncpy(strResults[index][count].oldValAct, rbusObject_GetValue(event->data, "value") ? rbusValue_GetString(rbusObject_GetValue(event->data, "oldValue"), NULL) : "null", 64);
+    strResults[index][count].filterAct = rbusObject_GetValue(event->data, "filter") ? rbusValue_GetBoolean(rbusObject_GetValue(event->data, "filter")) : -1;
+    if(byComponent)
+        strncpy(strResults[index][count].byAct, byComponent, 64);
+
 }
 
-void testValueChange(rbusHandle_t handle, int* countPass, int* countFail)
+static void byVCHandler(
+    rbusHandle_t handle,
+    rbusEvent_t const* event,
+    rbusEventSubscription_t* subscription)
+{
+    (void)(handle);
+    int count = byCounter.actual;   
+    rbusValue_t byVal;
+    const char* byComponent = NULL;
+
+    PRINT_TEST_EVENT("test_ValueChange_byVCHandler", event, subscription);
+
+    if(++byCounter.actual > byCounter.expected)
+    {
+        printf("test_ValueChange_byVCHandler Actual events exceeds expected\n");
+        return;
+    }
+
+    byVal = rbusObject_GetValue(event->data, "by");
+    if(byVal)
+        byComponent = rbusValue_GetString(byVal, NULL);
+
+    byResults[count].status = 1;
+    byResults[count].newValAct = rbusObject_GetValue(event->data, "value") ? rbusValue_GetInt32(rbusObject_GetValue(event->data, "value")) : -1;
+    byResults[count].oldValAct = rbusObject_GetValue(event->data, "oldValue") ? rbusValue_GetInt32(rbusObject_GetValue(event->data, "oldValue")) : -1;
+    byResults[count].filterAct = rbusObject_GetValue(event->data, "filter") ? rbusValue_GetBoolean(rbusObject_GetValue(event->data, "filter")) : -1;
+    if(byComponent)
+        strncpy(byResults[count].byAct, byComponent, 64);
+}
+
+void testSimpleValueChange(rbusHandle_t handle)
+{
+    int rc;
+    int i;
+    int maxWait;
+
+    rc = rbusEvent_Subscribe(handle, "Device.TestProvider.VCParam", simpleVCHandler, NULL, 0);
+    TALLY(rc == RBUS_ERROR_SUCCESS);
+    printf("%s _test_ValueChange rbusEvent_Subscribe rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
+
+    maxWait = rc == RBUS_ERROR_SUCCESS ? 15 : 0;
+    while(simpleCounter.actual < simpleCounter.expected && maxWait > 0)
+    {
+        sleep(1);
+        maxWait--;
+    }
+
+    for(i = 0; i < simpleCounter.expected; ++i)
+    {
+        int pass = 
+            !strcmp(simpleResults[i].newValAct, simpleResults[i].newValExp) &&
+            !strcmp(simpleResults[i].oldValAct, simpleResults[i].oldValExp) &&
+            simpleResults[i].filterAct == simpleResults[i].filterExp &&
+            !strcmp(simpleResults[i].byAct, simpleResults[i].byExp);
+        TALLY(pass);
+        printf("%s _test_ValueChange Device.TestProvider.VCParam %d expect=[value:%s oldValue:%s filter:%d by:%s] actual=[value:%s oldValue:%s filter:%d by:%s]\n", 
+                pass ? "PASS" : "FAIL",
+                i,
+                simpleResults[i].newValExp, 
+                simpleResults[i].oldValExp, 
+                simpleResults[i].filterExp,
+                simpleResults[i].byExp,
+                simpleResults[i].newValAct, 
+                simpleResults[i].oldValAct, 
+                simpleResults[i].filterAct,
+                simpleResults[i].byAct);
+    }
+
+    rc = rbusEvent_Unsubscribe(handle, "Device.TestProvider.VCParam");
+    TALLY(rc == RBUS_ERROR_SUCCESS);
+    printf("%s _test_ValueChange rbusEvent_Unsubscribe rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);    
+}
+
+void testTypesValueChange(rbusHandle_t handle)
 {
     int rc;
     int i;
     rbusValue_t intVal, strVal;
     rbusFilter_t filter[12];
-
-    rbusConfig_Get()->valueChangePeriod = 1;
-
-    /*
-     *test simply subscribe
-     */
-
-    rc = rbusEvent_Subscribe(handle, "Device.TestProvider.VCParam", simpleVCHandler, NULL, 0);
-    TALLY(rc == RBUS_ERROR_SUCCESS);
-    printf("_test_ValueChange rbusEvent_Subscribe %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
-    if(rc != RBUS_ERROR_SUCCESS)
-        goto exit0;
-
-    sleep(12);
-
-    rc = rbusEvent_Unsubscribe(handle, "Device.TestProvider.VCParam");
-    TALLY(rc == RBUS_ERROR_SUCCESS);
-    printf("_test_ValueChange rbusEvent_Unsubscribe %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
+    int maxWait;
+    int needMore;
 
     /*
      * test subscribeEx with all filter types
@@ -233,18 +324,153 @@ void testValueChange(rbusHandle_t handle, int* countPass, int* countFail)
         rbusFilter_Release(filter[i]);
 
     TALLY(rc == RBUS_ERROR_SUCCESS);
-    printf("_test_ValueChange rbusEvent_SubscribeEx %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
-    if(rc != RBUS_ERROR_SUCCESS)
-        goto exit0;
+    printf("%s _test_ValueChange rbusEvent_SubscribeEx rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
 
-    sleep(gDuration-12);
+
+    maxWait = rc == RBUS_ERROR_SUCCESS ? 48 : 0;
+    needMore = 1;
+    while(needMore && maxWait > 0)
+    {
+        sleep(1);
+        maxWait--;
+        needMore = 0;
+        for(i = 0; i < 6; ++i)
+        {
+            if(intCounter[i].actual < intCounter[i].expected)
+                needMore = 1;
+        }
+    }
+
+    for(i = 0; i < 6; ++i)
+    {
+        int j;
+        int pass;
+        
+        pass  = intCounter[i].actual >= intCounter[i].expected;
+        TALLY(pass);
+        printf("%s _test_ValueChange Device.TestProvider.VCParamInt%d expected count=%d actual count=%d\n", pass ? "PASS" : "FAIL", i, intCounter[i].expected, intCounter[i].actual);
+        for(j = 0; j < intCounter[i].expected; ++j)
+        {
+            int pass = 
+                intResults[i][j].newValAct == intResults[i][j].newValExp &&
+                intResults[i][j].oldValAct == intResults[i][j].oldValExp &&
+                intResults[i][j].filterAct == intResults[i][j].filterExp &&
+                !strcmp(intResults[i][j].byAct, intResults[i][j].byExp);
+            TALLY(pass);
+            printf("%s _test_ValueChange Device.TestProvider.VCParamInt%d expect=[value:%d oldValue:%d filter:%d by:%s] actual=[value:%d oldValue:%d filter:%d by:%s]\n", 
+                    pass ? "PASS" : "FAIL", 
+                    i,
+                    intResults[i][j].newValExp, 
+                    intResults[i][j].oldValExp, 
+                    intResults[i][j].filterExp,
+                    intResults[i][j].byExp,
+                    intResults[i][j].newValAct, 
+                    intResults[i][j].oldValAct, 
+                    intResults[i][j].filterAct,
+                    intResults[i][j].byAct);
+        }
+    }
+
+    for(i = 0; i < 6; ++i)
+    {
+        int j;
+        int pass;
+        
+        pass  = strCounter[i].actual >= strCounter[i].expected;
+        TALLY(pass);
+        printf("%s _test_ValueChange Device.TestProvider.VCParamStr%d expected count=%d actual count=%d\n", pass ? "PASS" : "FAIL", i, intCounter[i].expected, intCounter[i].actual);
+        for(j = 0; j < strCounter[i].expected; ++j)
+        {
+            int pass = 
+                !strcmp(strResults[i][j].newValAct, strResults[i][j].newValExp) &&
+                !strcmp(strResults[i][j].oldValAct, strResults[i][j].oldValExp) &&
+                strResults[i][j].filterAct == strResults[i][j].filterExp &&
+                !strcmp(strResults[i][j].byAct, strResults[i][j].byExp);
+            TALLY(pass);
+            printf("%s _test_ValueChange Device.TestProvider.VCParamStr%d expect=[value:%s oldValue:%s filter:%d by:%s] actual=[value:%s oldValue:%s filter:%d by:%s]\n", 
+                    pass ? "PASS" : "FAIL",
+                    i,
+                    strResults[i][j].newValExp, 
+                    strResults[i][j].oldValExp, 
+                    strResults[i][j].filterExp,
+                    strResults[i][j].byExp,
+                    strResults[i][j].newValAct, 
+                    strResults[i][j].oldValAct, 
+                    strResults[i][j].filterAct,
+                    strResults[i][j].byAct);
+        }
+    }
 
     rc = rbusEvent_UnsubscribeEx(handle, subscription, 12);
     TALLY(rc == RBUS_ERROR_SUCCESS);
-    printf("_test_ValueChange rbusEvent_UnsubscribeEx %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
+    printf("%s _test_ValueChange rbusEvent_UnsubscribeEx rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);    
+}
 
-    /*test filters on strings*/
-exit0:
+void testByValueChange(rbusHandle_t handle)
+{
+    int rc;
+    int i;
+    int maxWait;
+
+    /*test the 'by' field*/
+    rc = rbusEvent_Subscribe(handle, "Device.TestProvider.VCParamBy", byVCHandler, NULL, 0);
+    TALLY(rc == RBUS_ERROR_SUCCESS);
+    printf("%s _test_ValueChange rbusEvent_Subscribe VCParamBy rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);
+
+    for(i = 0; i < 3; ++i)
+    {
+        int pass;
+        
+        rc = rbus_setInt(handle, "Device.TestProvider.VCParamBy", (i+1)*1000);
+        pass = rc == RBUS_ERROR_SUCCESS;
+        printf("%s _test_ValueChange Device.TestProvider.VCParamBy %d rbus_setInt rc=%d\n", pass ? "PASS" : "FAIL", i, rc);
+
+        maxWait = pass ? 5 : 0;
+        while(byCounter.actual == i && maxWait > 0)
+        {
+            sleep(1);
+            maxWait--;
+        }
+
+        pass  = byCounter.actual == i+1;
+        TALLY(pass);
+        if(pass)
+            printf("PASS _test_ValueChange Device.TestProvider.VCParamBy received event\n");
+        else
+            printf("FAIL _test_ValueChange Device.TestProvider.VCParamBy didn't receive event\n");
+
+        pass = 
+            byResults[i].newValAct == byResults[i].newValExp &&
+            byResults[i].oldValAct == byResults[i].oldValExp &&
+            byResults[i].filterAct == byResults[i].filterExp &&
+            !strcmp(byResults[i].byAct, byResults[i].byExp);
+        TALLY(pass);
+        printf("%s _test_ValueChangeDevice.TestProvider.VCParamBy %d expect=[value:%d oldValue:%d filter:%d by:%s] actual=[value:%d oldValue:%d filter:%d by:%s]\n", 
+                pass ? "PASS" : "FAIL", 
+                i,
+                byResults[i].newValExp, 
+                byResults[i].oldValExp, 
+                byResults[i].filterExp,
+                byResults[i].byExp,
+                byResults[i].newValAct, 
+                byResults[i].oldValAct, 
+                byResults[i].filterAct,
+                byResults[i].byAct);
+    }    
+}
+
+void testValueChange(rbusHandle_t handle, int* countPass, int* countFail)
+{
+    rbusConfig_Get()->valueChangePeriod = 1;
+#if 1
+    testSimpleValueChange(handle);
+#endif
+#if 1
+    testTypesValueChange(handle);
+#endif
+#if 1
+    testByValueChange(handle);
+#endif
     *countPass = gCountPass;
     *countFail = gCountFail;
     PRINT_TEST_RESULTS("test_ValueChange");

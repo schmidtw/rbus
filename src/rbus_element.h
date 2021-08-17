@@ -25,6 +25,7 @@
 #include <rbus_core.h>
 #include <rtList.h>
 #include <rtVector.h>
+#include <rtTime.h>
 #include "rbus_log.h"
 
 #ifdef __cplusplus
@@ -47,6 +48,8 @@ typedef struct elementNode
     rbusCallbackTable_t     cbTable;        /* Callback table for the element */
     rtList                  subscriptions;  /* The list of rbusSubscription_t to this element */
     char*                   alias;          /* For table rows */
+    char*                   changeComp;     /* For properties, the last component to set the value */
+    rtTime_t                changeTime;     /* For properties, the time the value was last set*/
 } elementNode;
 
 
@@ -66,6 +69,7 @@ void addInstanceToElement(elementNode* node, uint32_t instNum, char const* alias
 elementNode* instantiateTableRow(elementNode* tableNode, uint32_t instNum, char const* alias);
 void deleteTableRow(elementNode* rowNode);
 void getPropertyInstanceNames(elementNode* root, char const* query, rtVector propNameList);
+void setPropertyChangeComponent(elementNode* node, char const* componentName);
 
 #ifdef __cplusplus
 }

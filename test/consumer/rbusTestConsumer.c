@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 
     printf("consumer: start\n");
 
-    rc = rbus_open(&handle, "EventConsumer");
+    rc = rbus_open(&handle, "TestConsumer");
     printf("consumer: rbus_open=%d\n", rc);
     if(rc != RBUS_ERROR_SUCCESS)
         goto exit1;

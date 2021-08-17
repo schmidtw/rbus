@@ -1182,6 +1182,10 @@ static void _set_callback_handler (rbusHandle_t handle, rbusMessage request, rbu
                         pFailedElement = paramName;
                         break;
                     }
+                    else
+                    {
+                        setPropertyChangeComponent(el, pCompName);
+                    }
                 }
                 else
                 {

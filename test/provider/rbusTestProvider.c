@@ -40,7 +40,7 @@ char componentName[RBUS_MAX_NAME_LENGTH] = "TestProvider";
 TestValueProperty* gTestValues;
 rbusValue_t gBigString = NULL;
 rbusValue_t gBigBytes = NULL;
-
+int32_t gByValue = 0;
 /*
  * Generic Data Model Tree Structure
  */
@@ -812,6 +812,29 @@ rbusError_t getVCStrHandler(rbusHandle_t handle, rbusProperty_t property, rbusGe
     return RBUS_ERROR_SUCCESS;
 }
 
+rbusError_t getVCByHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+    rbusValue_t value;
+    rbusValue_Init(&value);
+    rbusValue_SetInt32(value, gByValue);
+    rbusProperty_SetValue(property, value);
+    rbusValue_Release(value);
+    printf("getVCByHandler [%s]=[%d]\n", rbusProperty_GetName(property), gByValue);
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t setVCByHandler(rbusHandle_t handle, rbusProperty_t property, rbusSetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+    gByValue = rbusValue_GetInt32(rbusProperty_GetValue(property));
+    printf("setVCByHandler [%s]=[%d]\n", rbusProperty_GetName(property), gByValue);
+    return RBUS_ERROR_SUCCESS;
+}
+
+
 typedef struct MethodData
 {
     rbusMethodAsyncHandle_t asyncHandle;
@@ -1257,7 +1280,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    #define numDataElems 48
+    #define numDataElems 49
 
     rbusDataElement_t dataElement[numDataElems] = {
         {"Device.%s.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler, NULL}},
@@ -1277,6 +1300,7 @@ int main(int argc, char *argv[])
         {"Device.%s.VCParamStr3", RBUS_ELEMENT_TYPE_PROPERTY, {getVCStrHandler,NULL,NULL,NULL,NULL, NULL}},
         {"Device.%s.VCParamStr4", RBUS_ELEMENT_TYPE_PROPERTY, {getVCStrHandler,NULL,NULL,NULL,NULL, NULL}},
         {"Device.%s.VCParamStr5", RBUS_ELEMENT_TYPE_PROPERTY, {getVCStrHandler,NULL,NULL,NULL,NULL, NULL}},
+        {"Device.%s.VCParamBy",   RBUS_ELEMENT_TYPE_PROPERTY, {getVCByHandler,setVCByHandler,NULL,NULL,NULL, NULL}},
         {"Device.%s.Table1.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler, NULL}},
         {"Device.%s.Table1.{i}.Table2.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler, NULL}},
         {"Device.%s.Table1.{i}.Table2.{i}.Table3.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableAddRowHandler, tableRemoveRowHandler, eventSubHandler, NULL}},

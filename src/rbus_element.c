@@ -81,6 +81,10 @@ static void freeElementRecurse(elementNode* node)
     {
         rtList_Destroy(node->subscriptions, NULL);
     }
+    if (node->changeComp)
+    {
+        free(node->changeComp);
+    }
 
     free(node);
 
@@ -135,7 +139,10 @@ void freeElementNode(elementNode* node)
     {
         rtList_Destroy(node->subscriptions, NULL);
     }
-
+    if (node->changeComp)
+    {
+        free(node->changeComp);
+    }
     free(node);
 
     /*remove objects with no children
@@ -1116,3 +1123,12 @@ void replicateAcrossTableRowInstances(elementNode* newNode)
     free(chain);
 }
 
+void setPropertyChangeComponent(elementNode* node, char const* componentName)
+{
+    if(node->changeComp)
+        free(node->changeComp);
+    if(componentName)
+        node->changeComp = strdup(componentName);
+    rtTime_Now(&node->changeTime);
+
+}
