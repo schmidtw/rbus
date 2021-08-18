@@ -447,7 +447,7 @@ char *getDataType_toString(rbusValueType_t type)
         pTextData = "bytes";
         break;
     case RBUS_SINGLE:
-        pTextData = "float";
+        pTextData = "single";
         break;
     case RBUS_DOUBLE:
         pTextData = "double";
