@@ -114,6 +114,16 @@ void show_menu(const char* command)
             printf ("\tget Example.SomeTable.1\n\r");
             printf ("\n\r");
         }
+        else if(matchCmd(command, 5, "discallcomponents"))
+        {
+            printf ("\e[1mdisca\e[0mllcomponents\n\r");
+            printf ("Get a list of all components registered with the bus.\n\r");
+            printf ("Returns:\n\r");
+            printf ("\tList of components\n\r");
+            printf ("Examples:\n\r");
+            printf ("\tdisca\n\r");
+            printf ("\n\r");
+        }
         else if(matchCmd(command, 5, "disccomponents"))
         {
             printf ("\e[1mdiscc\e[0momponents \e[4melement\e[0m [\e[4melement\e[0m \e[4m...\e[0m]\n\r");
@@ -123,8 +133,8 @@ void show_menu(const char* command)
             printf ("Returns:\n\r");
             printf ("\tList of component, one per element\n\r");
             printf ("Examples:\n\r");
-            printf ("\tgetc Example.Prop1\n\r");
-            printf ("\tgetc Example.Prop1 Another.Prop2\n\r");
+            printf ("\tdiscc Example.Prop1\n\r");
+            printf ("\tdiscc Example.Prop1 Another.Prop2\n\r");
             printf ("\n\r");
         }
         else if(matchCmd(command, 5, "discelements"))
@@ -136,20 +146,20 @@ void show_menu(const char* command)
             printf ("Returns:\n\r");
             printf ("\tValue for each parameter\n\r");
             printf ("Examples:\n\r");
-            printf ("\tgetc Example.Prop1\n\r");
-            printf ("\tgetc Example.Prop1 Another.Prop2\n\r");
+            printf ("\tdisce ComponentA\n\r");
+            printf ("\tdisce ComponentA ComponentB\n\r");
             printf ("\n\r");
         }
-        else if(matchCmd(command, 5, "discallcomponents"))
+        else if(matchCmd(command, 5, "discwildcarddests"))
         {
-            printf ("\e[1mdisca\e[0mllcomponents\n\r");
-            printf ("Get a list of all components registered with the bus.\n\r");
+            printf ("\e[1mdiscw\e[0mildcarddests\n\r");
+            printf ("Get the list of components handling a wildcard/partial path query.\n\r");
             printf ("Returns:\n\r");
             printf ("\tList of components\n\r");
             printf ("Examples:\n\r");
-            printf ("\tgeta\n\r");
+            printf ("\tdiscw Device.DeviceInfo.\n\r");
             printf ("\n\r");
-        }
+        }        
         else if(matchCmd(command, 3, "register"))
         {
             printf ("\e[1mreg\e[0mister \e[4mtype\e[0m \e[4mname\e[0m\n\r"); //(property,event,table)
@@ -305,9 +315,10 @@ void show_menu(const char* command)
         printf ("\t\e[1madd\e[0mrow \e[4mtable\e[0m [alias]\n\r");
         printf ("\t\e[1mdel\e[0mrow \e[4mrow\e[0m\n\r");
         printf ("\t\e[1mdiscc\e[0momponents \e[4melement\e[0m [\e[4melement\e[0m \e[4m...\e[0m]\n\r");
+        printf ("\t\e[1mdisca\e[0mllcomponents\n\r");
         printf ("\t\e[1mdisce\e[0mlements \e[4mcomponent\e[0m\n\r");
         printf ("\t\e[1mdisce\e[0mlements \e[4mpartial-path\e[0m immediate/all\n\r");
-        printf ("\t\e[1mdisca\e[0mllcomponents\n\r");
+        printf ("\t\e[1mdiscw\e[0mildcarddests\n\r");
         if(!g_isInteractive)    
         {
             printf ("\t\e[1mhelp\e[0m [\e[4mcommand\e[0m]\n\r");
@@ -660,8 +671,7 @@ static bool verify_rbus_open()
 }
 void execute_discover_registered_components_cmd(int argc, char* argv[])
 {
-    rbus_error_t ret = RTMESSAGE_BUS_SUCCESS;
-    int loopCnt = 0;
+    rbus_error_t rc = RTMESSAGE_BUS_SUCCESS;
     int componentCnt = 0;
     char **pComponentNames;
 
@@ -671,20 +681,21 @@ void execute_discover_registered_components_cmd(int argc, char* argv[])
     if (!verify_rbus_open())
         return;
 
-    ret = rbus_discoverRegisteredComponents(&componentCnt, &pComponentNames);
-    if(RTMESSAGE_BUS_SUCCESS == ret)
+    rc = rbus_discoverRegisteredComponents(&componentCnt, &pComponentNames);
+    if(RTMESSAGE_BUS_SUCCESS == rc)
     {
+        int i;
         printf ("Discovered registered components..\n\r");
-        for (loopCnt = 0; loopCnt < componentCnt; loopCnt++)
+        for (i = 0; i < componentCnt; i++)
         {
-            printf ("\tComponent %d: %s\n\r", (loopCnt + 1), pComponentNames[loopCnt]);
-            free(pComponentNames[loopCnt]);
+            printf ("\tComponent %d: %s\n\r", (i + 1), pComponentNames[i]);
+            free(pComponentNames[i]);
         }
         free(pComponentNames);
     }
     else
     {
-        printf ("Failed to discover component. Error Code = %s\n\r", "");
+        printf ("Failed to discover components. Error Code = %d\n\r", rc);
     }
 }
 
@@ -692,34 +703,34 @@ void execute_discover_component_cmd(int argc, char* argv[])
 {
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     int elementCnt = argc - 2;
-    int loopCnt = 0;
     int index = 0;
+    int i;
     int componentCnt = 0;
     char **pComponentNames;
-    char *pElementNames[RBUS_CLI_MAX_PARAM] = {0, 0};
+    char const* pElementNames[RBUS_CLI_MAX_PARAM] = {0, 0};
 
     if (!verify_rbus_open())
         return;
 
-    for (index = 0, loopCnt = 2; index < elementCnt; index++, loopCnt++)
+    for (index = 0, i = 2; index < elementCnt; index++, i++)
     {
-        pElementNames[index] = argv[loopCnt];
+        pElementNames[index] = argv[i];
     }
 
     rc = rbus_discoverComponentName (g_busHandle, elementCnt, pElementNames, &componentCnt, &pComponentNames);
     if(RBUS_ERROR_SUCCESS == rc)
     {
         printf ("Discovered components for the given elements.\n\r");
-        for (loopCnt = 0; loopCnt < componentCnt; loopCnt++)
+        for (i = 0; i < componentCnt; i++)
         {
-            printf ("\tComponent %d: %s\n\r", (loopCnt + 1), pComponentNames[loopCnt]);
-            free(pComponentNames[loopCnt]);
+            printf ("\tComponent %d: %s\n\r", (i + 1), pComponentNames[i]);
+            free(pComponentNames[i]);
         }
         free(pComponentNames);
     }
     else
     {
-        printf ("Failed to discover component. Error Code = %s\n\r", "");
+        printf ("Failed to discover components. Error Code = %d\n\r", rc);
     }
 }
 
@@ -729,7 +740,6 @@ void execute_discover_elements_cmd(int argc, char *argv[])
     int numOfInputParams = argc - 2;
     bool nextLevel = true;
     int numElements = 0;
-    int loopCnt = 0;
     char** pElementNames; // FIXME: every component will have more than RBUS_CLI_MAX_PARAM elements right?
 
     if (!verify_rbus_open())
@@ -748,11 +758,12 @@ void execute_discover_elements_cmd(int argc, char *argv[])
     {
         if(numElements)
         {
+            int i;
             printf ("Discovered elements are:\n\r");
-            for (loopCnt = 0; loopCnt < numElements; loopCnt++)
+            for (i = 0; i < numElements; i++)
             {
-                printf ("\tElement %d: %s\n\r", (loopCnt + 1), pElementNames[loopCnt]);
-                free(pElementNames[loopCnt]);
+                printf ("\tElement %d: %s\n\r", (i + 1), pElementNames[i]);
+                free(pElementNames[i]);
             }
             free(pElementNames);
         }
@@ -763,7 +774,50 @@ void execute_discover_elements_cmd(int argc, char *argv[])
     }
     else
     {
-        printf ("Failed to discover element array. Error Code = %s\n\r", "");
+        printf ("Failed to discover elements. Error Code = %d\n\r", rc);
+    }
+}
+
+void execute_discover_wildcard_dests_cmd(int argc, char* argv[])
+{
+    rbus_error_t rc = RTMESSAGE_BUS_SUCCESS;
+    int numDestinations = 0;
+    char** destinations;
+
+    (void)argc;
+    (void)argv;
+printf("argc=%d", argc);
+    if (argc < 3)
+    {
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
+
+    if (!verify_rbus_open())
+        return;
+
+    rc = rbus_discoverWildcardDestinations(argv[2], &numDestinations, &destinations);
+    
+    if(RTMESSAGE_BUS_SUCCESS == rc)
+    {
+        if (numDestinations)
+        {
+            int i;
+            for(i = 0; i < numDestinations; i++)
+            {
+                printf ("\tComponent %d: %s\n\r", (i + 1), destinations[i]);
+                free(destinations[i]);
+            }
+            free(destinations);
+        }
+        else
+        {
+            printf("No destinations discovered.\n\r");
+        }
+    }
+    else
+    {
+        printf ("Failed to discover components. Error Code = %d\n\r", rc);
     }
 }
 
@@ -792,7 +846,7 @@ void validate_and_execute_get_cmd (int argc, char *argv[])
 
     if(numOfInputParams == 1)
     {
-        if(pInputParam[0][strlen(pInputParam[0])-1] == '.')
+        if(pInputParam[0][strlen(pInputParam[0])-1] == '.' || strchr(pInputParam[0], '*'))
             isWildCard = true;
     }
 
@@ -808,7 +862,9 @@ void validate_and_execute_get_cmd (int argc, char *argv[])
         }
     }
     else
+    {
         rc = rbus_getExt(g_busHandle, numOfInputParams, pInputParam, &numOfOutVals, &outputVals);
+    }
 
     if(RBUS_ERROR_SUCCESS == rc)
     {
@@ -1485,6 +1541,10 @@ int handle_cmds (int argc, char *argv[])
     {
         execute_discover_registered_components_cmd(argc, argv);
     }
+    else if(matchCmd(command, 5, "discwildcarddests"))
+    {
+        execute_discover_wildcard_dests_cmd(argc, argv);
+    }
     else if(matchCmd(command, 3, "addrow"))
     {
         validate_and_execute_addrow_cmd (argc, argv);
@@ -1688,7 +1748,7 @@ void completion(const char *buf, linenoiseCompletions *lc) {
 
     if(num == 1)
     {
-        completion = find_completion(tokens[0], 14, "get", "set", "add", "del", "discr", "discc", "disce", "sub", "unsub", "reg", "unreg", "pub", "addl", "reml", "send", "log", "quit", "help");
+        completion = find_completion(tokens[0], 14, "get", "set", "add", "del", "disca", "discc", "disce", "discw", "sub", "unsub", "reg", "unreg", "pub", "addl", "reml", "send", "log", "quit", "help");
     }
     else if(num == 2)
     {
@@ -1769,6 +1829,10 @@ char *hints(const char *buf, int *color, int *bold) {
         else if(strcmp(tokens[0], "disce") == 0)
         {
             hint = " component";
+        }
+        else if(strcmp(tokens[0], "discw") == 0)
+        {
+            hint = " expression";
         }
         else if(strcmp(tokens[0], "reg") == 0)
         {
@@ -1873,7 +1937,13 @@ int main( int argc, char *argv[] )
                     linenoiseHistoryAdd(line);
 
                     if(construct_input_into_cmds(line, &interArgc, interArgv) == 0)
+                    {
+                        int i;
                         isExit = handle_cmds (interArgc, interArgv);
+                        for(i = 1; i < interArgc; ++i)
+                            if(interArgv[i])
+                                free(interArgv[i]);
+                    }
                     else
                         printf("Command missing quotes\n\r");
                 }

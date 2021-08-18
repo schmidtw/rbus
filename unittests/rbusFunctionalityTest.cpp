@@ -422,7 +422,7 @@ static int rbusConsumer(rbusGtest_t test)
     case RBUS_GTEST_DISC_COMP:
       {
         int i;
-        char* elementNames1[] = {"Device.Provider1.Param1"};
+        char const* elementNames1[] = {"Device.Provider1.Param1"};
         int numComponents = 0;
         char **componentName = NULL;
 

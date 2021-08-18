@@ -658,7 +658,7 @@ rbusError_t rbus_close(
 /** @fn rbusError_t rbus_discoverComponentName (
  *          rbusHandle_t handle,
  *          int numElements, 
- *          char** elementNames,
+ *          char const** elementNames,
  *          int *numComponents, 
  *          char **componentName)
  *  @brief This allows a component to get a list of components that provide
@@ -678,13 +678,13 @@ rbusError_t rbus_close(
 rbusError_t rbus_discoverComponentName(
     rbusHandle_t handle,
     int numElements,
-    char** elementNames,
+    char const** elementNames,
     int *numComponents,
     char ***componentName);
 
 /** @fn rbusError_t rbus_discoverComponentDataElements(
  *          rbusHandle_t handle,
- *          char* name,
+ *          char const* name,
  *          bool nextLevel,
  *          int *numElements,
  *          char** elementNames)
@@ -706,7 +706,7 @@ rbusError_t rbus_discoverComponentName(
  */
 rbusError_t rbus_discoverComponentDataElements(
     rbusHandle_t handle,
-    char* name,
+    char const* name,
     bool nextLevel,
     int *numElements,
     char*** elementNames);
