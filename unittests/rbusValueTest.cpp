@@ -56,6 +56,14 @@ TEST(rbusValueTest, validate_bool)
   EXPECT_EQ(rbusValue_GetType(val), RBUS_BOOLEAN);
   EXPECT_EQ(rbusValue_GetBoolean(val), true);
 
+  rbusValue_SetBoolean(val, 1);
+  EXPECT_EQ(rbusValue_GetType(val), RBUS_BOOLEAN);
+  EXPECT_EQ(rbusValue_GetBoolean(val), true);
+
+  rbusValue_SetBoolean(val, 0);
+  EXPECT_EQ(rbusValue_GetType(val), RBUS_BOOLEAN);
+  EXPECT_EQ(rbusValue_GetBoolean(val), false);
+
   rbusValue_Release(val);
 }
 
@@ -152,14 +160,19 @@ static void exec_validate_neg_test(rbusValueType_t type,char *buffer)
   char *pRet = NULL;
 
   rbusValue_Init(&val);
-  if(type == RBUS_SINGLE || type == RBUS_DOUBLE) {
+  if(type == RBUS_SINGLE || type == RBUS_DOUBLE || type == RBUS_DATETIME || type == RBUS_STRING ||
+    type == RBUS_BYTE || type == RBUS_BOOLEAN || type == RBUS_CHAR) {
     EXPECT_EQ(rbusValue_SetFromString(val,type,buffer),true);
   } else {
     EXPECT_NE(rbusValue_SetFromString(val,type,buffer),true);
     EXPECT_NE(rbusValue_GetType(val), type);
   }
   pRet = rbusValue_ToString(val, NULL, 0);
+  if(type == RBUS_STRING || type == RBUS_CHAR) {
+  EXPECT_STREQ(pRet,buffer);
+  } else {
   EXPECT_STRNE(pRet,buffer);
+  }
   rbusValue_Release(val);
   free(pRet);
 }
@@ -481,6 +494,89 @@ TEST(rbusValueTestNeg, validate_bytes)
   bytes[0] += 1;
   EXPECT_NE(memcmp(bytes, bytes_cmp, len), 0);
   rbusValue_Release(val);
+}
+
+TEST(rbusValueTestNeg, validate_char)
+{
+  rbusValue_t val;
+  rbusValue_Init(&val);
+
+  rbusValue_SetChar(val, '*');
+  EXPECT_EQ(rbusValue_GetType(val), RBUS_CHAR);
+  EXPECT_NE(rbusValue_GetChar(val), 'a');
+
+  rbusValue_Release(val);
+}
+
+TEST(rbusValueTestNeg, validate_char_1)
+{
+  char buffer[8] = {0};
+
+  sprintf(buffer,"%s","C");
+  increment_val(buffer);
+  exec_validate_neg_test(RBUS_CHAR,buffer);
+}
+
+TEST(rbusValueTestNeg, validate_bool)
+{
+  rbusValue_t val;
+  rbusValue_Init(&val);
+
+  rbusValue_SetBoolean(val, 0);
+  EXPECT_EQ(rbusValue_GetType(val), RBUS_BOOLEAN);
+  EXPECT_NE(rbusValue_GetBoolean(val), true);
+
+  rbusValue_SetBoolean(val, 1);
+  EXPECT_EQ(rbusValue_GetType(val), RBUS_BOOLEAN);
+  EXPECT_NE(rbusValue_GetBoolean(val), false);
+
+  rbusValue_Release(val);
+}
+
+TEST(rbusValueTestNeg, validate_bool_1)
+{
+  char buffer[8] = {0};
+
+  sprintf(buffer,"%s","true");
+  exec_validate_neg_test(RBUS_BOOLEAN,buffer);
+}
+
+TEST(rbusValueTestNeg, validate_bool_2)
+{
+  char buffer[8] = {0};
+
+  sprintf(buffer,"%s","false");
+  exec_validate_neg_test(RBUS_BOOLEAN,buffer);
+}
+
+TEST(rbusValueTestNeg, validate_string_1)
+{
+  char buffer[8] = {0};
+
+  sprintf(buffer,"%s","test");
+  exec_validate_neg_test(RBUS_STRING,buffer);
+}
+
+TEST(rbusValueTestNeg, validate_datetime1)
+{
+  time_t rawtime;
+  struct tm * timeinfo;
+  char buffer[80] = {0};
+
+  time (&rawtime);
+  timeinfo = localtime (&rawtime);
+  strftime (buffer,80,"%FT%TZ",timeinfo);
+  increment_val(buffer);
+  exec_validate_neg_test(RBUS_DATETIME,buffer);
+}
+
+TEST(rbusValueTestNeg, validate_byte_1)
+{
+  char buffer[8] = {0};
+
+  sprintf(buffer,"%s","c");
+  increment_val(buffer);
+  exec_validate_neg_test(RBUS_BYTE,buffer);
 }
 
 TEST(rbusValueTestNeg, validate_int8_1)

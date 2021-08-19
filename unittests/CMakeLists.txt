@@ -42,6 +42,7 @@ add_executable(rbus_gtest.bin
   rbusObjectTest.cpp
   rbusPropertyTest.cpp
   rbusFilterTest.cpp
+  rbusMessageTest.cpp
   main.cpp)
 add_dependencies(rbus_gtest.bin rbus)
 
