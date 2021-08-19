@@ -30,6 +30,10 @@
 #include <rtLog.h>
 #include "../common/runningParamHelper.h"
 
+int getDurationElementTree();
+int getDurationValueAPI();
+int getDurationPropertyAPI();
+int getDurationObjectAPI();
 int getDurationValue();
 int getDurationValueChange();
 int getDurationTables();
@@ -40,6 +44,10 @@ int getDurationMethods();
 int getDurationFilter();
 int getDurationPartialPath();
 
+void testElementTree(rbusHandle_t handle, int* countPass, int* countFail);
+void testValueAPI(rbusHandle_t handle, int* countPass, int* countFail);
+void testPropertyAPI(rbusHandle_t handle, int* countPass, int* countFail);
+void testObjectAPI(rbusHandle_t handle, int* countPass, int* countFail);
 void testValue(rbusHandle_t handle, int* countPass, int* countFail);
 void testValueChange(rbusHandle_t handle, int* countPass, int* countFail);
 void testSubscribe(rbusHandle_t handle, int* countPass, int* countFail);
@@ -57,6 +65,7 @@ typedef struct testInfo_t
 {
     int enabled;
     char name[50];
+    bool useBus;
     getDurationFunc_t getDuration;
     runTestFunc_t runTest;
     int countPass;
@@ -65,6 +74,10 @@ typedef struct testInfo_t
 
 typedef enum testType_t
 {
+    TestElementTree,
+    TestValueAPI,
+    TestPropertyAPI,
+    TestObjectAPI,
     TestValue,
     TestValueChange,
     TestSubscribe,
@@ -78,15 +91,19 @@ typedef enum testType_t
 }testType_t;
 
 testInfo_t testList[TestTypeMax] = {
-    { 0, "Value", getDurationValue, testValue, 0, 0 },
-    { 0, "ValueChange", getDurationValueChange, testValueChange, 0, 0 },
-    { 0, "Subscribe", getDurationSubscribe, testSubscribe, 0, 0 },
-    { 0, "SubscribeEx", getDurationSubscribeEx, testSubscribeEx, 0, 0 },
-    { 0, "Tables", getDurationTables, testTables, 0, 0 },
-    { 0, "Events", getDurationEvents, testEvents, 0, 0 },
-    { 0, "Methods", getDurationMethods, testMethods, 0, 0 },
-    { 0, "Filter", getDurationFilter, testFilter, 0, 0 },
-    { 0, "PartialPath", getDurationPartialPath, testPartialPath, 0, 0 },
+    { 0, "ElementTree", false, getDurationElementTree, testElementTree, 0, 0 },
+    { 0, "ValueAPI", false, getDurationValueAPI, testValueAPI, 0, 0 },
+    { 0, "PropertyAPI", false, getDurationPropertyAPI, testPropertyAPI, 0, 0 },
+    { 0, "ObjectAPI", false, getDurationObjectAPI, testObjectAPI, 0, 0 },
+    { 0, "Value", true, getDurationValue, testValue, 0, 0 },
+    { 0, "ValueChange", true, getDurationValueChange, testValueChange, 0, 0 },
+    { 0, "Subscribe", true, getDurationSubscribe, testSubscribe, 0, 0 },
+    { 0, "SubscribeEx", true, getDurationSubscribeEx, testSubscribeEx, 0, 0 },
+    { 0, "Tables", true, getDurationTables, testTables, 0, 0 },
+    { 0, "Events", true, getDurationEvents, testEvents, 0, 0 },
+    { 0, "Methods", true, getDurationMethods, testMethods, 0, 0 },
+    { 0, "Filter", true, getDurationFilter, testFilter, 0, 0 },
+    { 0, "PartialPath", true, getDurationPartialPath, testPartialPath, 0, 0 },
 };
 
 void printUsage()
@@ -107,7 +124,12 @@ void printUsage()
 int main(int argc, char *argv[])
 {
     int i,a;
-    int duration = -1;
+    int duration = 0;
+    bool getDuration = false;
+    bool useBus = false;
+    int rc = RBUS_ERROR_SUCCESS;
+    rbusHandle_t handle;
+    rtLogLevel logLevel = RT_LOG_WARN;
 
     for(a=1; a<argc; ++a)
     {
@@ -120,7 +142,7 @@ int main(int argc, char *argv[])
         /*get estimated time to run all tests*/
         if(strcmp(argv[a], "-d")==0)
         {
-            duration = 0;
+            getDuration = true;
         }
         else if(strcmp(argv[a], "-a")==0)
         {
@@ -133,7 +155,7 @@ int main(int argc, char *argv[])
         {
             a++;
             if(a < argc)
-                rtLog_SetLevel(rtLogLevelFromString(argv[a]));
+                logLevel = rtLogLevelFromString(argv[a]);
         }
         else
         {
@@ -159,35 +181,47 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(duration==0)
+    for(i=0; i<TestTypeMax; ++i)
     {
-        for(i=0; i<TestTypeMax; ++i)
+        if(testList[i].enabled)
         {
-            if(testList[i].enabled)
-                duration += testList[i].getDuration();
+            duration += testList[i].getDuration();
+
+            if(testList[i].useBus)
+                useBus = true;
         }
+    }
+
+    if(getDuration)
+    {
         printf("%d\n", duration);
         return 0;
     }
-    
-    int rc = RBUS_ERROR_SUCCESS;
-    rbusHandle_t handle;
 
     printf("consumer: start\n");
 
-    rc = rbus_open(&handle, "TestConsumer");
-    printf("consumer: rbus_open=%d\n", rc);
-    if(rc != RBUS_ERROR_SUCCESS)
-        goto exit1;
+    srand(time(NULL));
+    
+    rtLog_SetLevel(logLevel);
 
-
-    /*tell provider we are starting*/
-    if(runningParamConsumer_Set(handle, "Device.TestProvider.TestRunning", true) != RBUS_ERROR_SUCCESS)
+    if(useBus)
     {
-        printf("consumer: provider didn't get ready in time\n");
-        goto exit2;
+        rc = rbus_open(&handle, "TestConsumer");
+
+        rtLog_SetLevel(logLevel);/*set it again in case we still are overriding in rbus_open*/
+
+        printf("consumer: rbus_open=%d\n", rc);
+        if(rc != RBUS_ERROR_SUCCESS)
+            goto exit1;
+
+        /*tell provider we are starting*/
+        if(runningParamConsumer_Set(handle, "Device.TestProvider.TestRunning", true) != RBUS_ERROR_SUCCESS)
+        {
+            printf("consumer: provider didn't get ready in time\n");
+            goto exit2;
+        }
+        sleep(1);
     }
-    sleep(1);
 
     /*run all enabled tests*/
     for(i=0; i<TestTypeMax; ++i)
@@ -216,13 +250,15 @@ int main(int argc, char *argv[])
     /*tell provider we are done*/
 exit2:
     /*close*/
+    if(useBus)
+    {
+        usleep(250000);
+        runningParamConsumer_Set(handle, "Device.TestProvider.TestRunning", false);
+        usleep(250000);
 
-    usleep(250000);
-    runningParamConsumer_Set(handle, "Device.TestProvider.TestRunning", false);
-    usleep(250000);
-
-    rc = rbus_close(handle);
-    printf("consumer: rbus_close=%d\n", rc);
+        rc = rbus_close(handle);
+        printf("consumer: rbus_close=%d\n", rc);
+    }
 
 exit1:
     printf("run this test with valgrind to look for memory issues:\n");

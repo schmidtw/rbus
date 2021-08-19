@@ -230,6 +230,7 @@ void rbusBuffer_WriteDateTimeTLV(rbusBuffer_t buff, rbusDateTime_t const* tv)
     temp.m_time.tm_min      = rbusHostToLittleInt32(tv->m_time.tm_min);
     temp.m_time.tm_hour     = rbusHostToLittleInt32(tv->m_time.tm_hour);
     temp.m_time.tm_mday     = rbusHostToLittleInt32(tv->m_time.tm_mday);
+    temp.m_time.tm_mon      = rbusHostToLittleInt32(tv->m_time.tm_mon);
     temp.m_time.tm_year     = rbusHostToLittleInt32(tv->m_time.tm_year);
     temp.m_time.tm_wday     = rbusHostToLittleInt32(tv->m_time.tm_wday);
     temp.m_time.tm_yday     = rbusHostToLittleInt32(tv->m_time.tm_yday);
@@ -364,6 +365,7 @@ int rbusBuffer_ReadDateTime(rbusBuffer_t const buff, rbusDateTime_t* tv)
     tv->m_time.tm_min   = rbusLittleToHostInt32(temp.m_time.tm_min);
     tv->m_time.tm_hour  = rbusLittleToHostInt32(temp.m_time.tm_hour);
     tv->m_time.tm_mday  = rbusLittleToHostInt32(temp.m_time.tm_mday);
+    tv->m_time.tm_mon   = rbusLittleToHostInt32(temp.m_time.tm_mon);
     tv->m_time.tm_year  = rbusLittleToHostInt32(temp.m_time.tm_year);
     tv->m_time.tm_wday  = rbusLittleToHostInt32(temp.m_time.tm_wday);
     tv->m_time.tm_yday  = rbusLittleToHostInt32(temp.m_time.tm_yday);

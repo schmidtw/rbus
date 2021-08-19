@@ -41,6 +41,7 @@ TestValueProperty* gTestValues;
 rbusValue_t gBigString = NULL;
 rbusValue_t gBigBytes = NULL;
 int32_t gByValue = 0;
+bool gEventTableSub[10] = {0};
 /*
  * Generic Data Model Tree Structure
  */
@@ -1210,40 +1211,11 @@ rbusError_t ppTableGetHandler(rbusHandle_t handle, rbusProperty_t property, rbus
         ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.3.SubObject2.Param7"));
         return RBUS_ERROR_SUCCESS;
     }
-    else if(!strcmp(name, getName("Device.%s.PartialPath2.1.")))
-    {
-        ppAddParam(property, getName("Device.%s.PartialPath2.1.Param1"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.1.Param2"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.1.SubObject1.Param3"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.1.SubObject1.Param4"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.1.SubTable.1.Param5"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.1.SubTable.1.SubObject2.Param6"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.1.SubTable.1.SubObject2.Param7"));
-        return RBUS_ERROR_SUCCESS;
-    }
-    else if(!strcmp(name, getName("Device.%s.PartialPath2.1.SubTable.")) ||
-            !strcmp(name, getName("Device.%s.PartialPath2.1.SubTable.1.")))
+    else if(!strcmp(name, getName("Device.%s.PartialPath2.1.SubTable.")))
     {
         ppAddParam(property, getName("Device.%s.PartialPath2.1.SubTable.1.Param5"));
         ppAddParam(property, getName("Device.%s.PartialPath2.1.SubTable.1.SubObject2.Param6"));
         ppAddParam(property, getName("Device.%s.PartialPath2.1.SubTable.1.SubObject2.Param7"));
-        return RBUS_ERROR_SUCCESS;
-    }
-    else if(!strstr(name, getName("Device.%s.PartialPath2.2.")))
-    {
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.Param1"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.Param2"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubObject1.Param3"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubObject1.Param4"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.1.Param5"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.1.SubObject2.Param6"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.1.SubObject2.Param7"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.2.Param5"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.2.SubObject2.Param6"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.2.SubObject2.Param7"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.3.Param5"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.3.SubObject2.Param6"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.3.SubObject2.Param7"));
         return RBUS_ERROR_SUCCESS;
     }
     else if(!strcmp(name, getName("Device.%s.PartialPath2.2.SubTable.")))
@@ -1259,32 +1231,95 @@ rbusError_t ppTableGetHandler(rbusHandle_t handle, rbusProperty_t property, rbus
         ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.3.SubObject2.Param7"));
         return RBUS_ERROR_SUCCESS;
     }
-    else if(!strcmp(name, getName("Device.%s.PartialPath2.2.SubTable.1.")))
-    {
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.1.Param5"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.1.SubObject2.Param6"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.1.SubObject2.Param7"));
-        return RBUS_ERROR_SUCCESS;
-    }
-    else if(!strcmp(name, getName("Device.%s.PartialPath2.2.SubTable.2.")))
-    {
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.2.Param5"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.2.SubObject2.Param6"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.2.SubObject2.Param7"));
-        return RBUS_ERROR_SUCCESS;
-    }
-    else if(!strcmp(name, getName("Device.%s.PartialPath2.2.SubTable.3.")))
-    {
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.3.Param5"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.3.SubObject2.Param6"));
-        ppAddParam(property, getName("Device.%s.PartialPath2.2.SubTable.3.SubObject2.Param7"));
-        return RBUS_ERROR_SUCCESS;
-    }
     else
     {
         printf("ppTableGetHandler invalid name %s\n", name); 
         return RBUS_ERROR_BUS_ERROR;
     }
+}
+
+int getEventTableInstNum(char const* propName)
+{
+    int instNum = 0;
+    char buff[2] = {0};
+    char const* pinstNum = strstr(propName, "EventsTable.") + 12;
+    buff[0] = *pinstNum;
+    instNum = atoi(buff);
+    printf("%s %s instNum=%d\n", __FUNCTION__, propName, instNum);
+    return instNum;
+}
+
+rbusError_t eventsTablesAddRowHandler(
+    rbusHandle_t handle,
+    char const* tableName,
+    char const* aliasName,
+    uint32_t* instNum)
+{
+    (void)handle;
+    (void)tableName;
+    (void)aliasName;
+    static int instanceNumber = 1;
+    *instNum = instanceNumber++;
+    printf("%s instNum=%d\n", __FUNCTION__, *instNum); 
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t eventsTablesRemRowHandler(
+    rbusHandle_t handle,
+    char const* rowName)
+{
+    (void)handle;
+    (void)rowName;
+    printf("%s %s\n", __FUNCTION__, rowName); 
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t eventsTablesPropGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
+{
+    (void)handle;
+    (void)opts;
+    rbusValue_t value;
+    static int instsData[10] = {0};
+    int instNum = 0;
+
+    instNum = getEventTableInstNum(rbusProperty_GetName(property));
+    if(instNum == 0 || instNum >= 10)
+        return RBUS_ERROR_INVALID_INPUT;
+    instsData[instNum]++;
+
+    rbusValue_Init(&value);
+    rbusValue_SetInt32(value, instsData[instNum]);
+    rbusProperty_SetValue(property, value);
+    rbusValue_Release(value);
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t eventsTablesEventSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
+{
+    (void)handle;
+    (void)filter;
+    (void)interval;
+    (void)autoPublish;
+    int instNum = 0;
+
+    printf(
+        "%s called:\n" \
+        "\taction=%s\n" \
+        "\teventName=%s\n",
+        __FUNCTION__,
+        action == RBUS_EVENT_ACTION_SUBSCRIBE ? "subscribe" : "unsubscribe",
+        eventName);
+    
+    instNum = getEventTableInstNum(eventName);
+    if(instNum == 0 || instNum >= 10)
+        return RBUS_ERROR_INVALID_INPUT;
+
+    if(action == RBUS_EVENT_ACTION_SUBSCRIBE)
+        gEventTableSub[instNum]++;
+    else
+        gEventTableSub[instNum]--;
+
+    return RBUS_ERROR_SUCCESS;
 }
 
 int main(int argc, char *argv[])
@@ -1297,6 +1332,7 @@ int main(int argc, char *argv[])
     int eventCounts[2]={0,0};
     int i, j;
     int loopFor = 0;
+    rtLogLevel logLvl;
 
     printf("provider: start\n");
 
@@ -1328,14 +1364,14 @@ int main(int argc, char *argv[])
             printf("runtime %d seconds\n", loopFor);
             break;
         case 'l':
-            rtLog_SetLevel(rtLogLevelFromString(optarg));
+            logLvl = rtLogLevelFromString(optarg);
             break;
         default:
             break;
         }
     }
 
-    #define numDataElems 51
+    #define numDataElems 54
 
     rbusDataElement_t dataElement[numDataElems] = {
         {"Device.%s.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler, NULL}},
@@ -1391,13 +1427,18 @@ int main(int argc, char *argv[])
         {"Device.%s.PartialPath2.{i}.SubTable.{i}.SubObject2.Param7", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
         {"Device.%s.TestProviderNotFound", RBUS_ELEMENT_TYPE_PROPERTY, {NULL,setProviderNotFound,NULL,NULL,NULL, NULL}},
         {"Device.%s.BigString", RBUS_ELEMENT_TYPE_PROPERTY, {getBigHandler,setBigHandler,NULL,NULL,NULL, NULL}},
-        {"Device.%s.BigBytes", RBUS_ELEMENT_TYPE_PROPERTY, {getBigHandler,setBigHandler,NULL,NULL,NULL, NULL}}
+        {"Device.%s.BigBytes", RBUS_ELEMENT_TYPE_PROPERTY, {getBigHandler,setBigHandler,NULL,NULL,NULL, NULL}},
+        {"Device.%s.EventsTable.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, eventsTablesAddRowHandler, eventsTablesRemRowHandler, NULL, NULL}},
+        {"Device.%s.EventsTable.{i}.Prop", RBUS_ELEMENT_TYPE_PROPERTY, {eventsTablesPropGetHandler, NULL, NULL, NULL, NULL, NULL}},
+        {"Device.%s.EventsTable.{i}.Event", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventsTablesEventSubHandler, NULL}}
     };
 
     for(i=0; i<numDataElems; ++i)
     {
         dataElement[i].name = strdup(getName(dataElement[i].name));
     }
+
+    rtLog_SetLevel(logLvl);
 
     TestValueProperties_Init(&gTestValues);
 
@@ -1418,6 +1459,7 @@ int main(int argc, char *argv[])
     }
 
     rc = rbus_open(&handle, componentName);
+    rtLog_SetLevel(logLvl);
     printf("provider: rbus_open=%d\n", rc);
     if(rc != RBUS_ERROR_SUCCESS)
         goto exit2;
@@ -1568,6 +1610,42 @@ int main(int argc, char *argv[])
             tableRegComplete[1] = 1;
             rbusTable_registerRow(handle, getName("Device.%s.TableReg.1.TableReg."), NULL, 1);
             rbusTable_registerRow(handle, getName("Device.%s.TableReg.1.TableReg."), NULL, 2);
+        }
+
+        if(gEventTableSub)
+        {
+            int i;
+            printf("publishing tableEvent!\n");
+
+            for(i = 0; i < 10; ++i)
+            {
+                if(gEventTableSub[i] > 0)
+                {
+                    char buff[100];
+
+                    sprintf(buff, "tableEvent data instNum=%d", i);
+                    rbusObject_t data;
+                    rbusValue_t val;
+                    rbusValue_Init(&val);
+                    rbusValue_SetString(val, buff);
+                    rbusObject_Init(&data, NULL);
+                    rbusObject_SetValue(data, "data", val);
+
+                    sprintf(buff, "%s.%d.Event", getName("Device.%s.EventsTable"), i); 
+                    rbusEvent_t event;
+                    event.name = buff;
+                    event.data = data;
+                    event.type = RBUS_EVENT_GENERAL;
+
+                    rc = rbusEvent_Publish(handle, &event);
+
+                    rbusValue_Release(val);
+                    rbusObject_Release(data);
+
+                    if(rc != RBUS_ERROR_SUCCESS)
+                        printf("provider: rbusEvent_Publish %s failed: %d\n", event.name, rc);
+                }
+            }
         }
     }
 

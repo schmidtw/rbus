@@ -33,6 +33,10 @@ target_link_libraries(rbusTestProvider rbus)
 
 add_executable(rbusTestConsumer 
     consumer/rbusTestConsumer.c
+    consumer/elementTree.c
+    consumer/valueAPI.c
+    consumer/propertyAPI.c
+    consumer/objectAPI.c
     consumer/value.c
     consumer/valueChange.c
     consumer/subscribe.c
@@ -46,6 +50,7 @@ add_executable(rbusTestConsumer
     common/testValueHelper.c)
 add_dependencies(rbusTestConsumer rbus)
 target_link_libraries(rbusTestConsumer rbus)
+set (CMAKE_C_FLAGS "-Wno-overflow ${CMAKE_C_FLAGS}")
 
 install (TARGETS rbusTestProvider rbusTestConsumer 
         RUNTIME DESTINATION bin)
@@ -70,25 +75,6 @@ add_dependencies(rbusTestMultiConsumer rbus)
 target_link_libraries(rbusTestMultiConsumer rbus)
 
 install (TARGETS rbusTestMultiProvider rbusTestMultiConsumer 
-        RUNTIME DESTINATION bin)
-
-add_executable(rbusTestValue 
-    rbusTestValue.c)
-add_dependencies(rbusTestValue rbus)
-target_link_libraries(rbusTestValue rbus)
-set (CMAKE_C_FLAGS "-Wno-overflow ${CMAKE_C_FLAGS}")
-
-install (TARGETS rbusTestValue
-        RUNTIME DESTINATION bin)
-
-add_executable(rbusTestElementTree
-rbusTestElementTree.c)
-add_dependencies(rbusTestElementTree rbus)
-target_link_libraries(rbusTestElementTree rbus)
-
-set (CMAKE_C_FLAGS "-Wno-overflow ${CMAKE_C_FLAGS}")
-
-install (TARGETS rbusTestElementTree
         RUNTIME DESTINATION bin)
 
 add_executable(rbusRecoveryConsumer 

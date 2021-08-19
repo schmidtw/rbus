@@ -258,11 +258,11 @@ static void testTableRemoveAllEvents(rbusHandle_t handle)
     testRemoveRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.1");
 
 exit:
-    TESTRC(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1."));
-    TESTRC(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.1.Table2."));
-    TESTRC(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.[t_1].Table2."));
-    TESTRC(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.2.Table2."));
-    TESTRC(rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.*.Table2."));
+    rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.");
+    rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.1.Table2.");
+    rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.[t_1].Table2.");
+    rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.2.Table2.");
+    rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.*.Table2.");
 }
 
 static void testSingleValueChange(rbusHandle_t handle, char const* user, char const* name, char const* value, bool ok)

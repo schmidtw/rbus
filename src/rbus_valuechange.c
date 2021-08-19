@@ -214,8 +214,10 @@ static void* rbusValueChange_pollingThreadFunc(void *userData)
                    then we know it was the provider who updated the value we are now detecting.
                 */
                 if(rec->node->changeComp == NULL || 
-                   rtTime_Elapsed(&rec->node->changeTime, NULL) >= rbusConfig_Get()->valueChangePeriod)
+                   (rtTime_Elapsed(&rec->node->changeTime, NULL) >= rbusConfig_Get()->valueChangePeriod &&
+                   strcmp(rec->handle->componentName, rec->node->changeComp) == 0))
                 {
+                    printf("VC detected provider-side value-change oldcomp=%s elapsed=%d period=%d\n", rec->node->changeComp, rtTime_Elapsed(&rec->node->changeTime, NULL), rbusConfig_Get()->valueChangePeriod);
                     setPropertyChangeComponent((elementNode*)rec->node, rec->handle->componentName);
                 }
                 rbusValue_Init(&byVal);

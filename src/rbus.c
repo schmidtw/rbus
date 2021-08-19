@@ -1053,7 +1053,7 @@ static int _event_subscribe_callback_handler(char const* object,  char const* ev
 
     RBUSLOG_DEBUG("%s: event subscribe callback for [%s] event!", __FUNCTION__, eventName);
 
-    elementNode* el = retrieveElement(handleInfo->elementRoot, eventName);
+    elementNode* el = retrieveInstanceElement(handleInfo->elementRoot, eventName);
 
     if(el)
     {
@@ -1195,7 +1195,7 @@ static void _set_callback_handler (rbusHandle_t handle, rbusMessage request, rbu
         {
             /* Retrive the element node */
             char const* paramName = rbusProperty_GetName(pProperties[loopCnt]);
-            el = retrieveElement(handleInfo->elementRoot, paramName);
+            el = retrieveInstanceElement(handleInfo->elementRoot, paramName);
             if(el != NULL)
             {
                 if(el->cbTable.setHandler)
@@ -1467,18 +1467,15 @@ static void _get_callback_handler (rbusHandle_t handle, rbusMessage request, rbu
                 rbusMessage_Init(response);
 
                 el = retrieveInstanceElement(handleInfo->elementRoot, parameterName);
-                if(el == NULL)
-                {
-                    el = retrieveElement(handleInfo->elementRoot, parameterName);
-                    hasInstance = 0;
-                }
-
                 if (el != NULL)
                 {
                     rbusProperty_t xproperties, first;
                     rbusValue_t xtmp;
                     int count = 0;
 
+                    if(strstr(el->fullName, "{i}"))
+                        hasInstance = 0;
+                        
                     rbusValue_Init(&xtmp);
                     rbusValue_SetString(xtmp, "tmpValue");
                     rbusProperty_Init(&xproperties, "tmpProp", xtmp);
@@ -1520,7 +1517,7 @@ static void _get_callback_handler (rbusHandle_t handle, rbusMessage request, rbu
             }
 
             //Do a look up and call the corresponding method
-            el = retrieveElement(handleInfo->elementRoot, parameterName);
+            el = retrieveInstanceElement(handleInfo->elementRoot, parameterName);
             if(el != NULL)
             {
                 RBUSLOG_DEBUG("Retrieved [%s]", parameterName);

@@ -236,6 +236,7 @@ char* rbusValue_ToString(rbusValue_t v, char* buf, size_t buflen)
         int i = 0;
         for (i = 0; i < v->d.bytes->posWrite; i++)
             sprintf (&p[i * 2], "%02X", v->d.bytes->data[i]);
+        p[2 * v->d.bytes->posWrite] = 0;
         break;
     }
     case RBUS_BOOLEAN:

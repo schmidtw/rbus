@@ -353,6 +353,9 @@ typedef enum
  * property parameter passed to this function will have the name of the property
  * already set.  The provider can use this name to identify the property if needed.
  * The provider's responsibility is to set the value of the property parameter.
+ * A provider may install this get handler on a table if the provider doesn't
+ * use rbusTable_addRow to add rows and instead will handle partial path queries
+ * through this get handler.
  *  @param      handle          the rbus handle the property is registered to.
  *  @param      property        the property whose value must be set by the handler. 
  *  @param      options         the additional information that to be used for GET.

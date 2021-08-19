@@ -460,6 +460,7 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
     elementNode* currentNode = root;
     elementNode* nextNode = NULL;
     int tokenFound = 0;
+    bool isWildcard = false;
 
 #if DEBUG_ELEMENTS
     RBUSLOG_INFO("<%s>: Request to retrieve element [%s]", __FUNCTION__, elmentName);
@@ -528,10 +529,9 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
                         if(nextNode->alias)
                         {
                             size_t tlen = strlen(token);
-
                             if(tlen > 2 && token[0] == '[' && token[tlen-1] == ']')
                             {
-                                if(strncmp(nextNode->alias, token+1, tlen-2) == 0)
+                                if(strlen(nextNode->alias) == tlen-2 && strncmp(nextNode->alias, token+1, tlen-2) == 0)
                                 {
 #if DEBUG_ELEMENTS
                                     RBUSLOG_INFO("tokenFound by alias %s!", nextNode->alias);
@@ -552,6 +552,19 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
         }
 
         token = strtok(NULL, ".");
+
+        if(token && nextNode && nextNode->parent && nextNode->parent->type == RBUS_ELEMENT_TYPE_TABLE) 
+        {
+            if(!isWildcard && !strcmp(token,"*"))
+                isWildcard = true;
+            
+            /* retrieveInstanceElement should return only the registration element if the table has a getHandler installed (used by MtaAgent/TR104)
+                of if wildcard query */
+            if(isWildcard || nextNode->parent->cbTable.getHandler)
+            {
+                token = "{i}";
+            }
+        }        
     }
 
     free(name);
