@@ -2389,7 +2389,7 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
     {
         rbusMessage request, response;
         int numComponents;
-        char** componentNames;
+        char** componentNames = NULL;
 
         /*discover which components have some ownership of the params in the list*/
         errorcode = rbus_discoverComponentName(handle, paramCount, pParamNames, &numComponents, &componentNames);
@@ -2402,6 +2402,21 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
                 RBUSLOG_DEBUG("%d: %s %s",i, pParamNames[i], componentNames[i]);
             }
 #endif
+            for(i = 0; i < paramCount; ++i)
+            {
+                if(!componentNames[i] || !componentNames[i][0])
+                {
+                    RBUSLOG_ERROR("Cannot find component for %s", pParamNames[i]);
+                    errorcode = RBUS_ERROR_INVALID_INPUT;
+                }
+            }
+
+            if(errorcode == RBUS_ERROR_INVALID_INPUT)
+            {
+                free(componentNames);
+                return RBUS_ERROR_INVALID_INPUT;
+            }
+
             *retProperties = NULL;/*NULL to mark first batch*/
             *numValues = 0;
 
@@ -2489,12 +2504,13 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
                     break;
                 }
             }
-            free(componentNames);
         }
         else
         {
              RBUSLOG_ERROR("Discover component names failed with error %d and counts %d/%d", errorcode, paramCount, numComponents);
         }
+        if(componentNames)
+            free(componentNames);
     }
     return errorcode;
 }
@@ -2634,89 +2650,169 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
 
     if (numProps > 0 && properties != NULL)
     {
-        rbusMessage_Init(&setRequest);
+        char const** pParamNames;
+        int numComponents;
+        char** componentNames = NULL;
+        int i;
 
-        /* Set the Session ID first */
-        if ((opts) && (opts->sessionId != 0))
-            rbusMessage_SetInt32(setRequest, opts->sessionId);
-        else
-            rbusMessage_SetInt32(setRequest, 0);
-
-        /* Set the Component name that invokes the set */
-        rbusMessage_SetString(setRequest, handleInfo->componentName);
-        /* Set the Size of params */
-        rbusMessage_SetInt32(setRequest, numProps);
-
+        /*create list of paramNames to pass to rbus_discoverComponentName*/
+        pParamNames = malloc(sizeof(char*) * numProps);
         current = properties;
-        while(current)
+        i = 0;
+        while(current && i < numProps)
         {
+            pParamNames[i++] = rbusProperty_GetName(current);
+            current = rbusProperty_GetNext(current);
+
             type = rbusValue_GetType(rbusProperty_GetValue(current));
             if (RBUS_NONE == type)
             {
                 printf("Invalid data type passed in one of the data type\n");
+                free(pParamNames);
                 return errorcode;
             }
-            rbusValue_appendToMessage(rbusProperty_GetName(current), rbusProperty_GetValue(current), setRequest);
-            current = rbusProperty_GetNext(current);
+        }
+        if(i != numProps)
+        {
+            RBUSLOG_WARN ("Invalid input: numProps more then actual number of properties.");
+            free(pParamNames);
+            return RBUS_ERROR_INVALID_INPUT;
         }
 
-        /* Set the Commit value; FIXME: Should we use string? */
-        rbusMessage_SetString(setRequest, (!opts || opts->commit) ? "TRUE" : "FALSE");
-
-        /* TODO: At this point in time, only given Table/Component can be updated with SET/GET..
-         * So, passing the elementname as first arg is not a issue for now..
-         * We must enhance the rbus in such a way that we shd be able to set across components. Lets revist this area at that time.
-         */
+        /*discover which components have some ownership of the params*/
+        errorcode = rbus_discoverComponentName(handle, numProps, pParamNames, &numComponents, &componentNames);
+        if(errorcode == RBUS_ERROR_SUCCESS && numProps == numComponents)
+        {
 #if 0
-        /* TODO: First step towards the above comment. When we enhace to support acorss components, this following has to be looped or appropriate count will be passed */
-        char const* pElementNames[] = {values[0].name, NULL};
-        char** pComponentName = NULL;
-        err = rbus_discoverElementObjects(pElementNames, 1, &pComponentName);
-        if (err != RTMESSAGE_BUS_SUCCESS)
-        {
-            RBUSLOG_INFO ("Element not found");
-            errorcode = RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
-        }
-        else
-        {
-            RBUSLOG_INFO ("Component name is, %s", pComponentName[0]);
-            free (pComponentName[0]);
-        }
-#endif
-        if((err = rbus_invokeRemoteMethod(rbusProperty_GetName(properties), METHOD_SETPARAMETERVALUES, setRequest, 6000, &setResponse)) != RTMESSAGE_BUS_SUCCESS)
-        {
-            RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
-            errorcode = rbuscoreError_to_rbusError(err);
-        }
-        else
-        {
-            char const* pErrorReason = NULL;
-            rbusLegacyReturn_t legacyRetCode = RBUS_LEGACY_ERR_FAILURE;
-            int ret = -1;
-            rbusMessage_GetInt32(setResponse, &ret);
-
-            RBUSLOG_DEBUG("Response from the remote method is [%d]!", ret);
-            errorcode = (rbusError_t) ret;
-            legacyRetCode = (rbusLegacyReturn_t) ret;
-
-            if((errorcode == RBUS_ERROR_SUCCESS) || (legacyRetCode == RBUS_LEGACY_ERR_SUCCESS))
+            RBUSLOG_DEBUG("rbus_discoverComponentName return %d component for %d params", numComponents, numProps);
+            for(i = 0; i < numComponents; ++i)
             {
-                errorcode = RBUS_ERROR_SUCCESS;
-                RBUSLOG_DEBUG("Successfully Set the Value");
+                RBUSLOG_DEBUG("%d: %s %s",i, pParamNames[i], componentNames[i]);
             }
-            else
+#endif
+            current = properties;
+            for(i = 0; i < numProps; ++i, current = rbusProperty_GetNext(current))
             {
-                rbusMessage_GetString(setResponse, &pErrorReason);
-                RBUSLOG_WARN("Failed to Set the Value for %s", pErrorReason);
-                if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
+                if(!componentNames[i] || !componentNames[i][0])
                 {
-                    errorcode = CCSPError_to_rbusError(legacyRetCode);
+                    RBUSLOG_ERROR("Cannot find component for %s", rbusProperty_GetName(current));
+                    errorcode = RBUS_ERROR_INVALID_INPUT;
                 }
             }
 
-            /* Release the reponse message */
-            rbusMessage_Release(setResponse);
+            if(errorcode == RBUS_ERROR_INVALID_INPUT)
+            {
+                free(componentNames);
+                return RBUS_ERROR_INVALID_INPUT;
+            }
+
+            for(;;)
+            {
+                char* componentName = NULL;
+                char const* firstParamName = NULL;
+                int batchCount = 0;
+
+                for(i = 0; i < numProps; ++i)
+                {
+                    if(componentNames[i])
+                    {
+                        if(!componentName)
+                        {
+                            RBUSLOG_DEBUG("%s starting batch for component %s", __FUNCTION__, componentNames[i]);
+                            componentName = strdup(componentNames[i]);
+                            firstParamName = pParamNames[i];
+                            batchCount = 1;
+                        }
+                        else if(strcmp(componentName, componentNames[i]) == 0)
+                        {
+                            batchCount++;
+                        }
+                    }
+                }
+
+                if(componentName)
+                {
+
+                    rbusMessage_Init(&setRequest);
+
+                    /* Set the Session ID first */
+                    if ((opts) && (opts->sessionId != 0))
+                        rbusMessage_SetInt32(setRequest, opts->sessionId);
+                    else
+                        rbusMessage_SetInt32(setRequest, 0);
+
+                    /* Set the Component name that invokes the set */
+                    rbusMessage_SetString(setRequest, handleInfo->componentName);
+                    /* Set the Size of params */
+                    rbusMessage_SetInt32(setRequest, batchCount);
+
+                    current = properties;
+                    for(i = 0; i < numProps; ++i, current = rbusProperty_GetNext(current))
+                    {
+                        if(componentNames[i] && strcmp(componentName, componentNames[i]) == 0)
+                        {
+                            if(strcmp(pParamNames[i], rbusProperty_GetName(current)))
+                                RBUSLOG_ERROR("paramName doesn't match current property");
+
+                            RBUSLOG_DEBUG("%s adding %s to batch", __FUNCTION__, rbusProperty_GetName(current));                            
+                            rbusValue_appendToMessage(rbusProperty_GetName(current), rbusProperty_GetValue(current), setRequest);
+
+                            /*free here so its removed from batch scan*/
+                            free(componentNames[i]);
+                            componentNames[i] = NULL;
+                        }
+                    }  
+
+                    /* Set the Commit value; FIXME: Should we use string? */
+                    rbusMessage_SetString(setRequest, (!opts || opts->commit) ? "TRUE" : "FALSE");
+
+                    if((err = rbus_invokeRemoteMethod(firstParamName, METHOD_SETPARAMETERVALUES, setRequest, 6000, &setResponse)) != RTMESSAGE_BUS_SUCCESS)
+                    {
+                        RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
+                        errorcode = rbuscoreError_to_rbusError(err);
+                    }
+                    else
+                    {
+                        char const* pErrorReason = NULL;
+                        rbusLegacyReturn_t legacyRetCode = RBUS_LEGACY_ERR_FAILURE;
+                        int ret = -1;
+                        rbusMessage_GetInt32(setResponse, &ret);
+
+                        RBUSLOG_DEBUG("Response from the remote method is [%d]!", ret);
+                        errorcode = (rbusError_t) ret;
+                        legacyRetCode = (rbusLegacyReturn_t) ret;
+
+                        if((errorcode == RBUS_ERROR_SUCCESS) || (legacyRetCode == RBUS_LEGACY_ERR_SUCCESS))
+                        {
+                            errorcode = RBUS_ERROR_SUCCESS;
+                            RBUSLOG_DEBUG("Successfully Set the Value");
+                        }
+                        else
+                        {
+                            rbusMessage_GetString(setResponse, &pErrorReason);
+                            RBUSLOG_WARN("Failed to Set the Value for %s", pErrorReason);
+                            if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
+                            {
+                                errorcode = CCSPError_to_rbusError(legacyRetCode);
+                            }
+                        }
+
+                        /* Release the reponse message */
+                        rbusMessage_Release(setResponse);
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
         }
+        else
+        {
+             RBUSLOG_ERROR("Discover component names failed with error %d and counts %d/%d", errorcode, numProps, numComponents);
+        }
+        if(componentNames)
+            free(componentNames);
     }
     return errorcode;
 }
