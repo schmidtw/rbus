@@ -1056,6 +1056,65 @@ rbusError_t rbusTable_removeRow(
     rbusHandle_t handle,
     char const* rowName); 
 
+/** @} */
+
+/** @addtogroup Providers
+  * @{ 
+  */
+
+/** @fn rbusError_t rbusTable_registerRow(
+ *          busHandle handle, 
+ *          char const* tableName,
+ *          char const* aliasName,
+ *          uint32_t instNum)
+ *  @brief Register a row that the provider has added to its own table.
+ *
+ * This method allows a provider to register a row that it adds to its own table.
+ * A provider can add a row internally without the need to call rbusTable_addRow which would
+ * call the provider's tableAddRow handler.  However, in order for consumers to know the row exists,
+ * it must be registered.
+ * Used by:  Any provider that adds a row to its own table.
+ *  @param  handle          Bus Handle
+ *  @param  tableName       The name of a table (e.g. "Device.IP.Interface.")
+ *  @param  aliasName       An optional name for the new row.  Must be unique in the table.  Can be NULL.
+ *  @param  instNum         The unique instance number the provider has assigned this row.
+ *  @return RBus error code as defined by rbusError_t.
+ *  Possible values are: RBUS_ERROR_INVALID_INPUT
+ *  @ingroup Tables
+ */
+rbusError_t rbusTable_registerRow(
+    rbusHandle_t handle,
+    char const* tableName,
+    char const* aliasName,
+    uint32_t instNum);
+
+/** @fn rbusError_t rbusTable_unregisterRow(
+ *          busHandle handle, 
+ *          char const* rowName)
+ *  @brief Unregister a row that the provider has removed from its own table.
+ *
+ * The method allows a provider to unregister a row that it removes from its own table.
+ * A provider can remove a row internally without the need to call rbusTable_removeRow which would
+ * call the provider's tableRemoveRow handler.  However, in order for consumer to know the row no
+ * longer exists, it must be unregistered.
+ * Used by:  Any provider that removes a row from its own table.
+ *  @param  handle          Bus Handle
+ *  @param  rowName         The name of a table row (e.g. "Device.IP.Interface.1")
+ *  @return RBus error code as defined by rbusError_t.
+ *  Possible values are: RBUS_ERROR_INVALID_INPUT
+ *  @ingroup Tables
+ */
+
+rbusError_t rbusTable_unregisterRow(
+    rbusHandle_t handle,
+    char const* rowName);
+
+/** @} */
+
+/** @addtogroup Consumers
+  * @{ 
+  */
+
 /** @fn rbusError_t  rbusEvent_Subscribe(
  *          rbusHandle_t        handle,
  *          char const*         eventName,

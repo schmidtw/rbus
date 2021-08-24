@@ -238,6 +238,10 @@ char rbusValue_GetChar(rbusValue_t value);
 
 unsigned char rbusValue_GetByte(rbusValue_t value);
 
+int8_t rbusValue_GetInt8(rbusValue_t value);
+
+uint8_t rbusValue_GetUInt8(rbusValue_t value);
+
 int16_t rbusValue_GetInt16(rbusValue_t value);
 
 uint16_t rbusValue_GetUInt16(rbusValue_t value);
@@ -280,6 +284,10 @@ void rbusValue_SetBoolean(rbusValue_t value, bool b);
 void rbusValue_SetChar(rbusValue_t v, char c);
 
 void rbusValue_SetByte(rbusValue_t v, unsigned char u);
+
+void rbusValue_SetInt8(rbusValue_t v, int8_t i8);
+
+void rbusValue_SetUInt8(rbusValue_t v, uint8_t u8);
 
 void rbusValue_SetInt16(rbusValue_t value, int16_t i16);
 

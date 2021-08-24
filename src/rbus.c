@@ -1496,13 +1496,13 @@ static void _get_callback_handler (rbusHandle_t handle, rbusMessage request, rbu
                             rbusValue_appendToMessage(rbusProperty_GetName(first), rbusProperty_GetValue(first), *response);
                             first = rbusProperty_GetNext(first);
                         }
-                        /* Release the memory */
-                        rbusProperty_Release(xproperties);
                     }
                     else
                     {
                         rbusMessage_SetInt32(*response, (int) RBUS_ERROR_ELEMENT_DOES_NOT_EXIST);
                     }
+                    /* Release the memory */
+                    rbusProperty_Release(xproperties);
                 }
                 else
                 {
@@ -2964,22 +2964,6 @@ rbusError_t rbusTable_addRow(
 
     RBUSLOG_INFO("%s: %s %s", __FUNCTION__, tableName, aliasName);
 
-#if 0
-    /*bit of a backdoor way to allow ccsp to register table rows
-      would be better to add an official rbusTable_registerRow but until then
-      if an instNum was provided and the table belongs to us, then just register the row directly*/
-    if(instNum && *instNum != 0)
-    {
-        struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
-        elementNode* tableInstElem = retrieveInstanceElement(handleInfo->elementRoot, tableName);
-        if(tableInstElem)
-        {
-            registerTableRow(handle, tableInstElem, tableName, aliasName, *instNum);
-            return RBUS_ERROR_SUCCESS;
-        }
-    }
-#endif
-
     if(tableName == NULL || instNum == NULL || tableName[strlen(tableName)-1] != dot)
     {
         RBUSLOG_WARN("%s invalid table name %s", __FUNCTION__, tableName);
@@ -3045,16 +3029,7 @@ rbusError_t rbusTable_removeRow(
     rbusLegacyReturn_t legacyRetCode = RBUS_LEGACY_ERR_FAILURE;
 
     RBUSLOG_INFO("%s: %s", __FUNCTION__, rowName);
-#if 0
-    /*if row belongs to me, then just unregister the row*/
-    struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
-    elementNode* rowInstElem = retrieveInstanceElement(handleInfo->elementRoot, rowName);
-    if(rowInstElem)
-    {
-        unregisterTableRow(handle, rowInstElem);
-        return RBUS_ERROR_SUCCESS;
-    }
-#endif
+
     rbusMessage_Init(&request);
     rbusMessage_SetInt32(request, 0);/*TODO: this should be the session ID*/
     rbusMessage_SetString(request, rowName);/*TODO: do we need to append the name as well as pass the name as the 1st arg to rbus_invokeRemoteMethod ?*/
@@ -3094,6 +3069,60 @@ rbusError_t rbusTable_removeRow(
     return returnCode;
 }
 
+rbusError_t rbusTable_registerRow(
+    rbusHandle_t handle,
+    char const* tableName,
+    char const* aliasName,
+    uint32_t instNum)
+{
+    struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
+    char rowName[RBUS_MAX_NAME_LENGTH] = {0};
+    int rc;
+
+    rc = snprintf(rowName, RBUS_MAX_NAME_LENGTH, "%s%d", tableName, instNum);
+    if(rc < 0 || rc >= RBUS_MAX_NAME_LENGTH)
+    {
+        RBUSLOG_WARN("%s: invalid table name %s", __FUNCTION__, tableName);
+        return RBUS_ERROR_INVALID_INPUT;
+    }
+
+    elementNode* rowInstElem = retrieveInstanceElement(handleInfo->elementRoot, rowName);
+    elementNode* tableInstElem = retrieveInstanceElement(handleInfo->elementRoot, tableName);
+
+    if(rowInstElem)
+    {
+        RBUSLOG_WARN("%s: row already exists %s", __FUNCTION__, rowName);
+        return RBUS_ERROR_INVALID_INPUT;
+    }
+
+    if(!tableInstElem)
+    {
+        RBUSLOG_WARN("%s: table does not exist %s", __FUNCTION__, tableName);
+        return RBUS_ERROR_INVALID_INPUT;
+    }
+
+    RBUSLOG_DEBUG("%s: register table row %s", __FUNCTION__, rowName);
+    registerTableRow(handle, tableInstElem, tableName, aliasName, instNum);
+    return RBUS_ERROR_SUCCESS;
+}
+
+rbusError_t rbusTable_unregisterRow(
+    rbusHandle_t handle,
+    char const* rowName)
+{
+    struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
+
+    elementNode* rowInstElem = retrieveInstanceElement(handleInfo->elementRoot, rowName);
+
+    if(!rowInstElem)
+    {
+        RBUSLOG_DEBUG("%s: row does not exists %s", __FUNCTION__, rowName);
+        return RBUS_ERROR_INVALID_INPUT;
+    }
+
+    unregisterTableRow(handle, rowInstElem);
+    return RBUS_ERROR_SUCCESS;
+}
 
 //************************** Events ****************************//
 

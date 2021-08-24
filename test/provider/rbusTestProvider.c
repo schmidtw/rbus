@@ -474,6 +474,62 @@ rbusError_t tableRemoveRowHandler(
     }
 }
 
+rbusError_t tableRegAddRowHandler(
+    rbusHandle_t handle,
+    char const* tableName,
+    char const* aliasName,
+    uint32_t* instNum)
+{
+    (void)handle;
+    (void)instNum;
+
+    printf("%s %s %s\n", __FUNCTION__, tableName, aliasName);
+    return RBUS_ERROR_INVALID_INPUT;
+}
+
+rbusError_t tableRegRemoveRowHandler(
+    rbusHandle_t handle,
+    char const* rowName)
+{
+    (void)handle;
+
+    printf("%s %s\n", __FUNCTION__, rowName);
+    return RBUS_ERROR_INVALID_INPUT;
+}
+
+int tableRegSubscribe[2] = {0};
+int tableRegComplete[2] = {0};
+
+rbusError_t tableRegSubHandler(rbusHandle_t handle, rbusEventSubAction_t action, const char* eventName, rbusFilter_t filter, int32_t interval, bool* autoPublish)
+{
+    (void)handle;
+    (void)filter;
+    (void)interval;
+    (void)autoPublish;
+
+    printf(
+        "tableRegSubHandler called:\n" \
+        "\taction=%s\n" \
+        "\teventName=%s\n",
+        action == RBUS_EVENT_ACTION_SUBSCRIBE ? "subscribe" : "unsubscribe",
+        eventName);
+
+    if(!strcmp(getName("Device.%s.TableReg."), eventName))
+    {
+        tableRegSubscribe[0] += action == RBUS_EVENT_ACTION_SUBSCRIBE ? 1 : -1;
+    }
+    else if(!strcmp(getName("Device.%s.TableReg.1.TableReg."), eventName))
+    {
+        tableRegSubscribe[1] += action == RBUS_EVENT_ACTION_SUBSCRIBE ? 1 : -1;
+    }
+    else
+    {
+        printf("provider: eventSubHandler unexpected eventName %s\n", eventName);
+    }
+
+    return RBUS_ERROR_SUCCESS;
+}
+
 rbusError_t dataGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
 {
     (void)handle;
@@ -948,6 +1004,8 @@ static rbusError_t methodHandler(rbusHandle_t handle, char const* methodName, rb
     return RBUS_ERROR_BUS_ERROR;
 }
 
+int ppTableInstNums[3] = {1,1,1};
+
 rbusError_t ppTableAddRowHandler(
     rbusHandle_t handle,
     char const* tableName,
@@ -959,18 +1017,15 @@ rbusError_t ppTableAddRowHandler(
 
     if(!strcmp(tableName, getName("Device.%s.PartialPath1")))
     {
-        static int instanceNumber = 1;
-        *instNum = instanceNumber++;
+        *instNum = ppTableInstNums[0]++;
     }
     else if(!strcmp(tableName, getName("Device.%s.PartialPath1.1.SubTable")))
     {
-        static int instanceNumber = 1;
-        *instNum = instanceNumber++;
+        *instNum = ppTableInstNums[1]++;
     }
     else if(!strcmp(tableName, getName("Device.%s.PartialPath1.2.SubTable")))
     {
-        static int instanceNumber = 1;
-        *instNum = instanceNumber++;
+        *instNum = ppTableInstNums[2]++;
     }
 
     printf("partialPathTableAddRowHandler table=%s instNum=%d\n", tableName, *instNum); 
@@ -1031,7 +1086,7 @@ rbusError_t ppTableRemRowHandler(
         "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param6"
         "Device.TestProvider.PartialPath2.2.SubTable.3.SubObject2.Param7"
 
-    Table rows inside "Device.TestProvider.PartialPath1" are created with rbusTable_AddRow.
+    Table rows inside "Device.TestProvider.PartialPath1" are created with rbusTable_registerRow.
     Table rows inside "Device.TestProvider.PartialPath2" are hidden and table level
     getHandlers are used to execute the partial path query.
 
@@ -1280,7 +1335,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    #define numDataElems 49
+    #define numDataElems 51
 
     rbusDataElement_t dataElement[numDataElems] = {
         {"Device.%s.Event1!", RBUS_ELEMENT_TYPE_EVENT, {NULL,NULL,NULL,NULL, eventSubHandler, NULL}},
@@ -1307,12 +1362,14 @@ int main(int argc, char *argv[])
         {"Device.%s.Table1.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL, NULL}},
         {"Device.%s.Table1.{i}.Table2.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL, NULL}},
         {"Device.%s.Table1.{i}.Table2.{i}.Table3.{i}.data", RBUS_ELEMENT_TYPE_PROPERTY, {dataGetHandler, dataSetHandler, NULL, NULL, NULL, NULL}},
+        {"Device.%s.TableReg.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableRegAddRowHandler, tableRegRemoveRowHandler, tableRegSubHandler, NULL}},
+        {"Device.%s.TableReg.{i}.TableReg.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, tableRegAddRowHandler, tableRegRemoveRowHandler, tableRegSubHandler, NULL}},
         {"Device.%s.ResetTables", RBUS_ELEMENT_TYPE_PROPERTY, {NULL, resetTablesSetHandler, NULL, NULL, NULL, NULL}},
         {"Device.%s.Table1.{i}.Method1()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
         {"Device.%s.Table1.{i}.Table2.{i}.Method2()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
         {"Device.%s.MethodAsync1()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
         {"Device.%s.Table1.{i}.MethodAsync2()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
-        /*Device.%s.PartialPath1 will have row instances added via rbusTable_AddRow*/
+        /*Device.%s.PartialPath1 will have row instances added via rbusTable_registerRow*/
         {"Device.%s.PartialPath1.{i}.", RBUS_ELEMENT_TYPE_TABLE, {NULL, NULL, ppTableAddRowHandler, ppTableRemRowHandler, NULL, NULL}},
         {"Device.%s.PartialPath1.{i}.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
         {"Device.%s.PartialPath1.{i}.Param2", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
@@ -1322,7 +1379,7 @@ int main(int argc, char *argv[])
         {"Device.%s.PartialPath1.{i}.SubTable.{i}.Param5", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
         {"Device.%s.PartialPath1.{i}.SubTable.{i}.SubObject2.Param6", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
         {"Device.%s.PartialPath1.{i}.SubTable.{i}.SubObject2.Param7", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
-        /*Device.%s.PartialPath2 will not add rows with rbusTable_AddRow but will use table level getHandler execute partial path query*/
+        /*Device.%s.PartialPath2 will not add rows with rbusTable_registerRow but will use table level getHandler execute partial path query*/
         {"Device.%s.PartialPath2.{i}.", RBUS_ELEMENT_TYPE_TABLE, {ppTableGetHandler, NULL, ppTableAddRowHandler, ppTableRemRowHandler, NULL, NULL}},
         {"Device.%s.PartialPath2.{i}.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
         {"Device.%s.PartialPath2.{i}.Param2", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
@@ -1357,6 +1414,7 @@ int main(int argc, char *argv[])
         val[BIGSIZE-1]=0;
         rbusValue_SetString(gBigString, val);
         rbusValue_SetBytes(gBigBytes, (uint8_t*)val, BIGSIZE);
+        free(val);
     }
 
     rc = rbus_open(&handle, componentName);
@@ -1384,14 +1442,14 @@ int main(int argc, char *argv[])
 
     /*for partial path testing add exactly 2, 1, 3 rows as follows*/
     /*add 2 rows*/
-    rbusTable_addRow(handle, getName("Device.%s.PartialPath1"), NULL, NULL);
-    rbusTable_addRow(handle, getName("Device.%s.PartialPath1"), NULL, NULL);
+    rbusTable_registerRow(handle, getName("Device.%s.PartialPath1"), NULL, ppTableInstNums[0]++);
+    rbusTable_registerRow(handle, getName("Device.%s.PartialPath1"), NULL, ppTableInstNums[0]++);
     /*add 1 row*/
-    rbusTable_addRow(handle, getName("Device.%s.PartialPath1.1.SubTable"), NULL, NULL);
+    rbusTable_registerRow(handle, getName("Device.%s.PartialPath1.1.SubTable"), NULL, ppTableInstNums[1]++);
     /*add 3 row2*/
-    rbusTable_addRow(handle, getName("Device.%s.PartialPath1.2.SubTable"), NULL, NULL);
-    rbusTable_addRow(handle, getName("Device.%s.PartialPath1.2.SubTable"), NULL, NULL);
-    rbusTable_addRow(handle, getName("Device.%s.PartialPath1.2.SubTable"), NULL, NULL);
+    rbusTable_registerRow(handle, getName("Device.%s.PartialPath1.2.SubTable"), NULL, ppTableInstNums[2]++);
+    rbusTable_registerRow(handle, getName("Device.%s.PartialPath1.2.SubTable"), NULL, ppTableInstNums[2]++);
+    rbusTable_registerRow(handle, getName("Device.%s.PartialPath1.2.SubTable"), NULL, ppTableInstNums[2]++);
 
     if(loopFor == 0)
     {
@@ -1497,6 +1555,19 @@ int main(int argc, char *argv[])
                 if(rc != RBUS_ERROR_SUCCESS)
                     printf("provider: rbusEvent_Publish Event ProviderNotFoundEvent1! failed: %d\n", rc);
             }
+        }
+
+        if(tableRegSubscribe[0] > 0 && !tableRegComplete[0])
+        {
+            tableRegComplete[0] = 1;
+            rbusTable_registerRow(handle, getName("Device.%s.TableReg."), NULL, 1);
+            rbusTable_registerRow(handle, getName("Device.%s.TableReg."), NULL, 2);
+        }
+        if(tableRegSubscribe[1] > 0 && !tableRegComplete[1])
+        {
+            tableRegComplete[1] = 1;
+            rbusTable_registerRow(handle, getName("Device.%s.TableReg.1.TableReg."), NULL, 1);
+            rbusTable_registerRow(handle, getName("Device.%s.TableReg.1.TableReg."), NULL, 2);
         }
     }
 

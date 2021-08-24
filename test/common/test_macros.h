@@ -46,6 +46,16 @@ extern "C" {
     }while(0);
 
 
+#define TESTRC(T) \
+    do \
+    {  \
+        int rc = (T); \
+        if(rc != RBUS_ERROR_SUCCESS) \
+        { \
+            printf("_test_%s " #T  " failed: %d\n", __FUNCTION__, rc); \
+        } \
+    }while(0);
+
 #define VERIFY(T) \
     do \
     {  \
