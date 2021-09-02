@@ -1212,6 +1212,10 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
 void rbusValue_fwrite(rbusValue_t value, int depth, FILE* fout)
 {
     rbusValueType_t type;
+
+    if(!value)
+        return;
+
     type = rbusValue_GetType(value);
 
     if(type == RBUS_OBJECT)

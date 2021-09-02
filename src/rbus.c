@@ -415,7 +415,8 @@ void rbusValue_initFromMessage(rbusValue_t* value, rbusMessage msg)
                     break;
                 default:
                     rbusMessage_GetBytes(msg, &data, &length);
-                    rbusValue_SetTLV(*value, type, length, data);
+                    if(length)
+                        rbusValue_SetTLV(*value, type, length, data);
                     break;
             }
 
@@ -588,9 +589,12 @@ void rbusObject_initFromMessage(rbusObject_t* obj, rbusMessage msg)
 
 void rbusValue_appendToMessage(char const* name, rbusValue_t value, rbusMessage msg)
 {
-    rbusValueType_t type = rbusValue_GetType(value);
+    rbusValueType_t type = RBUS_NONE;
 
     rbusMessage_SetString(msg, name);
+
+    if(value)
+        type = rbusValue_GetType(value);
     rbusMessage_SetInt32(msg, type);
 #if DEBUG_SERIALIZER
     RBUSLOG_INFO("> value add name=%s type=%d", name, type);
@@ -655,8 +659,17 @@ void rbusValue_appendToMessage(char const* name, rbusValue_t value, rbusMessage 
                 rbusMessage_SetBytes(msg, rbusValue_GetV(value), rbusValue_GetL(value));
                 break;
             default:
-                rbusMessage_SetBytes(msg, rbusValue_GetV(value), rbusValue_GetL(value));
+            {
+                uint8_t const* buff = NULL;
+                uint32_t len = 0;
+                if(value)
+                {
+                    buff = rbusValue_GetV(value);
+                    len = rbusValue_GetL(value);
+                }
+                rbusMessage_SetBytes(msg, buff, len);
                 break;
+            }
         }
 #if DEBUG_SERIALIZER
         char* sv = rbusValue_ToString(value,0,0);
@@ -3469,7 +3482,8 @@ rbusError_t rbusMethod_InvokeInternal(
     rbusMessage_SetInt32(request, 0);/*TODO: this should be the session ID*/
     rbusMessage_SetString(request, methodName); /*TODO: do we need to append the name as well as pass the name as the 1st arg to rbus_invokeRemoteMethod ?*/
 
-    rbusObject_appendToMessage(inParams, request);
+    if(inParams)
+        rbusObject_appendToMessage(inParams, request);
 
     if((err = rbus_invokeRemoteMethod(
         methodName,
