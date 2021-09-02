@@ -269,6 +269,40 @@ void show_menu(const char* command)
             printf ("\tsend A.B.C \"Hello World\"\n\r");
             printf ("\n\r");
         }
+        else if(matchCmd(command, 9, "method_noargs"))
+        {
+            printf ("\e[1mmethod_no\e[0margs \e[4mmethodname\e[0m\n\r");
+            printf ("Used when a method does not require any input arguement.\n\r");
+            printf ("Args:\n\r");
+            printf ("\t%-20sName of a method\n\r", "methodname");
+            printf ("Examples:\n\r");
+            printf ("\tIsLanEnabled()\n\r");
+            printf ("\n\r");
+        }
+        else if(matchCmd(command, 9, "method_names"))
+        {
+            printf ("\e[1mmethod_na\e[0mmes \e[4mmethodname\e[0m \e[4mparameter\e[0m [[\e[4mparameter\e[0m] \e[4m...\e[0m]\n\r");
+            printf ("Uses the parameter name as an input to the specified method.\n\r");
+            printf ("Args:\n\r");
+            printf ("\t%-20sName of a method\n\r", "methodname");
+            printf ("\t%-20sName of a parameter\n\r", "parameter");
+            printf ("Examples:\n\r");
+            printf ("\tGetPSMRecordValue() Deveice.Test.Psm\n\r");
+            printf ("\n\r");
+        }
+        else if(matchCmd(command, 9, "method_values"))
+        {
+            printf ("\e[1mmethod_va\e[0mlues \e[4mmethodname\e[0m \e[4mparameter\e[0m \e[4mtype\e[0m \e[4mvalue\e[0m [[\e[4mparameter\e[0m \e[4mtype\e[0m \e[4mvalue\e[0m] \e[4m...\e[0m] [commit]\n\r");
+            printf ("Uses the type and value of the parameter name as an input to the specified method.\n\r");
+            printf ("Args:\n\r");
+            printf ("\t%-20sName of a method\n\r", "methodname");
+            printf ("\t%-20sName of a parameter\n\r", "parameter");
+            printf ("\t%-20sType of the parameter\n\r", "type");
+            printf ("\t%-20sValue to be stored in the parameter\n\r", "value");
+            printf ("Examples:\n\r");
+            printf ("\tSetPSMRecordValue() Deveice.Test.Psm string test_value\n\r");
+            printf ("\n\r");
+        }
         else if(matchCmd(command, 3, "log"))
         {
             printf ("\t\e[1mlog\e[0m \e[4mlevel\e[0m\n\r");
@@ -316,6 +350,9 @@ void show_menu(const char* command)
         printf ("\t\e[1mdel\e[0mrow \e[4mrow\e[0m\n\r");
         printf ("\t\e[1mdiscc\e[0momponents \e[4melement\e[0m [\e[4melement\e[0m \e[4m...\e[0m]\n\r");
         printf ("\t\e[1mdisca\e[0mllcomponents\n\r");
+        printf ("\t\e[1mmethod_no\e[0margs \e[4mmethodname\e[0m\n\r");
+        printf ("\t\e[1mmethod_na\e[0mmes \e[4mmethodname\e[0m \e[4mparameter\e[0m [[\e[4mparameter\e[0m] \e[4m...\e[0m]\n\r");
+        printf ("\t\e[1mmethod_va\e[0mlues \e[4mmethodname\e[0m \e[4mparameter\e[0m \e[4mtype\e[0m \e[4mvalue\e[0m [[\e[4mparameter\e[0m \e[4mtype\e[0m \e[4mvalue\e[0m] \e[4m...\e[0m] [commit]\n\r");
         printf ("\t\e[1mdisce\e[0mlements \e[4mcomponent\e[0m\n\r");
         printf ("\t\e[1mdisce\e[0mlements \e[4mpartial-path\e[0m immediate/all\n\r");
         printf ("\t\e[1mdiscw\e[0mildcarddests\n\r");
@@ -1505,6 +1542,133 @@ void validate_and_execute_send_command(int argc, char *argv[])
     }
 }
 
+static void execute_method_cmd(char *cmd, char *method, rbusObject_t inParams)
+{
+    rbusError_t rc = RBUS_ERROR_SUCCESS;
+    rbusValue_t value = NULL;
+    rbusObject_t outParams = NULL;
+    rbusProperty_t prop = NULL;
+    rbusValueType_t type = RBUS_NONE;
+    char *str_value = NULL;
+    int i = 0;
+
+    rc = rbusMethod_Invoke(g_busHandle, method, inParams, &outParams);
+    if(inParams)
+        rbusObject_Release(inParams);
+    if(RBUS_ERROR_SUCCESS != rc)
+    {
+        printf("%s failed for %s with err: '%s'\n\r",cmd, method,rbusError_ToString(rc));
+        return;
+    }
+
+    prop = rbusObject_GetProperties(outParams);
+    while(prop)
+    {
+        value = rbusProperty_GetValue(prop);
+        if(value)
+        {
+            type = rbusValue_GetType(value);
+            str_value = rbusValue_ToString(value,NULL,0);
+
+            if(str_value)
+            {
+                printf ("Parameter %2d:\n\r", ++i);
+                printf ("              Name  : %s\n\r", rbusProperty_GetName(prop));
+                printf ("              Type  : %s\n\r", getDataType_toString(type));
+                printf ("              Value : %s\n\r", str_value);
+                free(str_value);
+            }
+        }
+        prop = rbusProperty_GetNext(prop);
+    }
+
+    rbusObject_Release(outParams);
+}
+
+void validate_and_execute_method_values_cmd (int argc, char *argv[])
+{
+    if(!((argc >= 6) && (0 == (argc % 3))))
+    {
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
+
+    if (!verify_rbus_open())
+        return;
+
+    rbusValue_t value = NULL;
+    rbusProperty_t prop = NULL;
+    rbusValueType_t type = RBUS_NONE;
+    rbusObject_t inParams = NULL;
+    int i = 3;
+
+    rbusObject_Init(&inParams, NULL);
+    while( i < argc )
+    {
+        type = getDataType_fromString(argv[i+1]);
+        if (type == RBUS_NONE)
+        {
+            printf ("Invalid data type '%s' for the parameter %s\n\r",argv[i+1],argv[i]);
+            if(inParams)
+                rbusObject_Release(inParams);
+            return;
+        }
+
+        rbusValue_Init(&value);
+        if(false == rbusValue_SetFromString(value, type, argv[i+2]))
+        {
+            printf ("Invalid value '%s' for the parameter %s\n\r",argv[i+2],argv[i]);
+            if(inParams)
+                rbusObject_Release(inParams);
+            return;
+        }
+        rbusProperty_Init(&prop, argv[i], value);
+        rbusObject_SetProperty(inParams,prop);
+        rbusValue_Release(value);
+
+        i = i+3;
+    }
+    execute_method_cmd(argv[1], argv[2], inParams);
+}
+
+void validate_and_execute_method_noargs_cmd (int argc, char *argv[])
+{
+    if (argc < 3)
+    {
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
+
+    if (!verify_rbus_open())
+        return;
+
+    execute_method_cmd(argv[1], argv[2], NULL);
+}
+
+void validate_and_execute_method_names_cmd (int argc, char *argv[])
+{
+    if (argc < 4)
+    {
+        printf ("Invalid arguments. Please see the help\n\r");
+        return;
+    }
+
+    if (!verify_rbus_open())
+        return;
+
+    rbusProperty_t prop = NULL;
+    rbusObject_t inParams = NULL;
+    int i = 3;
+
+    rbusObject_Init(&inParams, NULL);
+    for( ; i<argc; i++ )
+    {
+        rbusProperty_Init(&prop, argv[i], NULL) ;
+        rbusObject_SetProperty(inParams,prop);
+    }
+    execute_method_cmd(argv[1], argv[2], inParams);
+}
+
 int handle_cmds (int argc, char *argv[])
 {
     /* Interactive shell; handle the enter key */
@@ -1592,6 +1756,18 @@ int handle_cmds (int argc, char *argv[])
     else if(matchCmd(command, 4, "send"))
     {
         validate_and_execute_send_command (argc, argv);
+    }
+    else if(matchCmd(command, 9, "method_values"))
+    {
+        validate_and_execute_method_values_cmd (argc, argv);
+    }
+    else if(matchCmd(command, 9, "method_names"))
+    {
+        validate_and_execute_method_names_cmd (argc, argv);
+    }
+    else if(matchCmd(command, 9, "method_noargs"))
+    {
+        validate_and_execute_method_noargs_cmd (argc, argv);
     }
     else if(matchCmd(command, 4, "help"))
     {
@@ -1756,7 +1932,9 @@ void completion(const char *buf, linenoiseCompletions *lc) {
 
     if(num == 1)
     {
-        completion = find_completion(tokens[0], 14, "get", "set", "add", "del", "disca", "discc", "disce", "discw", "sub", "unsub", "reg", "unreg", "pub", "addl", "reml", "send", "log", "quit", "help");
+        completion = find_completion(tokens[0], 14, "get", "set", "add", "del", "disca", "discc", "disce",
+                "discw", "sub", "unsub", "method_no", "method_na", "method_va", "reg", "unreg", "pub",
+                "addl", "reml", "send", "log", "quit", "help");
     }
     else if(num == 2)
     {
@@ -1776,6 +1954,16 @@ void completion(const char *buf, linenoiseCompletions *lc) {
             completion = find_completion(tokens[2], 18, 
                     "string", "int", "uint", "boolean", "datetime", "single", "double",
                     "bytes", "char", "byte", "int8", "uint8", "int16", "uint16", "int32", 
+                    "uint32", "int64", "uint64");
+        }
+    }
+    else if(num == 4)
+    {
+        if(strcmp(tokens[0], "method_va") == 0)
+        {
+            completion = find_completion(tokens[2], 18,
+                    "string", "int", "uint", "boolean", "datetime", "single", "double",
+                    "bytes", "char", "byte", "int8", "uint8", "int16", "uint16", "int32",
                     "uint32", "int64", "uint64");
         }
     }
@@ -1873,7 +2061,19 @@ char *hints(const char *buf, int *color, int *bold) {
         else if(strcmp(tokens[0], "send") == 0)
         {
             hint = " topic [data]";
-        }                
+        }
+        else if(strcmp(tokens[0], "method_va") == 0)
+        {
+            hint = " methodname parameter type value";
+        }
+        else if(strcmp(tokens[0], "method_na") == 0)
+        {
+            hint = " methodname parameter";
+        }
+        else if(strcmp(tokens[0], "method_no") == 0)
+        {
+            hint = " methodname";
+        }
         else if(strcmp(tokens[0], "log") == 0)
         {
             hint = " level(debug|info|warn|error|fatal|event)";
@@ -1889,14 +2089,33 @@ char *hints(const char *buf, int *color, int *bold) {
         {
             hint = " type(string,int,uint,boolean,...) value";
         }
-        if(strcmp(tokens[0], "reg") == 0)
+        else if(strcmp(tokens[0], "reg") == 0)
         {
             hint = " name";
+        }
+        else if(strcmp(tokens[0], "method_va") == 0)
+        {
+            hint = " parameter type value";
+        }
+        else if(strcmp(tokens[0], "method_na") == 0)
+        {
+            hint = " parameter";
         }
     }
     else if(num == 3)
     {
         if(strcmp(tokens[0], "set") == 0)
+        {
+            hint = " value";
+        }
+        else if(strcmp(tokens[0], "method_va") == 0)
+        {
+            hint = " type(string,int,uint,boolean,...) value";
+        }
+    }
+    else if(num == 3)
+    {
+        if(strcmp(tokens[0], "method_va") == 0)
         {
             hint = " value";
         }
