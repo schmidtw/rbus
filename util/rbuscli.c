@@ -1030,16 +1030,21 @@ void validate_and_execute_set_cmd (int argc, char *argv[])
     }
     else /* Single Set Command */
     {
+        rbusValue_t setVal;
+        bool value = false;
         /* Get Param Type */
         rbusValueType_t type = getDataType_fromString(argv[3]);
-
+        rbusValue_Init(&setVal);
+        value = rbusValue_SetFromString(setVal, type, argv[4]);
+        if(value == false)
+        {
+            rc = RBUS_ERROR_INVALID_INPUT;
+            printf ("Invalid data value passed to set. Please pass proper value with respect to the data type\nsetvalues failed with return value: %d\n", rc);
+            return;
+        }
         if (type != RBUS_NONE)
         {
-            rbusValue_t setVal;
 
-            /* Create Param w/ Name */
-            rbusValue_Init(&setVal);
-            rbusValue_SetFromString(setVal, type, argv[4]);
             /* Set Session ID & Commit value */
             if (g_isInteractive)
             {
@@ -1106,7 +1111,7 @@ void validate_and_execute_set_cmd (int argc, char *argv[])
     }
     else
     {
-        printf ("setvalues failed ..\n\r");
+        printf ("setvalues failed with return value: %d\n\r", rc);
     }
 }
 
