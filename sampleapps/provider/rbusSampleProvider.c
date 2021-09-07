@@ -368,27 +368,27 @@ rbusError_t SampleProvider_allTypesSetHandler(rbusHandle_t handle, rbusProperty_
 
     if ((strcmp(name, "Device.SampleProvider.AllTypes.BoolData") == 0) && (type == RBUS_BOOLEAN))
         gTestSampleVal.m_bool = rbusValue_GetBoolean(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.CharData") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.CharData") == 0) && (type == RBUS_CHAR))
         gTestSampleVal.m_char = rbusValue_GetChar(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.ByteData") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.ByteData") == 0) && (type == RBUS_BYTES))
         gTestSampleVal.m_byte = rbusValue_GetByte(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int16Data") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.Int16Data") == 0) && (type == RBUS_INT16))
         gTestSampleVal.m_int16 = rbusValue_GetInt16(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt16Data") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.UInt16Data") == 0) && (type == RBUS_UINT16))
         gTestSampleVal.m_uint16 = rbusValue_GetUInt16(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int32Data") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.Int32Data") == 0) && (type == RBUS_INT32))
         gTestSampleVal.m_int32 = rbusValue_GetInt32(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt32Data") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.UInt32Data") == 0) && (type == RBUS_UINT32))
         gTestSampleVal.m_uint32 = rbusValue_GetUInt32(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.Int64Data") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.Int64Data") == 0) && (type == RBUS_INT64))
         gTestSampleVal.m_int64 = rbusValue_GetInt64(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.UInt64Data") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.UInt64Data") == 0) && (type == RBUS_UINT64))
         gTestSampleVal.m_uint64 = rbusValue_GetUInt64(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.SingleData") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.SingleData") == 0) && (type == RBUS_SINGLE))
         gTestSampleVal.m_float = rbusValue_GetSingle(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.DoubleData") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.DoubleData") == 0) && (type == RBUS_DOUBLE))
         gTestSampleVal.m_double = rbusValue_GetDouble(value);
-    else if (strcmp(name, "Device.SampleProvider.AllTypes.StringData") == 0)
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.StringData") == 0) && (type == RBUS_STRING))
     {
         int len = 0;
         char const* pTmp = NULL;
