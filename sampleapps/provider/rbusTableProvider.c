@@ -32,6 +32,7 @@
 //TODO handle filter matching
 
 int runtime = 20;
+int g_count = 0;
 
 #define MAX_TABLE_ROWS 16
 #define MAX_LENGTH 64
@@ -143,11 +144,11 @@ rbusError_t tableAddRowHandler1(rbusHandle_t handle, char const* tableName, char
         "\taliasName=%s\n",
         tableName, aliasName);
 
-    if((gDM.t1InstNum) >= MAX_TABLE_ROWS)
+    if(g_count >= MAX_TABLE_ROWS)
     {
         return RBUS_ERROR_OUT_OF_RESOURCES;
     }
-    for(i = 0; i < MAX_TABLE_ROWS; ++i)
+    for(i = 0; i <= g_count; ++i)
     {
         T1* t1 = &gDM.t1[i];
 
@@ -157,6 +158,7 @@ rbusError_t tableAddRowHandler1(rbusHandle_t handle, char const* tableName, char
 
             t1->inUse = true;
             t1->instNum = ++gDM.t1InstNum;
+            ++g_count;
             if(aliasName)
                 strncpy(t1->alias, aliasName, MAX_LENGTH);
 
@@ -183,6 +185,7 @@ rbusError_t tableRemoveRowHandler1(rbusHandle_t handle, char const* rowName)
     if(t1)
     {
         memset(t1, 0, sizeof(T1));
+        --g_count;
         printDataModel();
         return RBUS_ERROR_SUCCESS;
     }
@@ -203,10 +206,6 @@ rbusError_t tableAddRowHandler2(rbusHandle_t handle, char const* tableName, char
 
     t1 = findT1(tableName);
 
-    if((gDM.t1InstNum) >= MAX_TABLE_ROWS)
-    {
-        return RBUS_ERROR_OUT_OF_RESOURCES;
-    }
     if(t1)
     {
         int i;
