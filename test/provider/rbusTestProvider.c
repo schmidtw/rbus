@@ -1354,7 +1354,7 @@ int main(int argc, char *argv[])
         int i = 0;
         for(i = 0; i < BIGSIZE-1; ++i)
             val[i] = (char)(32 + (i % 96));
-        val[BIGSIZE]=0;
+        val[BIGSIZE-1]=0;
         rbusValue_SetString(gBigString, val);
         rbusValue_SetBytes(gBigBytes, (uint8_t*)val, BIGSIZE);
     }
