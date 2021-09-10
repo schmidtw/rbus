@@ -721,10 +721,17 @@ void execute_discover_component_cmd(int argc, char* argv[])
     if(RBUS_ERROR_SUCCESS == rc)
     {
         printf ("Discovered components for the given elements.\n\r");
-        for (i = 0; i < componentCnt; i++)
+        if(componentCnt)
         {
-            printf ("\tComponent %d: %s\n\r", (i + 1), pComponentNames[i]);
-            free(pComponentNames[i]);
+            for (i = 0; i < componentCnt; i++)
+            {
+                printf ("\tComponent %d: %s\n\r", (i + 1), pComponentNames[i]);
+                free(pComponentNames[i]);
+            }
+        }
+        else
+        {
+            printf ("\tNone\n\r");
         }
         free(pComponentNames);
     }

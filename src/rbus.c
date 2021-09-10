@@ -2662,8 +2662,6 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
         while(current && i < numProps)
         {
             pParamNames[i++] = rbusProperty_GetName(current);
-            current = rbusProperty_GetNext(current);
-
             type = rbusValue_GetType(rbusProperty_GetValue(current));
             if (RBUS_NONE == type)
             {
@@ -2671,6 +2669,7 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
                 free(pParamNames);
                 return errorcode;
             }
+            current = rbusProperty_GetNext(current);
         }
         if(i != numProps)
         {
