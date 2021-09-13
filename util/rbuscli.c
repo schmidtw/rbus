@@ -601,6 +601,7 @@ static rbusError_t method_invoke_handler(rbusHandle_t handle, char const* method
     {
         printf("Method handler called for %s\n\r", methodName);
     }
+    rbusObject_fwrite(inParams, 1, stdout);
     return RBUS_ERROR_SUCCESS;
 }
 
