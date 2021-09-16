@@ -1,40 +1,137 @@
-Rbus
-----
-Unified RDK bus is an initiative to develop a common IPC bus that can be used across all profiles of RDK.
-The API spec for this layer is expected to be an replacement of CCSP Common Library IPC framework used by RDK-B.
-The APIs are a enhancement of rbus-core APIs which is an intermediate layer that offers RPC and eventing capabilities.
 
-Compilation Steps
------------------
-1. The prerequisite for rbus is to have rbuscore; Make sure that rbuscore compiled and installed. Ref: https://code.rdkcentral.com/r/plugins/gitiles/components/opensource/rbuscore/ for instruction.
+# Rbus
 
-2. Create a workspace
-
-   $ mkdir -p ~/workspace
-   $ cd  ~/workspace
-
-3. Export the prefix variable. (rbuscore binaries, libraries and headers should have been installed in this path)
-
-   $ export PREFIX=${PWD}
-   
-4. Create a src folder where this rbus going to be downloaded
-
-   $ mkdir -p src
-   $ cd src/
-
-5. Clone the source
-
-   $ git clone https://code.rdkcentral.com/r/components/opensource/rbus
+RDK Bus (RBus) is a lightweight, fast and efficient bus messaging system. 
+It allows interprocess communication (IPC) and remote procedure call (RPC)
+between multiple process running on a hardware device.  It supports the
+creation and use of a data model, which is a hierarchical tree of named 
+objects with properties, events, and methods.
 
 
-6. Execute the below commands
+## Desktop Build (Linux)
 
-   $ cd rbus
-   $ mkdir build
-   $ cmake -DBUILD_FOR_DESKTOP=ON -DCMAKE_INSTALL_PREFIX=$PREFIX ../
-   $ make
-   $ make install
+    export RBUS_ROOT=${HOME}/rbus
+    export RBUS_INSTALL_DIR=${RBUS_ROOT}/install
+    export RBUS_BRANCH=2105_sprint
+    mkdir -p $RBUS_INSTALL_DIR
+    cd $RBUS_ROOT
 
-7. To enable GTest case include the cmake flag '-DENABLE_UNIT_TESTING=ON' and run the make commands
-8. To enable code coverage include the cmake flag '-DENABLE_CODE_COVERAGE=ON' and run the make commands
+#### Build rtmessage
 
+    git clone ssh://gerrit.teamccp.com:29418/rdk/components/opensource/rtmessage -b $RBUS_BRANCH rtmessage
+    cmake -Hrtmessage -Bbuild/rtmessage -DCMAKE_INSTALL_PREFIX=${RBUS_INSTALL_DIR}/usr -DBUILD_FOR_DESKTOP=ON -DCMAKE_BUILD_TYPE=Debug
+    make -C build/rtmessage && make -C build/rtmessage install
+
+#### Build rbuscore
+
+    git clone ssh://gerrit.teamccp.com:29418/rdk/components/generic/rbuscore/generic -b $RBUS_BRANCH rbuscore
+    cmake -Hrbuscore -Bbuild/rbuscore -DCMAKE_INSTALL_PREFIX=${RBUS_INSTALL_DIR}/usr -DBUILD_FOR_DESKTOP=ON -DBUILD_RBUS_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=Debug
+    make -C build/rbuscore && make -C build/rbuscore install
+
+#### Build rbus
+
+    git clone ssh://gerrit.teamccp.com:29418/rdk/components/generic/rbus/generic -b $RBUS_BRANCH rbus
+    cmake -Hrbus -Bbuild/rbus -DCMAKE_INSTALL_PREFIX=${RBUS_INSTALL_DIR}/usr -DBUILD_FOR_DESKTOP=ON -DCMAKE_BUILD_TYPE=Debug
+    make -C build/rbus && make -C build/rbus install
+
+## Run Rbus Apps
+
+Setup 3 terminals:
+
+    export RBUS_ROOT=${HOME}/rbus && \
+    export RBUS_INSTALL_DIR=${RBUS_ROOT}/install && \
+    export PATH=${RBUS_INSTALL_DIR}/usr/bin:${PATH} && \
+    export LD_LIBRARY_PATH=${RBUS_INSTALL_DIR}/usr/lib:${LD_LIBRARY_PATH}
+
+#### Start rtrouted
+
+In terminal 1, run rtrouted.  This deamon must be running for rbus apps to communicate.
+
+    rtrouted -f -l DEBUG
+
+Note that if at any point in the future you want to restart rtrouted you can run this.
+
+    killall -9 rtrouted; rm -fr /tmp/rtroute*; rtrouted -f -l DEBUG
+
+#### Run a sample app
+
+Note that all sample apps come with both a provider and a consumer app. 
+The provider must be started first and then quickly, before the provider times out, the consumer should be started.
+
+In terminal 2, run the sample provider.
+
+    rbusSampleProvider
+
+In terminal 3, run the sample consumer.
+
+    rbusSampleConsumer
+
+Here is the list of all samples:
+
+1. rbusSampleProvider / rbusSampleConsumer
+2. rbusEventProvider / rbusEventConsumer
+3. rbusEventProvider / rbusEventConsumer
+4. rbusGeneralEventProvider / rbusGeneralEventConsumer
+5. rbusValueChangeProvider / rbusValueChangeConsumer
+6. rbusMethodProvider / rbusMethodConsumer
+7. rbusTableProvider / rbusTableConsumer
+
+#### Playing with rbuscli
+
+The rbuscli utility app allows the user to register a data model and interact with it, 
+exercising the rbus api both from a provider and consumer perspective.
+
+In terminal 2, run rbuscli
+
+    rbuscli -i
+
+Register a property as a provider would
+
+        > reg prop A.B
+
+In terminal 3, run rbuscli and set/get the property, registered by the first rbuscli, as a consumer would.
+
+    rbuscli -i
+        > set A.B string "hello"
+        > get A.B
+
+In terminal 3, enable event logging and subscribe to a value-change event.
+
+        > log events
+        > sub A.B
+
+In terminal 2, change the value so that a value-change event is generated.
+
+        > set A.B string "hello again"
+
+In terminal 3, logs should appear showing a value change event was received.
+
+There's a lot more you can do with rbuscli. 
+Enter ***help*** to get a full list of commands. 
+When your done, enter ***quit*** to exit rbuscli.
+
+#### Run the test harness
+
+In terminal 2, run the test provider
+
+    rbusTestProvider
+
+In terminal 3, run the test consumer
+
+    rbusTestConsumer -a
+
+
+The test takes about 5-10 minutes. Check for errors in the summary table at the end.
+To get more details for any error, rerun the test passing ***-l debug*** to both the provider and consumer.
+
+#### Run with valgrind
+
+Valgrind is an important tool to help find both memory leaks and memory related bugs.
+
+In terminal 2, run a sample provider using valgrind.
+
+    valgrind --leak-check=full --show-leak-kinds=all rbusSampleProvider
+
+In terminal 3, run a sample consumer using valgrind.
+
+    valgrind --leak-check=full --show-leak-kinds=all rbusSampleConsumer
