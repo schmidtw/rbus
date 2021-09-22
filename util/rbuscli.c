@@ -927,11 +927,11 @@ void validate_and_execute_addrow_cmd (int argc, char *argv[])
 
     if(RBUS_ERROR_SUCCESS == rc)
     {
-        printf ("\n\n%s%d added\n\n\r", pTablePathName, instanceNum);
+        printf ("\n\n%s%d. added\n\n\r", pTablePathName, instanceNum);
     }
     else
     {
-        printf ("Add row to a table failed ..\n\r");
+        printf ("Add row to a table failed with error code:%d..\n\r", rc);
     }
 }
 

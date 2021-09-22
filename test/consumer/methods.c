@@ -115,7 +115,7 @@ void testMethods(rbusHandle_t handle, int* countPass, int* countFail)
 
     snprintf(row1, RBUS_MAX_NAME_LENGTH, "Device.TestProvider.Table1.%u", instNum1);
 
-    snprintf(table2, RBUS_MAX_NAME_LENGTH, "%s.Table2", row1);
+    snprintf(table2, RBUS_MAX_NAME_LENGTH, "%s.Table2.", row1);
 
     if((err = rbusTable_addRow(handle, table2, "method2", &instNum2)) != RBUS_ERROR_SUCCESS)
     {

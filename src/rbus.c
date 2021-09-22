@@ -2957,6 +2957,7 @@ rbusError_t rbusTable_addRow(
     rbus_error_t err;
     int returnCode = 0;
     int32_t instanceId = 0;
+    const char dot = '.';
     rbusMessage request, response;
     (void)handle;
     rbusLegacyReturn_t legacyRetCode = RBUS_LEGACY_ERR_FAILURE;
@@ -2978,6 +2979,12 @@ rbusError_t rbusTable_addRow(
         }
     }
 #endif
+
+    if(tableName == NULL || instNum == NULL || tableName[strlen(tableName)-1] != dot)
+    {
+        RBUSLOG_WARN("%s invalid table name %s", __FUNCTION__, tableName);
+        return RBUS_ERROR_INVALID_INPUT;
+    }
 
     rbusMessage_Init(&request);
     rbusMessage_SetInt32(request, 0);/*TODO: this should be the session ID*/

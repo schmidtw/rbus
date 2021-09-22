@@ -666,10 +666,7 @@ uint32_t rbusValue_GetL(rbusValue_t v)
     case RBUS_DOUBLE:       return sizeof(double);
     case RBUS_DATETIME:     return sizeof(rbusDateTime_t);
     case RBUS_BYTES:        return v->d.bytes->posWrite;
-    default:
-        assert(false);
-        return 0;
-        break;
+    default:                return 0;
     }
 }
 
