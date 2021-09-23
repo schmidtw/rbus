@@ -2234,7 +2234,8 @@ rbusError_t rbus_get(rbusHandle_t handle, char const* name, rbusValue_t* value)
         }
         else
         {
-            RBUSLOG_WARN("Response from remote method indicates the call failed!!");
+            RBUSLOG_ERROR("Response from remote method indicates the call failed!!");
+            errorcode = RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
             if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
             {
                 errorcode = CCSPError_to_rbusError(legacyRetCode);
@@ -2295,6 +2296,7 @@ rbusError_t _getExt_response_parser(rbusMessage response, int *numValues, rbusPr
     else
     {
         RBUSLOG_ERROR("Response from remote method indicates the call failed!!");
+        errorcode = RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
         if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
         {
             errorcode = CCSPError_to_rbusError(legacyRetCode);
@@ -2509,7 +2511,8 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
         }
         else
         {
-             RBUSLOG_ERROR("Discover component names failed with error %d and counts %d/%d", errorcode, paramCount, numComponents);
+            errorcode = RBUS_ERROR_DESTINATION_NOT_REACHABLE;
+            RBUSLOG_ERROR("Discover component names failed with error %d and counts %d/%d", errorcode, paramCount, numComponents);
         }
         if(componentNames)
             free(componentNames);
@@ -2810,7 +2813,8 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
         }
         else
         {
-             RBUSLOG_ERROR("Discover component names failed with error %d and counts %d/%d", errorcode, numProps, numComponents);
+            errorcode = RBUS_ERROR_DESTINATION_NOT_REACHABLE;
+            RBUSLOG_ERROR("Discover component names failed with error %d and counts %d/%d", errorcode, numProps, numComponents);
         }
         if(componentNames)
             free(componentNames);

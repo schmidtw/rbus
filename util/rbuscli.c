@@ -935,7 +935,7 @@ void validate_and_execute_get_cmd (int argc, char *argv[])
     }
     else
     {
-        printf ("Failed to get the data\n\r");
+        printf ("Failed to get the data. Error : %d\n\r",rc);
     }
 }
 

@@ -780,6 +780,7 @@ rbusError_t rbus_unregDataElements (
  *  @return RBus error code as defined by rbusError_t.
  *  Possible values are:
  *  RBUS_ERROR_ACCESS_NOT_ALLOWED: Access to requested parameter is not permitted.
+ *  RBUS_ERROR_ELEMENT_DOES_NOT_EXIST: Data Element was not previously registered.
  */
 rbusError_t rbus_get(
     rbusHandle_t handle, 
@@ -834,6 +835,8 @@ rbusError_t rbus_get(
  *  @return RBus error code as defined by rbusError_t.
  *  Possible values are:
  *  RBUS_ERROR_ACCESS_NOT_ALLOWED: Access to requested parameter is not permitted.
+ *  RBUS_ERROR_ELEMENT_DOES_NOT_EXIST: Data Element was not previously registered.
+ *  RBUS_ERROR_DESTINATION_NOT_REACHABLE: Destination element was not reachable.
  */
 rbusError_t rbus_getExt(
     rbusHandle_t handle,
@@ -943,6 +946,7 @@ rbusError_t rbus_set(
  *  @return RBus error code as defined by rbusError_t.
  *  Possible values are:
  *  RBUS_ERROR_ACCESS_NOT_ALLOWED: Access to requested parameter is not permitted.
+ *  RBUS_ERROR_DESTINATION_NOT_REACHABLE: Destination element was not reachable.
  */
 rbusError_t rbus_setMulti(
     rbusHandle_t handle,
