@@ -415,8 +415,7 @@ void rbusValue_initFromMessage(rbusValue_t* value, rbusMessage msg)
                     break;
                 default:
                     rbusMessage_GetBytes(msg, &data, &length);
-                    if(length)
-                        rbusValue_SetTLV(*value, type, length, data);
+                    rbusValue_SetTLV(*value, type, length, data);
                     break;
             }
 
@@ -2967,7 +2966,7 @@ rbusError_t rbusTable_addRow(
 
     RBUSLOG_INFO("%s: %s %s", __FUNCTION__, tableName, aliasName);
 
-    if(tableName == NULL || instNum == NULL || tableName[strlen(tableName)-1] != dot)
+    if(tableName == NULL || tableName[strlen(tableName)-1] != dot)
     {
         RBUSLOG_WARN("%s invalid table name %s", __FUNCTION__, tableName);
         return RBUS_ERROR_INVALID_INPUT;

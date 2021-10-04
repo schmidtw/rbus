@@ -28,6 +28,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <getopt.h>
+#include "rtVector.h"
+#include "rbus_handle.h"
 
 static int gDuration = 10;
 
@@ -223,6 +225,22 @@ void unsubscribe(
         rc);
 }
 
+rbusEventSubscription_t* EventSubscription_find(rtVector eventSubs, char const* eventName, rbusFilter_t filter)
+{
+    size_t i = 0;
+    for(i=0; i < rtVector_Size(eventSubs); ++i)
+    {
+        rbusEventSubscription_t* sub = (rbusEventSubscription_t*)rtVector_At(eventSubs, i);
+        if(sub && !strcmp(sub->eventName, eventName) && !rbusFilter_Compare(sub->filter, filter))
+        {
+            printf("EventSubscription_find success\n");
+            return sub;
+        }
+    }
+    printf("EventSubscription_find error: can't find %s\n", eventName);
+    return NULL;
+}
+
 void subscribeAsync(
     rbusHandle_t handle, 
     char const* event, 
@@ -235,6 +253,7 @@ void subscribeAsync(
 {
     int actualErr;
     static char userData[] = "My Async Data";
+
     gAsyncExpectedElapseMin = expectedMinElapsed;
     gAsyncExpectedElapseMax = expectedMaxElapsed;
     gAsyncExpectedError = expectedAsyncErr;
@@ -268,6 +287,8 @@ void testSubscribe(rbusHandle_t handle, int* countPass, int* countFail)
     int success;
     int maxTimeout = 30;
     int i;
+    struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
+    unsigned int quit_counter = 10;
 
     /*changing from default so tests don't take 10 minutes for async sub to complete*/
     rbusConfig_Get()->subscribeTimeout = maxTimeout * 1000;
@@ -321,11 +342,25 @@ void testSubscribe(rbusHandle_t handle, int* countPass, int* countFail)
 
     /* Test async subscribe with timeout succeeds and returns immediately */
     subscribeAsync(handle, "Device.TestProvider.Event1!", handler1, 20, RBUS_ERROR_SUCCESS, RBUS_ERROR_SUCCESS, 0, 100);
-    unsubscribe(handle, "Device.TestProvider.Event1!", RBUS_ERROR_SUCCESS);
+    if(gAsyncSuccess == 1)
+    {
+        while(((EventSubscription_find(handleInfo->eventSubs, "Device.TestProvider.Event1!", NULL)) == NULL) && (quit_counter--))
+        {
+            usleep(1000000);
+        }
+        unsubscribe(handle, "Device.TestProvider.Event1!", RBUS_ERROR_SUCCESS);
+    }
 
     /* Test async subscribe with default timeout succeeds and returns immediately */
     subscribeAsync(handle, "Device.TestProvider.Event1!", handler1, -1, RBUS_ERROR_SUCCESS, RBUS_ERROR_SUCCESS, 0, 100);
-    unsubscribe(handle, "Device.TestProvider.Event1!", RBUS_ERROR_SUCCESS);
+    if(gAsyncSuccess == 1)
+    {
+        while(((EventSubscription_find(handleInfo->eventSubs, "Device.TestProvider.Event1!", NULL)) == NULL) && (quit_counter--))
+        {
+            usleep(1000000);
+        }
+        unsubscribe(handle, "Device.TestProvider.Event1!", RBUS_ERROR_SUCCESS);
+    }
 
     /* Test async subscribe can get provider specific error */
     subscribeAsync(handle, "Device.TestProvider.ErrorSubHandlerEvent!", handler1, -1, RBUS_ERROR_SUCCESS, RBUS_ERROR_ACCESS_NOT_ALLOWED, 0, 100);
@@ -354,13 +389,13 @@ void testSubscribe(rbusHandle_t handle, int* countPass, int* countFail)
     /* add three rows */
     rc = rbusTable_addRow(handle, "Device.TestProvider.EventsTable.", NULL, NULL);
     TALLY(rc == RBUS_ERROR_SUCCESS);
-    printf("%s rbusTable_addRow Device.TestProvider.EventsTable.1\n", rc == RBUS_ERROR_SUCCESS ? "PASS" : "FAIL");
+    printf("%s rbusTable_addRow Device.TestProvider.EventsTable.1.\n", rc == RBUS_ERROR_SUCCESS ? "PASS" : "FAIL");
     rc = rbusTable_addRow(handle, "Device.TestProvider.EventsTable.", NULL, NULL);
     TALLY(rc == RBUS_ERROR_SUCCESS);
-    printf("%s rbusTable_addRow Device.TestProvider.EventsTable.2\n", rc == RBUS_ERROR_SUCCESS ? "PASS" : "FAIL");
+    printf("%s rbusTable_addRow Device.TestProvider.EventsTable.2.\n", rc == RBUS_ERROR_SUCCESS ? "PASS" : "FAIL");
     rc = rbusTable_addRow(handle, "Device.TestProvider.EventsTable.", NULL, NULL);
     TALLY(rc == RBUS_ERROR_SUCCESS);
-    printf("%s rbusTable_addRow Device.TestProvider.EventsTable.3\n", rc == RBUS_ERROR_SUCCESS ? "PASS" : "FAIL");
+    printf("%s rbusTable_addRow Device.TestProvider.EventsTable.3.\n", rc == RBUS_ERROR_SUCCESS ? "PASS" : "FAIL");
 
     /*subscribe to stuff on each row*/
     subscribe(handle, "Device.TestProvider.EventsTable.1.Event", eventsTableHandler, 0, 500, RBUS_ERROR_SUCCESS);
