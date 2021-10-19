@@ -19,6 +19,7 @@
 
 #include "rbus_subscriptions.h"
 #include "rbus_buffer.h"
+#include "rbus_handle.h"
 #include <memory.h>
 #include <assert.h>
 #include <sys/stat.h>
@@ -281,8 +282,10 @@ void rbusSubscriptions_onElementDeleted(rbusSubscriptions_t subscriptions, eleme
             /*if child's type is a subscribable type*/
             if(child->type != 0)
             {
-                rtListItem item;
+                rtListItem item, tempitem;
                 rbusSubscription_t* sub;
+                bool val=false;
+                rbusSubscription_t* subscription = NULL;
 
                 rtList_GetFront(subscriptions->subList, &item);
 
@@ -292,6 +295,7 @@ void rbusSubscriptions_onElementDeleted(rbusSubscriptions_t subscriptions, eleme
                     rtListItem item2;
                     elementNode* inst;
 
+                    rtListItem_GetNext(item, &tempitem);
                     rtListItem_GetData(item, (void**)&sub);
 
                     rtList_GetFront(sub->instances, &item2);
@@ -305,13 +309,27 @@ void rbusSubscriptions_onElementDeleted(rbusSubscriptions_t subscriptions, eleme
                         {
                             rtList_RemoveItem(sub->instances, item2, NULL);
                             removeElementSubscription(child, sub);
+                            val = true;
                             break;
                         }
                         rtListItem_GetNext(item2, &item2);
                     }
 
-                    rtListItem_GetNext(item, &item);
-                } 
+                    /* RDKB-38389 : Removing the instance of the row to be removed from the subscriptions->subList linked list */
+                    if(val)
+                    {
+                        subscription = rbusSubscriptions_getSubscription(subscriptions, sub->listener, sub->eventName, sub->filter);
+                        if(!subscription)
+                        {
+                            RBUSLOG_INFO("unsubscribing from event which isn't currectly subscribed to event=%s listener=%s", sub->eventName, sub->listener);
+                        }
+                        else
+                        {
+                            rbusSubscriptions_removeSubscription(subscriptions, subscription);
+                        }
+                    }
+                    item = tempitem;
+                }
             }
 
             /*recurse into children except for row templates {i}*/
@@ -624,6 +642,8 @@ void rbusSubscriptions_handleClientDisconnect(rbusHandle_t handle, rbusSubscript
 {
     rtListItem item;
     rbusSubscription_t* sub;
+    elementNode* el = NULL;
+    struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
 
     RBUSLOG_INFO("%s: %s", __FUNCTION__, listener);
 
@@ -635,7 +655,16 @@ void rbusSubscriptions_handleClientDisconnect(rbusHandle_t handle, rbusSubscript
         rtListItem_GetNext(item, &item);
         if(strcmp(sub->listener, listener) == 0)
         {
-            subscribeHandlerImpl(handle, false, sub->element, sub->eventName, sub->listener, 0, 0, 0);
+            /* RDKB-38389 : Checking for elementnode existence for which the eventname is subscribed */
+            el = retrieveInstanceElement(handleInfo->elementRoot, sub->eventName);
+            if(el)
+            {
+                subscribeHandlerImpl(handle, false, sub->element, sub->eventName, sub->listener, 0, 0, 0);
+            }
+            else
+            {
+                RBUSLOG_WARN("rbusSubscriptions_handleClientDisconnect: unexpected! element not found");
+            }
         }
     }
 }
