@@ -1823,8 +1823,6 @@ rbusError_t rbus_open(rbusHandle_t* handle, char const* componentName)
 
     rbusConfig_CreateOnce();
 
-    rtLog_SetLevel(RT_LOG_WARN);
-
     /*
         Per spec: If a component calls this API more than once, any previous busHandle 
         and all previous data element registrations will be canceled.
