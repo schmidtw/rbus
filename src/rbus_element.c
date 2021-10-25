@@ -201,6 +201,7 @@ elementNode* insertElement(elementNode* root, rbusDataElement_t* elem)
 {
     char* token = NULL;
     char* name = NULL;
+    char* saveptr = NULL;
     elementNode* currentNode = root;
     elementNode* nextNode = NULL;
     int ret = 0, createChild = 0;
@@ -244,7 +245,7 @@ elementNode* insertElement(elementNode* root, rbusDataElement_t* elem)
         }
     }
 
-    token = strtok(name, ".");
+    token = strtok_r(name, ".", &saveptr);
 
     while( token != NULL )
     {
@@ -310,7 +311,7 @@ elementNode* insertElement(elementNode* root, rbusDataElement_t* elem)
                 }
             }
         }
-        token = strtok(NULL, ".");
+        token = strtok_r(NULL, ".", &saveptr);
     }
     if(ret == 0)
     {
@@ -351,6 +352,7 @@ elementNode* retrieveElement(elementNode* root, const char* elmentName)
 {
     char* token = NULL;
     char* name = NULL;
+    char* saveptr = NULL;
     elementNode* currentNode = root;
     elementNode* nextNode = NULL;
     int tokenFound = 0;
@@ -368,7 +370,7 @@ elementNode* retrieveElement(elementNode* root, const char* elmentName)
     nextNode = currentNode->child;
 
     /*TODO if name is a table row with an alias containing a dot, this will break (e.g. "Foo.[alias.1]")*/
-    token = strtok(name, ".");
+    token = strtok_r(name, ".", &saveptr);
     while( token != NULL)
     {
 #if DEBUG_ELEMENTS
@@ -429,7 +431,7 @@ elementNode* retrieveElement(elementNode* root, const char* elmentName)
             }
         }
 
-        token = strtok(NULL, ".");
+        token = strtok_r(NULL, ".", &saveptr);
 
         if(token && nextNode && nextNode->parent && nextNode->parent->type == RBUS_ELEMENT_TYPE_TABLE)
         {
@@ -457,6 +459,7 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
 {
     char* token = NULL;
     char* name = NULL;
+    char* saveptr = NULL;
     elementNode* currentNode = root;
     elementNode* nextNode = NULL;
     int tokenFound = 0;
@@ -475,7 +478,7 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
     nextNode = currentNode->child;
 
     /*TODO if name is a table row with an alias containing a dot, this will break (e.g. "Foo.[alias.1]")*/
-    token = strtok(name, ".");
+    token = strtok_r(name, ".", &saveptr);
     while( token != NULL)
     {
 #if DEBUG_ELEMENTS
@@ -551,7 +554,7 @@ elementNode* retrieveInstanceElement(elementNode* root, const char* elmentName)
             }
         }
 
-        token = strtok(NULL, ".");
+        token = strtok_r(NULL, ".", &saveptr);
 
         if(token && nextNode && nextNode->parent && nextNode->parent->type == RBUS_ELEMENT_TYPE_TABLE) 
         {
