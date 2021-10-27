@@ -31,11 +31,17 @@
 #include <linenoise.h>
 #include <stdarg.h>
 #include <rbus_core.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <execinfo.h>
 
 #define RBUS_CLI_COMPONENT_NAME "rbuscli"
 #define RBUS_CLI_MAX_PARAM      25
 #define RBUS_CLI_MAX_CMD_ARG    (RBUS_CLI_MAX_PARAM * 3)
 #define RBUS_CLI_SESSION_ID     4230
+#define BT_BUF_SIZE 512
+
+static int runSteps = __LINE__;
 
 typedef struct _tlv_t {
     char *p_name;
@@ -59,6 +65,7 @@ bool matchCmd(const char* sub, size_t lenmin,  const char* full)
 
 void show_menu(const char* command)
 {
+    runSteps = __LINE__;
     if(command)
     {
         if(matchCmd(command, 3, "getvalues"))
@@ -390,6 +397,7 @@ void rbus_log_handler(
     char tbuff[50];
     rtTime_Now(&tm);
     const char* slevel = "";
+    runSteps = __LINE__;
     switch(level)
     {
     case RBUS_LOG_DEBUG:    slevel = "DEBUG";   break;
@@ -403,6 +411,7 @@ void rbus_log_handler(
 
 rbusValueType_t getDataType_fromString(const char* pType)
 {
+    runSteps = __LINE__;
     rbusValueType_t rc = RBUS_NONE;
 
     if (strncasecmp ("boolean",    pType, 4) == 0)
@@ -449,6 +458,7 @@ rbusValueType_t getDataType_fromString(const char* pType)
 
 char *getDataType_toString(rbusValueType_t type)
 {
+    runSteps = __LINE__;
     char *pTextData = "None";
     switch(type)
     {
@@ -511,14 +521,17 @@ char *getDataType_toString(rbusValueType_t type)
 
 void free_registered_property(void* p)
 {
+    runSteps = __LINE__;
     rbusProperty_t prop = (rbusProperty_t)p;
     rbusProperty_Release(prop);
+    runSteps = __LINE__;
 }
 
 rbusProperty_t get_registered_property(const char* name)
 {
     rtListItem li;
     rtList_GetFront(g_registeredProps, &li);
+    runSteps = __LINE__;
     while(li)
     {
         rbusProperty_t prop;
@@ -534,6 +547,7 @@ rbusProperty_t remove_registered_property(const char* name)
 {
     rtListItem li;
     rtList_GetFront(g_registeredProps, &li);
+    runSteps = __LINE__;
     while(li)
     {
         rbusProperty_t prop;
@@ -552,6 +566,7 @@ rbusError_t property_get_handler(rbusHandle_t handle, rbusProperty_t property, r
 
     const char* name  = rbusProperty_GetName(property);
     rbusProperty_t registeredProp = get_registered_property(name);
+    runSteps = __LINE__;
     if(!registeredProp)
     {
         if(g_logEvents)
@@ -582,6 +597,7 @@ rbusError_t property_set_handler(rbusHandle_t handle, rbusProperty_t prop, rbusS
 
     const char* name  = rbusProperty_GetName(prop);
 
+    runSteps = __LINE__;
     rbusProperty_t registeredProp = get_registered_property(name);
     if(!registeredProp)
     {
@@ -611,6 +627,7 @@ rbusError_t table_add_row_handler(rbusHandle_t handle, char const* tableName, ch
     (void)instNum;
     static int instanceCount = 1;
     *instNum = instanceCount++;
+    runSteps = __LINE__;
     if(g_logEvents)
     {
         printf("Table add row handler called for %s\n\r", tableName);
@@ -634,6 +651,7 @@ static rbusError_t method_invoke_handler(rbusHandle_t handle, char const* method
     (void)inParams;
     (void)outParams;
     (void)asyncHandle;
+    runSteps = __LINE__;
     if(g_logEvents)
     {
         printf("Method handler called for %s\n\r", methodName);
@@ -648,6 +666,7 @@ rbusError_t event_subscribe_handler(rbusHandle_t handle, rbusEventSubAction_t ac
     (void)filter;
     (void)autoPublish;
     (void)interval;
+    runSteps = __LINE__;
     if(g_logEvents)
     {
         printf("Subscribe handler called for %s, action: %s\n\r", eventName, 
@@ -660,6 +679,7 @@ void event_receive_handler(rbusHandle_t handle, rbusEvent_t const* event, rbusEv
 {
     (void)handle;
     (void)subscription;
+    runSteps = __LINE__;
     if(g_logEvents)
     {
         const char* stype = "";
@@ -683,6 +703,7 @@ void message_receive_handler(rbusHandle_t handle, rbusMessage_t* msg, void * use
 {
     (void)handle;
     (void)userData;
+    runSteps = __LINE__;
     if(g_logEvents)
     {
         printf("Message received on topic %s\n\r",  msg->topic);
@@ -698,6 +719,7 @@ static bool verify_rbus_open()
         rbusError_t rc;
         char compName[50] = "";
         snprintf(compName, 50, "%s-%d", RBUS_CLI_COMPONENT_NAME, getpid());
+        runSteps = __LINE__;
         rc = rbus_open(&g_busHandle, compName);
         if(rc != RBUS_ERROR_SUCCESS)
         {
@@ -719,6 +741,7 @@ void execute_discover_registered_components_cmd(int argc, char* argv[])
     if (!verify_rbus_open())
         return;
 
+    runSteps = __LINE__;
     rc = rbus_discoverRegisteredComponents(&componentCnt, &pComponentNames);
     if(RTMESSAGE_BUS_SUCCESS == rc)
     {
@@ -755,6 +778,7 @@ void execute_discover_component_cmd(int argc, char* argv[])
         pElementNames[index] = argv[i];
     }
 
+    runSteps = __LINE__;
     rc = rbus_discoverComponentName (g_busHandle, elementCnt, pElementNames, &componentCnt, &pComponentNames);
     if(RBUS_ERROR_SUCCESS == rc)
     {
@@ -798,6 +822,7 @@ void execute_discover_elements_cmd(int argc, char *argv[])
         }
     }
 
+    runSteps = __LINE__;
     rc = rbus_discoverComponentDataElements (g_busHandle, argv[2], nextLevel, &numElements, &pElementNames);
     if(RBUS_ERROR_SUCCESS == rc)
     {
@@ -841,6 +866,7 @@ printf("argc=%d", argc);
     if (!verify_rbus_open())
         return;
 
+    runSteps = __LINE__;
     rc = rbus_discoverWildcardDestinations(argv[2], &numDestinations, &destinations);
     
     if(RTMESSAGE_BUS_SUCCESS == rc)
@@ -886,6 +912,7 @@ void validate_and_execute_get_cmd (int argc, char *argv[])
     if (!verify_rbus_open())
         return;
 
+    runSteps = __LINE__;
     for (index = 0, i = 2; index < numOfInputParams; index++, i++)
         pInputParam[index] = argv[i];
 
@@ -955,6 +982,7 @@ void validate_and_execute_addrow_cmd (int argc, char *argv[])
     if (!verify_rbus_open())
         return;
 
+    runSteps = __LINE__;
     pTablePathName = argv[2];
 
     if (argc == 4)
@@ -986,6 +1014,7 @@ void validate_and_execute_delrow_cmd (int argc, char *argv[])
     if (!verify_rbus_open())
         return;
 
+    runSteps = __LINE__;
     pTablePathName = argv[2];
 
     rc = rbusTable_removeRow(g_busHandle, pTablePathName);
@@ -1008,6 +1037,7 @@ void validate_and_execute_set_cmd (int argc, char *argv[])
     int sessionId = 0;
     static bool g_pendingCommit = false;
 
+    runSteps = __LINE__;
     /* must have 3 or multiples of 3 parameters.. it could possibliy have 1 extra param which
      * could be having commit and set to true/false */
     if (!((i >= 3) && ((i % 3 == 0) || (i % 3 == 1))))
@@ -1146,6 +1176,7 @@ void validate_and_execute_set_cmd (int argc, char *argv[])
         if (type != RBUS_NONE)
         {
 
+            runSteps = __LINE__;
             /* Set Session ID & Commit value */
             if (g_isInteractive)
             {
@@ -1236,6 +1267,7 @@ void validate_and_execute_register_command (int argc, char *argv[], bool add)
         rtList_Create(&g_registeredProps);
     }
 
+    runSteps = __LINE__;
     for(i = 2; i < argc; i += 2)
     {
         const char* stype = argv[i];
@@ -1330,6 +1362,7 @@ void set_filter_value(const char* arg, rbusValue_t value)
     char sval[10];
     int ret;
 
+    runSteps = __LINE__;
     /*try to guess the type represented by arg*/
     ret = sscanf(arg, "%d %n", &ival, &len);
     if(ret==1 && !arg[len])
@@ -1377,6 +1410,7 @@ void validate_and_execute_subscribe_cmd (int argc, char *argv[], bool add)
         return;
     }
 
+    runSteps = __LINE__;
     if(strlen(argv[2]) + (argc>3 ? strlen(argv[3]):0) + (argc>4 ? strlen(argv[4]):0) > 255)
     {
         printf("Query too long.");
@@ -1428,6 +1462,7 @@ void validate_and_execute_subscribe_cmd (int argc, char *argv[], bool add)
         rbusFilter_InitRelation(&filter, relOp, filterValue);
     }
 
+    runSteps = __LINE__;
     rbusEventSubscription_t subscription = {argv[2], filter, 0, 0, event_receive_handler, userData, NULL, NULL};
 
     if(add)
@@ -1466,6 +1501,7 @@ void validate_and_execute_publish_command(int argc, char *argv[])
     if (!verify_rbus_open())
         return;    
 
+    runSteps = __LINE__;
     rbusValue_Init(&value);
     rbusValue_SetString(value, argc < 4 ? "default event data" : argv[3]);
     rbusObject_Init(&data, NULL);
@@ -1499,6 +1535,7 @@ void validate_and_execute_listen_command(int argc, char *argv[], bool add)
     if (!verify_rbus_open())
         return;    
 
+    runSteps = __LINE__;
     if(add)
     {
         char* userData = calloc(1, 256);//fixme - never gets freed
@@ -1534,6 +1571,7 @@ void validate_and_execute_send_command(int argc, char *argv[])
     msg.data = (uint8_t const*)argv[3];
     msg.length = strlen(argv[3]);
 
+    runSteps = __LINE__;
     rc = rbusMessage_Send(g_busHandle, &msg, RBUS_MESSAGE_CONFIRM_RECEIPT);
 
     if(rc != RBUS_ERROR_SUCCESS)
@@ -1552,6 +1590,7 @@ static void execute_method_cmd(char *cmd, char *method, rbusObject_t inParams)
     char *str_value = NULL;
     int i = 0;
 
+    runSteps = __LINE__;
     rc = rbusMethod_Invoke(g_busHandle, method, inParams, &outParams);
     if(inParams)
         rbusObject_Release(inParams);
@@ -1602,6 +1641,7 @@ void validate_and_execute_method_values_cmd (int argc, char *argv[])
     rbusObject_t inParams = NULL;
     int i = 3;
 
+    runSteps = __LINE__;
     rbusObject_Init(&inParams, NULL);
     while( i < argc )
     {
@@ -1642,6 +1682,7 @@ void validate_and_execute_method_noargs_cmd (int argc, char *argv[])
     if (!verify_rbus_open())
         return;
 
+    runSteps = __LINE__;
     execute_method_cmd(argv[1], argv[2], NULL);
 }
 
@@ -1656,6 +1697,7 @@ void validate_and_execute_method_names_cmd (int argc, char *argv[])
     if (!verify_rbus_open())
         return;
 
+    runSteps = __LINE__;
     rbusProperty_t prop = NULL;
     rbusObject_t inParams = NULL;
     int i = 3;
@@ -1677,6 +1719,7 @@ int handle_cmds (int argc, char *argv[])
 
     char* command = argv[1];
 
+    runSteps = __LINE__;
     if(matchCmd(command, 3, "getvalues"))
     {
         validate_and_execute_get_cmd (argc, argv);
@@ -1848,6 +1891,7 @@ static int construct_input_into_cmds(char* buff, int* pargc, char** argv)
     int i, j, quote;
     int argc = 0;
     argv[argc++] = "rbuscli";
+    runSteps = __LINE__;
     for(i = 0; i < len; ++i)
     {
         quote = 0;    
@@ -1894,6 +1938,7 @@ static char* find_completion(char* token, int count, ...)
     size_t len = 0;
     va_list va;
 
+    runSteps = __LINE__;
     va_start(va, count);
     len = strlen(token);
     for(i=0; i<count; ++i)
@@ -1932,12 +1977,14 @@ void completion(const char *buf, linenoiseCompletions *lc) {
 
     if(num == 1)
     {
+        runSteps = __LINE__;
         completion = find_completion(tokens[0], 14, "get", "set", "add", "del", "disca", "discc", "disce",
                 "discw", "sub", "unsub", "method_no", "method_na", "method_va", "reg", "unreg", "pub",
                 "addl", "reml", "send", "log", "quit", "help");
     }
     else if(num == 2)
     {
+        runSteps = __LINE__;
         if(strcmp(tokens[0], "reg") == 0)
         {
             completion = find_completion(tokens[1], 4, "prop", "event", "table", "method");
@@ -1949,6 +1996,7 @@ void completion(const char *buf, linenoiseCompletions *lc) {
     }
     else if(num == 3)
     {
+        runSteps = __LINE__;
         if(strcmp(tokens[0], "set") == 0)
         {
             completion = find_completion(tokens[2], 18, 
@@ -1959,6 +2007,7 @@ void completion(const char *buf, linenoiseCompletions *lc) {
     }
     else if(num == 4)
     {
+        runSteps = __LINE__;
         if(strcmp(tokens[0], "method_va") == 0)
         {
             completion = find_completion(tokens[2], 18,
@@ -1977,6 +2026,7 @@ void completion(const char *buf, linenoiseCompletions *lc) {
     free(cpy);
     free(line);
     free(completion);
+    runSteps = __LINE__;
 }
 
 char *hints(const char *buf, int *color, int *bold) {
@@ -2002,6 +2052,7 @@ char *hints(const char *buf, int *color, int *bold) {
 
     if(num == 1)
     {
+        runSteps = __LINE__;
         if(strcmp(tokens[0], "get") == 0)
         {
             hint = " path";
@@ -2085,6 +2136,7 @@ char *hints(const char *buf, int *color, int *bold) {
     }
     else if(num == 2)
     {
+        runSteps = __LINE__;
         if(strcmp(tokens[0], "set") == 0)
         {
             hint = " type(string,int,uint,boolean,...) value";
@@ -2104,6 +2156,7 @@ char *hints(const char *buf, int *color, int *bold) {
     }
     else if(num == 3)
     {
+        runSteps = __LINE__;
         if(strcmp(tokens[0], "set") == 0)
         {
             hint = " value";
@@ -2115,6 +2168,7 @@ char *hints(const char *buf, int *color, int *bold) {
     }
     else if(num == 3)
     {
+        runSteps = __LINE__;
         if(strcmp(tokens[0], "method_va") == 0)
         {
             hint = " value";
@@ -2122,11 +2176,13 @@ char *hints(const char *buf, int *color, int *bold) {
     }
     else
     {
+        runSteps = __LINE__;
         hint = NULL;
     }
 
     free(cpy);
     free(line);
+    runSteps = __LINE__;
 
     if(hint)
     {
@@ -2137,68 +2193,152 @@ char *hints(const char *buf, int *color, int *bold) {
     return hint;
 }
 
+static void exception_handler(int sig, siginfo_t *info)
+{
+    int fd1;
+    char cmdFile[32]      = {0};
+    char cmdName[32]      = {0};
+    time_t rawtime;
+    struct tm * timeinfo;
+    static char cmdLine[1024]  = {0};
+    int size, i;
+    void *addresses[BT_BUF_SIZE];
+
+    snprintf( cmdFile,32,  "/proc/self/cmdline" );
+
+    /* Get current time */
+    time ( &rawtime );
+    timeinfo = localtime ( &rawtime );
+
+    /* Get command name */
+    fd1 = open( cmdFile, O_RDONLY );
+    if( fd1 > 0 )
+    {
+        if( read( fd1, cmdName, sizeof(cmdName)-1 ) <= 0)
+            fprintf( stderr, "Error in read function:%s\n",__FUNCTION__ );
+
+        close(fd1);
+
+    }
+
+    /* dump general information */
+    printf("\n\r!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" );
+    printf("\n\r!!!!!!!!!!!!!!!!!!!!!!!!!!!! Exception Caught !!!!!!!!!!!!!!!!!!!!!!!!!!!!" );
+    printf("\n\r!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" );
+
+    printf("\n\n\rSignal info:\n\r"
+                        "\n\rTime: %s "
+                        "\n\rProcess name: <%s>"
+                        "\n\rPID: %d"
+                        "\n\rFault Address: %p"
+                        "\n\rSignal: %d"
+                        "\n\rSignal Code: %d",
+                        asctime (timeinfo),
+                        cmdName,
+                        getpid(),
+                        info->si_addr,
+                        sig,
+                        info->si_code);
+    printf("\n\r\n\rThe cmd line is :%s.", cmdLine );
+    printf("\n\rThe latest Line number is:%d.\n\r", runSteps);
+
+    size = backtrace(addresses, BT_BUF_SIZE);
+    backtrace_symbols_fd(addresses,size,STDOUT_FILENO);
+    if(size >= 3) {
+        printf("backtrace returned: %d\n\r", size);
+        for(i = 0; i < size; i++) {
+            printf("\n\r%d: %p \n\r", i, addresses[i]);
+        }
+    }
+
+    printf("\n\r!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" );
+    printf("\n\r!!!!!!!!!!!!!!!!!!!!!!!!!! Dump Ending!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" );
+    printf("\n\r!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n\r");
+    exit(0);
+}
+
+static void enable_exception_handlers (void)
+{
+    struct sigaction sigact;
+
+    memset( &sigact, 0, sizeof( struct sigaction ) );
+    sigact.sa_sigaction = exception_handler;
+    sigact.sa_flags = SA_RESTART | SA_SIGINFO;
+
+    sigaction(SIGSEGV, &sigact, 0L);
+    sigaction(SIGILL,  &sigact, 0L);
+    sigaction(SIGBUS,  &sigact, 0L);
+    sigaction(SIGQUIT, &sigact, 0L);
+
+    return;
+}
+
 int main( int argc, char *argv[] )
 {
-    if( argc >= 2 )
+    if( argc < 2 )
     {
-        /* Is interactive */
-        if (strcmp (argv[1], "-i") == 0)
+        show_menu(NULL);
+        return 0;
+    }
+    runSteps = __LINE__;
+    enable_exception_handlers();
+    /* Is interactive */
+    if (strcmp (argv[1], "-i") == 0)
+    {
+        char *line = NULL;
+        char *interArgv[RBUS_CLI_MAX_CMD_ARG] = {NULL};
+        int interArgc = 0;
+        int isExit = 0;
+
+        g_isInteractive = true;
+        runSteps = __LINE__;
+
+        rbus_registerLogHandler(rbus_log_handler);
+
+        linenoiseSetCompletionCallback(completion);
+        linenoiseSetHintsCallback(hints);
+        linenoiseHistoryLoad("/tmp/rbuscli_history");
+
+        while(!isExit && (line = linenoise("rbuscli> ")) != NULL)
         {
-            char *line = NULL;
-            char *interArgv[RBUS_CLI_MAX_CMD_ARG] = {NULL};
-            int interArgc = 0;
-            int isExit = 0;
-
-            g_isInteractive = true;
-
-            rbus_registerLogHandler(rbus_log_handler);
-
-            linenoiseSetCompletionCallback(completion);
-            linenoiseSetHintsCallback(hints);
-            linenoiseHistoryLoad("/tmp/rbuscli_history");
-
-            while(!isExit && (line = linenoise("rbuscli> ")) != NULL)
+            if (line[0] != '\0')
             {
-                if (line[0] != '\0')
+                linenoiseHistoryAdd(line);
+
+                if(construct_input_into_cmds(line, &interArgc, interArgv) == 0)
                 {
-                    linenoiseHistoryAdd(line);
-
-                    if(construct_input_into_cmds(line, &interArgc, interArgv) == 0)
-                    {
-                        int i;
-                        isExit = handle_cmds (interArgc, interArgv);
-                        for(i = 1; i < interArgc; ++i)
-                            if(interArgv[i])
-                                free(interArgv[i]);
-                    }
-                    else
-                        printf("Command missing quotes\n\r");
+                    int i;
+                    isExit = handle_cmds (interArgc, interArgv);
+                    for(i = 1; i < interArgc; ++i)
+                        if(interArgv[i])
+                            free(interArgv[i]);
                 }
-                linenoiseFree(line);
+                else
+                    printf("Command missing quotes\n\r");
             }
-            linenoiseHistorySave("/tmp/rbuscli_history");
+            runSteps = __LINE__;
+            linenoiseFree(line);
         }
-        else
-        {
-            handle_cmds (argc, argv);
-        }
-
-        /* Close the handle if it is not interative */
-        if (g_busHandle)
-        {
-            rbus_close(g_busHandle);
-            g_busHandle = 0;
-        }
-
-        if (g_registeredProps)
-        {
-            rtList_Destroy(g_registeredProps, free_registered_property);
-        }
-
+        linenoiseHistorySave("/tmp/rbuscli_history");
     }
     else
     {
-        show_menu(NULL);
+        handle_cmds (argc, argv);
     }
+
+    /* Close the handle if it is not interative */
+    if (g_busHandle)
+    {
+        runSteps = __LINE__;
+        rbus_close(g_busHandle);
+        g_busHandle = 0;
+    }
+
+    if (g_registeredProps)
+    {
+        runSteps = __LINE__;
+        rtList_Destroy(g_registeredProps, free_registered_property);
+    }
+
     return 0;
 }
