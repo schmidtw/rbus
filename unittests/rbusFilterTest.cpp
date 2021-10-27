@@ -17,8 +17,205 @@
  * limitations under the License.
  */
 #include "gtest/gtest.h"
-
+#include "../src/rbus_buffer.h"
 #include <rbus.h>
+
+static void testEncodeDecode(rbusFilter_t f1)
+{
+    rbusFilter_t f2;
+    rbusBuffer_t buff;
+    FILE *stream;
+    char *stream_buf;
+    size_t len;
+
+    rbusBuffer_Create(&buff);
+    rbusFilter_Encode(f1, buff);
+    stream = open_memstream(&stream_buf, &len);
+
+    if(stream)
+    {
+        fwrite(buff->data, 1, buff->posWrite, stream);
+        fclose(stream);
+
+        EXPECT_EQ(rbusFilter_Decode(&f2, buff),0);
+        EXPECT_EQ(rbusFilter_Compare(f1, f2),0);
+        rbusFilter_Release(f2);
+
+        rbusBuffer_Destroy(buff);
+    }
+}
+
+TEST(rbusFilterEncDecTest, testFilterEncDec1)
+{
+  rbusFilter_t filter = NULL;
+  rbusFilter_RelationOperator_t op = RBUS_FILTER_OPERATOR_EQUAL;
+  rbusValue_t val;
+
+  rbusValue_Init(&val);
+  EXPECT_EQ(rbusValue_SetFromString(val,RBUS_STRING,"string"),true);
+  rbusFilter_InitRelation(&filter, op, val);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(filter));
+
+  testEncodeDecode(filter);
+  rbusValue_Release(val);
+  rbusFilter_Release(filter);
+}
+
+TEST(rbusFilterEncDecTest, testFilterEncDecLog1)
+{
+  rbusValue_t v1, v2, v3, v4;
+  rbusFilter_t r1, r2, r3, r4, left_filter, right_filter, filter;
+
+  rbusValue_Init(&v1);
+  rbusValue_Init(&v2);
+  rbusValue_Init(&v3);
+  rbusValue_Init(&v4);
+
+  rbusValue_SetInt32(v1, 10);
+  rbusValue_SetInt32(v2, -10);
+  rbusValue_SetInt32(v3, -5);
+  rbusValue_SetInt32(v4, 5);
+
+  EXPECT_EQ(rbusValue_SetFromString(v1,RBUS_STRING,"string"),true);
+  EXPECT_EQ(rbusValue_SetFromString(v2,RBUS_STRING,"string"),true);
+  EXPECT_EQ(rbusValue_SetFromString(v3,RBUS_STRING,"string"),true);
+  EXPECT_EQ(rbusValue_SetFromString(v4,RBUS_STRING,"string"),true);
+
+  rbusFilter_InitRelation(&r1, RBUS_FILTER_OPERATOR_GREATER_THAN, v1);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r1));
+  rbusFilter_InitRelation(&r2, RBUS_FILTER_OPERATOR_LESS_THAN, v2);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r2));
+  rbusFilter_InitLogic(&left_filter, RBUS_FILTER_OPERATOR_OR, r1, r2);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_LOGIC,rbusFilter_GetType(left_filter));
+
+  rbusFilter_InitRelation(&r4, RBUS_FILTER_OPERATOR_GREATER_THAN, v3);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r4));
+  rbusFilter_InitRelation(&r3, RBUS_FILTER_OPERATOR_LESS_THAN, v4);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r3));
+  rbusFilter_InitLogic(&right_filter, RBUS_FILTER_OPERATOR_AND, r3, r4);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_LOGIC,rbusFilter_GetType(right_filter));
+
+  rbusFilter_InitLogic(&filter, RBUS_FILTER_OPERATOR_OR, left_filter, right_filter);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_LOGIC,rbusFilter_GetType(filter));
+
+  testEncodeDecode(filter);
+
+  rbusValue_Release(v1);
+  rbusValue_Release(v2);
+  rbusValue_Release(v3);
+  rbusValue_Release(v4);
+  rbusFilter_Release(r1);
+  rbusFilter_Release(r2);
+  rbusFilter_Release(r3);
+  rbusFilter_Release(r4);
+  rbusFilter_Release(left_filter);
+  rbusFilter_Release(right_filter);
+  rbusFilter_Release(filter);
+}
+
+TEST(rbusFilterEncDecTest, testFilterEncDecLog2)
+{
+  rbusValue_t v1, v2, v3, v4;
+  rbusFilter_t r1, r2, r3, r4, left_filter, right_filter, filter;
+
+  rbusValue_Init(&v1);
+  rbusValue_Init(&v2);
+  rbusValue_Init(&v3);
+  rbusValue_Init(&v4);
+
+  rbusValue_SetInt32(v1, 10);
+  rbusValue_SetInt32(v2, -10);
+  rbusValue_SetInt32(v3, -5);
+  rbusValue_SetInt32(v4, 5);
+
+  EXPECT_EQ(rbusValue_SetFromString(v1,RBUS_STRING,"string"),true);
+  EXPECT_EQ(rbusValue_SetFromString(v2,RBUS_STRING,"string"),true);
+  EXPECT_EQ(rbusValue_SetFromString(v3,RBUS_STRING,"string"),true);
+  EXPECT_EQ(rbusValue_SetFromString(v4,RBUS_STRING,"string"),true);
+
+  rbusFilter_InitRelation(&r1, RBUS_FILTER_OPERATOR_GREATER_THAN, v1);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r1));
+  rbusFilter_InitRelation(&r2, RBUS_FILTER_OPERATOR_LESS_THAN, v2);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r2));
+  rbusFilter_InitLogic(&left_filter, RBUS_FILTER_OPERATOR_OR, r1, r2);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_LOGIC,rbusFilter_GetType(left_filter));
+
+  rbusFilter_InitRelation(&r4, RBUS_FILTER_OPERATOR_GREATER_THAN, v3);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r4));
+  rbusFilter_InitRelation(&r3, RBUS_FILTER_OPERATOR_LESS_THAN, v4);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r3));
+  rbusFilter_InitLogic(&right_filter, RBUS_FILTER_OPERATOR_AND, r3, r4);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_LOGIC,rbusFilter_GetType(right_filter));
+
+  rbusFilter_InitLogic(&filter, RBUS_FILTER_OPERATOR_NOT, left_filter, right_filter);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_LOGIC,rbusFilter_GetType(filter));
+
+  testEncodeDecode(filter);
+
+  rbusValue_Release(v1);
+  rbusValue_Release(v2);
+  rbusValue_Release(v3);
+  rbusValue_Release(v4);
+  rbusFilter_Release(r1);
+  rbusFilter_Release(r2);
+  rbusFilter_Release(r3);
+  rbusFilter_Release(r4);
+  rbusFilter_Release(left_filter);
+  rbusFilter_Release(right_filter);
+  rbusFilter_Release(filter);
+}
+
+TEST(rbusFilterEncDecTest, testFilterEncDecLog3)
+{
+  rbusValue_t v1, v2, v3, v4;
+  rbusFilter_t r1, r2, r3, r4, left_filter, right_filter, filter;
+
+  rbusValue_Init(&v1);
+  rbusValue_Init(&v2);
+  rbusValue_Init(&v3);
+  rbusValue_Init(&v4);
+
+  rbusValue_SetInt32(v1, 10);
+  rbusValue_SetInt32(v2, 10);
+  rbusValue_SetInt32(v3, 10);
+  rbusValue_SetInt32(v4, 10);
+
+  EXPECT_EQ(rbusValue_SetFromString(v1,RBUS_STRING,"string"),true);
+  EXPECT_EQ(rbusValue_SetFromString(v2,RBUS_STRING,"string"),true);
+  EXPECT_EQ(rbusValue_SetFromString(v3,RBUS_STRING,"string"),true);
+  EXPECT_EQ(rbusValue_SetFromString(v4,RBUS_STRING,"string"),true);
+
+  rbusFilter_InitRelation(&r1, RBUS_FILTER_OPERATOR_EQUAL, v1);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r1));
+  rbusFilter_InitRelation(&r2, RBUS_FILTER_OPERATOR_EQUAL, v2);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r2));
+  rbusFilter_InitLogic(&left_filter, RBUS_FILTER_OPERATOR_OR, r1, r2);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_LOGIC,rbusFilter_GetType(left_filter));
+
+  rbusFilter_InitRelation(&r3, RBUS_FILTER_OPERATOR_EQUAL, v3);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r3));
+  rbusFilter_InitRelation(&r4, RBUS_FILTER_OPERATOR_EQUAL, v4);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_RELATION,rbusFilter_GetType(r4));
+  rbusFilter_InitLogic(&right_filter, RBUS_FILTER_OPERATOR_OR, r3, r4);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_LOGIC,rbusFilter_GetType(right_filter));
+
+  rbusFilter_InitLogic(&filter, RBUS_FILTER_OPERATOR_OR, left_filter, right_filter);
+  EXPECT_EQ(RBUS_FILTER_EXPRESSION_LOGIC,rbusFilter_GetType(filter));
+
+  testEncodeDecode(filter);
+
+  rbusValue_Release(v1);
+  rbusValue_Release(v2);
+  rbusValue_Release(v3);
+  rbusValue_Release(v4);
+  rbusFilter_Release(r1);
+  rbusFilter_Release(r2);
+  rbusFilter_Release(r3);
+  rbusFilter_Release(r4);
+  rbusFilter_Release(left_filter);
+  rbusFilter_Release(right_filter);
+  rbusFilter_Release(filter);
+}
 
 TEST(rbusFilterInitTest, testFilterInit1)
 {

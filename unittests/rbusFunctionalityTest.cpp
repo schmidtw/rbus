@@ -18,625 +18,476 @@
  */
 #include "gtest/gtest.h"
 
-#include <pthread.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 #include <rbus.h>
+#include "rbusProviderConsumer.h"
 
-#define FILTER_VAL 3
-
-char gtest_err[64];
-
-typedef enum
+static void exec_func_test(rbusGtest_t test)
 {
-  RBUS_GTEST_FILTER1 = 0,
-  RBUS_GTEST_FILTER2,
-  RBUS_GTEST_GET,
-  RBUS_GTEST_GET_EXT,
-  RBUS_GTEST_SET,
-  RBUS_GTEST_DISC_COMP,
-  RBUS_GTEST_METHOD,
-  RBUS_GTEST_METHOD_ASYNC
-} rbusGtest_t;
-
-static bool asyncCalled = false;
-static rbusError_t asyncError = RBUS_ERROR_SUCCESS;
-
-rbusError_t getVCHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
-{
-  char const* name = rbusProperty_GetName(property);
-  (void)handle;
-  (void)opts;
-
-  /*fake a value change every 'myfreq' times this function is called*/
-  static int32_t mydata = 0;  /*the actual value to send back*/
-  static int32_t mydelta = 1; /*how much to change the value by*/
-  static int32_t mycount = 0; /*number of times this function called*/
-  static int32_t myfreq = 2;  /*number of times this function called before changing value*/
-  static int32_t mymin = 0, mymax=5; /*keep value between mymin and mymax*/
-
-  rbusValue_t value;
-
-  mycount++;
-
-  if((mycount % myfreq) == 0)
-  {
-    mydata += mydelta;
-    if(mydata == mymax)
-      mydelta = -1;
-    else if(mydata == mymin)
-      mydelta = 1;
-  }
-
-  printf("Provider: Called get handler for [%s] val=[%d]\n", name, mydata);
-
-  rbusValue_Init(&value);
-  rbusValue_SetInt32(value, mydata);
-  rbusProperty_SetValue(property, value);
-  rbusValue_Release(value);
-
-  return RBUS_ERROR_SUCCESS;
-}
-
-rbusError_t getHandler1(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
-{
-  char const* name = rbusProperty_GetName(property);
-  (void)handle;
-  (void)opts;
-
-  printf("Provider: Called get handler for [%s] \n", name );
-
-
-  return RBUS_ERROR_SUCCESS;
-}
-
-rbusError_t setHandler1(rbusHandle_t handle, rbusProperty_t property, rbusSetHandlerOptions_t* opts)
-{
-  char const* name = rbusProperty_GetName(property);
-  rbusValue_t value = rbusProperty_GetValue(property);
-  char *val = NULL;
-
-  (void)handle;
-  (void)opts;
-
-  if(value)
-    val = rbusValue_ToString(value,NULL,0);
-
-  printf("setHandler1 called: property=%s value %s\n", name,val);
-  return RBUS_ERROR_SUCCESS;
-}
-
-rbusError_t ppTableGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
-{
-    char const* name = rbusProperty_GetName(property);
-
-    (void)handle;
-    (void)opts;
-
-    printf(
-        "ppTableGetHandler called:\n" \
-        "\tproperty=%s\n",
-        name);
-
-  return RBUS_ERROR_SUCCESS;
-}
-rbusError_t ppTableAddRowHandler(
-    rbusHandle_t handle,
-    char const* tableName,
-    char const* aliasName,
-    uint32_t* instNum)
-{
-  (void)handle;
-  (void)aliasName;
-
-  if(!strcmp(tableName, "Device.TestProvider.PartialPath"))
-  {
-    static int instanceNumber = 1;
-    *instNum = instanceNumber++;
-  }
-
-  printf("partialPathTableAddRowHandler table=%s instNum=%d\n", tableName, *instNum);
-  return RBUS_ERROR_SUCCESS;
-}
-
-rbusError_t ppTableRemRowHandler(
-    rbusHandle_t handle,
-    char const* rowName)
-{
-  (void)handle;
-  (void)rowName;
-  return RBUS_ERROR_SUCCESS;
-}
-
-rbusError_t ppParamGetHandler(rbusHandle_t handle, rbusProperty_t property, rbusGetHandlerOptions_t* opts)
-{
-  rbusValue_t value;
-  char const* name = rbusProperty_GetName(property);
-
-  (void)handle;
-  (void)opts;
-
-  printf(
-      "ppParamGetHandler called:\n" \
-      "\tproperty=%s\n",
-      name);
-
-  if(!strcmp(name, "Device.TestProvider.PartialPath.1.Param1") ||
-      !strcmp(name, "Device.TestProvider.PartialPath.1.Param2") ||
-      !strcmp(name, "Device.TestProvider.PartialPath.2.Param1") ||
-      !strcmp(name, "Device.TestProvider.PartialPath.2.Param2")
-    )
-  {
-    /*set value to the name of the parameter so consumer can easily verify result*/
-    rbusValue_Init(&value);
-    rbusValue_SetString(value, name);
-    rbusProperty_SetValue(property, value);
-    rbusValue_Release(value);
-    return RBUS_ERROR_SUCCESS;
-  }
-  else
-  {
-    printf("ppParamGetHandler invalid name %s\n", name);
-    return RBUS_ERROR_BUS_ERROR;
-  }
-}
-
-static rbusError_t methodHandler(rbusHandle_t handle, char const* methodName, rbusObject_t inParams, rbusObject_t outParams, rbusMethodAsyncHandle_t asyncHandle)
-{
-  (void)handle;
-  (void)asyncHandle;
-  rbusValue_t value;
-
-  printf("methodHandler called: %s\n", methodName);
-  rbusObject_fwrite(inParams, 1, stdout);
-
-
-  if(strstr(methodName, "Method1()")) {
-    rbusValue_Init(&value);
-    rbusValue_SetString(value, "Method1()");
-    rbusObject_SetValue(outParams, "name", value);
-    rbusValue_Release(value);
-    printf("methodHandler success\n");
-    return RBUS_ERROR_SUCCESS;
-  } else if(strstr(methodName, "MethodAsync1()")) {
-    sleep(4);
-    rbusValue_Init(&value);
-    rbusValue_SetString(value, "MethodAsync1()");
-    rbusObject_SetValue(outParams, "name", value);
-    rbusValue_Release(value);
-    printf("methodHandler success\n");
-    return RBUS_ERROR_SUCCESS;
-  }
-  printf("methodHandler fail\n");
-  return RBUS_ERROR_BUS_ERROR;
-}
-
-static int rbusProvider(int runtime)
-{
-  rbusHandle_t handle;
-  int rc = RBUS_ERROR_SUCCESS;
-
-  char componentName[] = "rbusProvider";
-
-  rbusDataElement_t dataElements[] = {
-    {"Device.Provider1.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {getVCHandler, NULL, NULL, NULL, NULL, NULL}},
-    {"Device.Provider1.Param2", RBUS_ELEMENT_TYPE_PROPERTY, {getHandler1, setHandler1, NULL, NULL, NULL, NULL}},
-    {"Device.TestProvider.PartialPath.{i}.", RBUS_ELEMENT_TYPE_TABLE, {ppTableGetHandler, NULL, ppTableAddRowHandler, ppTableRemRowHandler, NULL, NULL}},
-    {"Device.TestProvider.PartialPath.{i}.Param1", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
-    {"Device.TestProvider.PartialPath.{i}.Param2", RBUS_ELEMENT_TYPE_PROPERTY, {ppParamGetHandler, NULL, NULL, NULL, NULL, NULL}},
-    {"Device.TestProvider.Table1.Method1()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}},
-    {"Device.TestProvider.MethodAsync1()", RBUS_ELEMENT_TYPE_METHOD, {NULL, NULL, NULL, NULL, NULL, methodHandler}}
-  };
-  #define elements_count sizeof(dataElements)/sizeof(dataElements[0])
-
-  printf("provider: start \n");
-
-  rc = rbus_open(&handle, componentName);
-  EXPECT_EQ(rc,RBUS_ERROR_SUCCESS);
-  if(rc != RBUS_ERROR_SUCCESS)
-  {
-    printf("provider: rbus_open failed: %d\n", rc);
-    goto exit2;
-  }
-
-  rc = rbus_regDataElements(handle, elements_count, dataElements);
-  EXPECT_EQ(rc,RBUS_ERROR_SUCCESS);
-  if(rc != RBUS_ERROR_SUCCESS)
-  {
-    printf("provider: rbus_regDataElements failed: %d\n", rc);
-    goto exit1;
-  }
-
-  rbusTable_addRow(handle, "Device.TestProvider.PartialPath", NULL, NULL);
-  rbusTable_addRow(handle, "Device.TestProvider.PartialPath", NULL, NULL);
-  sleep(runtime);
-
-  rbusTable_removeRow(handle, "Device.TestProvider.PartialPath");
-  rbus_unregDataElements(handle, elements_count, dataElements);
-
-exit1:
-  rbus_close(handle);
-
-exit2:
-  printf("provider: exit\n");
-  return rc;
-}
-
-static void eventReceiveHandler(
-    rbusHandle_t handle,
-    rbusEvent_t const* event,
-    rbusEventSubscription_t* subscription)
-{
-  (void)handle;
-
-  rbusValue_t newValue = rbusObject_GetValue(event->data, "value");
-  rbusValue_t oldValue = rbusObject_GetValue(event->data, "oldValue");
-  rbusValue_t filter = rbusObject_GetValue(event->data, "filter");
-
-  printf("Consumer receiver ValueChange event for param %s\n", event->name);
-
-  if(newValue)
-    printf("  New Value: %d\n", rbusValue_GetInt32(newValue));
-
-  if(oldValue)
-    printf("  Old Value: %d\n", rbusValue_GetInt32(oldValue));
-
-  if(filter) {
-    printf("  filter: %d\n", rbusValue_GetBoolean(filter));
-    if(rbusValue_GetBoolean(filter) == 1) {
-      int val = rbusValue_GetInt32(newValue);
-      if(val != FILTER_VAL) {
-        sprintf(gtest_err,"Invalid value '%d' got when filter '%d' is set\n",FILTER_VAL,val);
-      }
-    }
-  }
-
-  if(subscription->userData)
-    printf("User data: %s\n", (char*)subscription->userData);
-}
-
-static void asyncMethodHandler1(
-    rbusHandle_t handle, 
-    char const* methodName, 
-    rbusError_t error,
-    rbusObject_t params)
-{
-    (void)handle;
-
-    printf("asyncMethodHandler1 called: method=%s  error=%d\n", methodName, error);
-
-    asyncCalled = true;
-
-}
-
-static int rbusConsumer(rbusGtest_t test)
-{
-  int rc = RBUS_ERROR_SUCCESS;
-  int runtime = 40;
-  char user_data[32] = {0};
-  rbusHandle_t handle;
-  rbusFilter_t filter;
-  rbusValue_t filterValue;
-  rbusEventSubscription_t subscription = {"Device.Provider1.Param1", NULL, 0, 0, (void *)eventReceiveHandler, NULL, 0};
-  char componentName[] = "rbusConsumer";
-
-  sleep(3);
-  rc = rbus_open(&handle, componentName);
-  EXPECT_EQ(rc,RBUS_ERROR_SUCCESS);
-  if(rc != RBUS_ERROR_SUCCESS)
-  {
-    printf("consumer: rbus_open failed: %d\n", rc);
-    return -1;
-  }
+  int runtime = 0;
 
   switch(test)
   {
-    case RBUS_GTEST_FILTER1:
-      {
-        /* subscribe to all value change events on property "Device.Provider1.Param1" */
-        strcpy(user_data,"My User Data");
-        rc = rbusEvent_Subscribe(
-            handle,
-            "Device.Provider1.Param1",
-            eventReceiveHandler,
-            user_data,0);
-        EXPECT_EQ(rc,RBUS_ERROR_SUCCESS);
-
-        sleep(runtime-10);
-
-        rbusEvent_Unsubscribe(
-            handle,
-            "Device.Provider1.Param1");
-      }
-      break;
-    case RBUS_GTEST_FILTER2:
-      {
-        /* subscribe using filter to value change events on property "Device.Provider1.Param1"
-           setting filter to: value >= 3.
-         */
-        rbusValue_Init(&filterValue);
-        rbusValue_SetInt32(filterValue, FILTER_VAL);
-
-        rbusFilter_InitRelation(&filter, RBUS_FILTER_OPERATOR_GREATER_THAN_OR_EQUAL, filterValue);
-
-        subscription.filter = filter;
-
-        rc = rbusEvent_SubscribeEx(handle, &subscription, 1, 0);
-        EXPECT_EQ(rc,RBUS_ERROR_SUCCESS);
-
-        rbusValue_Release(filterValue);
-        rbusFilter_Release(filter);
-        sleep(runtime-10);
-
-        rc = rbusEvent_UnsubscribeEx(handle, &subscription, 1);
-        EXPECT_EQ(rc,RBUS_ERROR_SUCCESS);
-
-        if(strlen(gtest_err) != 0)
-          rc = RBUS_ERROR_BUS_ERROR;
-      }
-      break;
-    case RBUS_GTEST_SET:
-      {
-        rc = rbus_setStr(handle, "Device.Provider1.Param2", "Gtest set value");
-      }
-      break;
-    case RBUS_GTEST_GET:
-      {
-        char* value = NULL;
-        rc = rbus_getStr(handle, "Device.TestProvider.PartialPath.1.Param1", &value);
-      }
-      break;
-    case RBUS_GTEST_GET_EXT:
-      {
-        rbusProperty_t props = NULL;
-        rbusProperty_t next;
-        int actualCount = 0;
-        rbusValue_t actualValue;
-        const char *params = "Device.TestProvider.PartialPath.";
-        const char *params1 = "Device.TestProvider.PartialPath.5.";
-
-        rc = rbus_getExt(handle, 1, &params, &actualCount, &props);
-        if(rc == RBUS_ERROR_SUCCESS)
-        {
-          next = props;
-          while(next)
-          {
-            actualValue = rbusProperty_GetValue(next);
-            if(actualValue != NULL && rbusValue_GetType(actualValue) == RBUS_STRING)
-              printf("val %s\n", rbusValue_GetString(actualValue, NULL));
-
-            //rbusProperty_fwrite(next, 1, stdout);
-            next =  rbusProperty_GetNext(next);
-          }
-          rbusProperty_Release(props);
-        }
-        rc = rbus_getExt(handle, 1, &params1, &actualCount, &props);
-        if(rc != RBUS_ERROR_SUCCESS)
-        {
-          /*Invalid wildcard call*/
-          rc = RBUS_ERROR_SUCCESS;
-        }
-      }
-      break;
-    case RBUS_GTEST_DISC_COMP:
-      {
-        int i;
-        char const* elementNames1[] = {"Device.Provider1.Param1"};
-        int numComponents = 0;
-        char **componentName = NULL;
-
-        rc = rbus_discoverComponentName(handle,1,elementNames1,&numComponents,&componentName);
-        if(RBUS_ERROR_SUCCESS == rc) {
-          printf ("Discovered components are,\n");
-          for(i=0;i<numComponents;i++)
-          {
-            printf("rbus_discoverComponentName %s: %s\n", elementNames1[i],componentName[i]);
-            free(componentName[i]);
-          }
-          free(componentName);
-        }
-      }
-      break;
-    case RBUS_GTEST_METHOD:
-      {
-        uint32_t instNum;
-        rbusObject_t inParams;
-        rbusObject_t outParams;
-        rbusValue_t value;
-        char method1[RBUS_MAX_NAME_LENGTH] = {0};
-
-        rbusObject_Init(&inParams, NULL);
-        rbusValue_Init(&value);
-        rbusValue_SetString(value, "param1");
-        rbusObject_SetValue(inParams, "param1", value);
-        rbusValue_Release(value);
-
-        snprintf(method1, RBUS_MAX_NAME_LENGTH, "Device.TestProvider.Table1.Method1()");
-        printf("\n# TEST rbusMethod_Invoke(%s) \n#\n", method1);
-        rc = rbusMethod_Invoke(handle, method1, inParams, &outParams);
-        printf("consumer: rbusMethod_Invoke(%s) %s\n", method1,
-            rc == RBUS_ERROR_SUCCESS ? "success" : "fail");
-        if(rc == RBUS_ERROR_SUCCESS)
-        {
-          rbusObject_Release(outParams);
-        }
-
-      }
-      break;
     case RBUS_GTEST_METHOD_ASYNC:
-      {
-        rbusObject_t inParams;
-        rbusValue_t value;
-
-        rbusObject_Init(&inParams, NULL);
-        rbusValue_Init(&value);
-        rbusValue_SetString(value, "param1");
-        rbusObject_SetValue(inParams, "param1", value);
-        rbusValue_Release(value);
-
-        asyncCalled = false;
-        asyncError = RBUS_ERROR_SUCCESS;
-        rc = rbusMethod_InvokeAsync(handle, "Device.TestProvider.MethodAsync1()", inParams, asyncMethodHandler1, 0);
-        printf("consumer: rbusMethod_InvokeAsync(%s) %s\n", "Device.TestProvider.MethodAsync1()",
-            rc == RBUS_ERROR_SUCCESS ? "success" : "fail");
-        sleep(5);
-      }
+    {
+      runtime = 5;
       break;
+    }
+    case RBUS_GTEST_FILTER2:
+    case RBUS_GTEST_ASYNC_SUB4:
+    {
+      runtime = 15;
+      break;
+    }
+    default:
+    {
+      runtime = 3;
+      break;
+    }
   }
-
-  rbus_close(handle);
-  return rc;
-}
-
-TEST(rbusApiGetExt, test)
-{
-  memset(gtest_err,0,sizeof(gtest_err));
+  usleep(25000);
   pid_t pid = fork();
-  if (pid == 0){
+  if (0 == pid) {
     int ret = 0;
-    ret = rbusConsumer(RBUS_GTEST_GET_EXT);
+    ret = rbusConsumer(test, 0, runtime);
     exit(ret);
   } else {
     int ret = 0;
-    int customer_status;
-    ret = rbusProvider(5);
-    waitpid(pid, &customer_status, 0);
-    printf("Value change customer result %d\n",WEXITSTATUS(customer_status));
-    EXPECT_EQ(WEXITSTATUS(customer_status),0);
+    int consumer_status;
+    int expected_consumer_status = RBUS_ERROR_SUCCESS;
+
+    /* Run the appropriate provider */
+    switch(test)
+    {
+      case RBUS_GTEST_GET13:
+      case RBUS_GTEST_GET14:
+      case RBUS_GTEST_GET15:
+      case RBUS_GTEST_GET16:
+      case RBUS_GTEST_GET17:
+      case RBUS_GTEST_GET18:
+      case RBUS_GTEST_GET19:
+      case RBUS_GTEST_GET20:
+      case RBUS_GTEST_GET21:
+      case RBUS_GTEST_GET22:
+      case RBUS_GTEST_GET23:
+      case RBUS_GTEST_GET24:
+        ret = rbuscoreProvider(test, pid, &consumer_status);
+        break;
+      case RBUS_GTEST_ASYNC_SUB5:
+        {
+          pid_t pid1 = fork();
+          if(0 == pid1){
+            printf("Provider1 starts.\n");
+            ret = rbusProvider1((runtime/3),0);
+            exit(ret);
+          } else {
+            printf("Provider2 starts.\n");
+            waitpid(pid1, &consumer_status, 0);
+            ret = rbusProvider1((runtime/2),1);
+          }
+        }
+        break;
+      default:
+        ret = rbusProvider(test, pid, &consumer_status);
+        break;
+    }
+    printf("Consumer result %d\n",WEXITSTATUS(consumer_status));
+
+    if((WIFSIGNALED(consumer_status)) && (WTERMSIG(consumer_status) != SIGUSR1))
+    {
+      printf("/******************************************/\n");
+      printf("/******************************************/\n");
+      printf("                                            \n");
+      printf("ABNORMAL EXIT by %d: %s\n",WTERMSIG(consumer_status),strsignal(WTERMSIG(consumer_status)));
+      printf("                                            \n");
+      printf("/******************************************/\n");
+      printf("/******************************************/\n");
+      expected_consumer_status = RBUS_ERROR_BUS_ERROR;
+    } else {
+
+      /* Update the expected_consumer_status */
+      switch(test)
+      {
+        case RBUS_GTEST_GET1:
+        case RBUS_GTEST_GET2:
+        case RBUS_GTEST_GET3:
+        case RBUS_GTEST_SET5:
+        case RBUS_GTEST_SET6:
+        case RBUS_GTEST_SET7:
+        case RBUS_GTEST_SET8:
+        case RBUS_GTEST_UNREG_ROW:
+        case RBUS_GTEST_DISC_COMP2:
+        case RBUS_GTEST_DISC_COMP3:
+        case RBUS_GTEST_DISC_COMP4:
+        case RBUS_GTEST_SET_MULTI2:
+          expected_consumer_status = RBUS_ERROR_INVALID_INPUT;
+          break;
+        case RBUS_GTEST_SET_MULTI3:
+        case RBUS_GTEST_SET3:
+          expected_consumer_status = RBUS_ERROR_DESTINATION_NOT_REACHABLE;
+          break;
+        case RBUS_GTEST_SET_MULTI5:
+        case RBUS_GTEST_SET2:
+          expected_consumer_status = RBUS_ERROR_INVALID_OPERATION;
+          break;
+        case RBUS_GTEST_GET24:
+          expected_consumer_status = RBUS_ERROR_INVALID_RESPONSE_FROM_DESTINATION;
+          break;
+        case RBUS_GTEST_GET29:
+          expected_consumer_status = RBUS_ERROR_ACCESS_NOT_ALLOWED;
+          break;
+        case RBUS_GTEST_GET28:
+          expected_consumer_status = RBUS_ERROR_BUS_ERROR;
+          break;
+      }
+    }
+
+    EXPECT_EQ(WEXITSTATUS(consumer_status),expected_consumer_status);
     EXPECT_EQ(ret,0);
   }
 }
 
-TEST(rbusApiGet, test)
+TEST(rbusApiGetExt, test1)
 {
-  memset(gtest_err,0,sizeof(gtest_err));
-  pid_t pid = fork();
-  if (pid == 0){
-    int ret = 0;
-    ret = rbusConsumer(RBUS_GTEST_GET);
-    exit(ret);
-  } else {
-    int ret = 0;
-    int customer_status;
-    ret = rbusProvider(5);
-    waitpid(pid, &customer_status, 0);
-    printf("Value change customer result %d\n",WEXITSTATUS(customer_status));
-    EXPECT_EQ(WEXITSTATUS(customer_status),0);
-    EXPECT_EQ(ret,0);
-  }
+  exec_func_test(RBUS_GTEST_GET_EXT1);
 }
 
-TEST(rbusApiSet, test)
+TEST(rbusApiGetExt, test2)
 {
-  memset(gtest_err,0,sizeof(gtest_err));
-  pid_t pid = fork();
-  if (pid == 0){
-    int ret = 0;
-    ret = rbusConsumer(RBUS_GTEST_SET);
-    exit(ret);
-  } else {
-    int ret = 0;
-    int customer_status;
-    ret = rbusProvider(5);
-    waitpid(pid, &customer_status, 0);
-    printf("Value change customer result %d\n",WEXITSTATUS(customer_status));
-    EXPECT_EQ(WEXITSTATUS(customer_status),0);
-    EXPECT_EQ(ret,0);
+  int j = 0;
+  pid_t pid_arr[3];
+  for(j = 0 ; j < 3 ; j++ )
+  {
+    pid_arr[j] = fork();
+
+    if (0 == pid_arr[j]) {
+      int ret = 0;
+      ret = rbusMultiProvider(j);
+
+      exit(ret);
+    } else {
+      int ret = 0;
+      ret = rbusConsumer(RBUS_GTEST_GET_EXT2, pid_arr[j], 0);
+    }
   }
+
+  for(j = 0 ; j < 3 ; j++ )
+    wait(NULL);
 }
 
-TEST(rbusApiDiscoverComp, test)
+TEST(rbusApiGet, test1)
 {
-  memset(gtest_err,0,sizeof(gtest_err));
-  pid_t pid = fork();
-  if (pid == 0){
-    int ret = 0;
-    ret = rbusConsumer(RBUS_GTEST_DISC_COMP);
-    exit(ret);
-  } else {
-    int ret = 0;
-    int customer_status;
-    ret = rbusProvider(5);
-    waitpid(pid, &customer_status, 0);
-    printf("Value change customer result %d\n",WEXITSTATUS(customer_status));
-    EXPECT_EQ(WEXITSTATUS(customer_status),0);
-    EXPECT_EQ(ret,0);
-  }
+  exec_func_test(RBUS_GTEST_GET1);
 }
 
-TEST(rbusApiMethod, test)
+TEST(rbusApiGet, test2)
 {
-  memset(gtest_err,0,sizeof(gtest_err));
-  pid_t pid = fork();
-  if (pid == 0){
-    int ret = 0;
-    ret = rbusConsumer(RBUS_GTEST_METHOD);
-    exit(ret);
-  } else {
-    int ret = 0;
-    int customer_status;
-    ret = rbusProvider(5);
-    waitpid(pid, &customer_status, 0);
-    printf("Value change customer result %d\n",WEXITSTATUS(customer_status));
-    EXPECT_EQ(WEXITSTATUS(customer_status),0);
-    EXPECT_EQ(ret,0);
-  }
+  exec_func_test(RBUS_GTEST_GET2);
+}
+
+TEST(rbusApiGet, test3)
+{
+  exec_func_test(RBUS_GTEST_GET3);
+}
+
+TEST(rbusApiGet, test4)
+{
+  exec_func_test(RBUS_GTEST_GET4);
+}
+
+TEST(rbusApiGet, test5)
+{
+  exec_func_test(RBUS_GTEST_GET5);
+}
+
+TEST(rbusApiGet, test6)
+{
+  exec_func_test(RBUS_GTEST_GET6);
+}
+
+TEST(rbusApiGet, test7)
+{
+  exec_func_test(RBUS_GTEST_GET7);
+}
+
+TEST(rbusApiGet, test8)
+{
+  exec_func_test(RBUS_GTEST_GET8);
+}
+
+TEST(rbusApiGet, test9)
+{
+  exec_func_test(RBUS_GTEST_GET9);
+}
+
+TEST(rbusApiGet, test10)
+{
+  exec_func_test(RBUS_GTEST_GET10);
+}
+
+TEST(rbusApiGet, test11)
+{
+  exec_func_test(RBUS_GTEST_GET11);
+}
+
+TEST(rbusApiGet, test12)
+{
+  exec_func_test(RBUS_GTEST_GET12);
+}
+
+TEST(rbusApiGet, test13)
+{
+  exec_func_test(RBUS_GTEST_GET13);
+}
+
+TEST(rbusApiGet, test14)
+{
+  exec_func_test(RBUS_GTEST_GET14);
+}
+
+TEST(rbusApiGet, test15)
+{
+  exec_func_test(RBUS_GTEST_GET15);
+}
+
+TEST(rbusApiGet, test16)
+{
+  exec_func_test(RBUS_GTEST_GET16);
+}
+
+TEST(rbusApiGet, test17)
+{
+  exec_func_test(RBUS_GTEST_GET17);
+}
+
+TEST(rbusApiGet, test18)
+{
+  exec_func_test(RBUS_GTEST_GET18);
+}
+
+TEST(rbusApiGet, test19)
+{
+  exec_func_test(RBUS_GTEST_GET19);
+}
+
+TEST(rbusApiGet, test20)
+{
+  exec_func_test(RBUS_GTEST_GET20);
+}
+
+TEST(rbusApiGet, test21)
+{
+  exec_func_test(RBUS_GTEST_GET21);
+}
+
+TEST(rbusApiGet, test22)
+{
+  exec_func_test(RBUS_GTEST_GET22);
+}
+
+TEST(rbusApiGet, test23)
+{
+  exec_func_test(RBUS_GTEST_GET23);
+}
+
+TEST(rbusApiGet, test24)
+{
+  exec_func_test(RBUS_GTEST_GET24);
+}
+
+TEST(rbusApiGet, test25)
+{
+  exec_func_test(RBUS_GTEST_GET25);
+}
+
+TEST(rbusApiGet, test26)
+{
+  exec_func_test(RBUS_GTEST_GET26);
+}
+
+TEST(rbusApiGet, test27)
+{
+  exec_func_test(RBUS_GTEST_GET27);
+}
+
+TEST(rbusApiGet, test28)
+{
+  exec_func_test(RBUS_GTEST_GET28);
+}
+
+TEST(rbusApiGet, test29)
+{
+  exec_func_test(RBUS_GTEST_GET29);
+}
+
+TEST(rbusApiGet, test30)
+{
+  exec_func_test(RBUS_GTEST_GET30);
+}
+
+TEST(rbusApiGet, test31)
+{
+  exec_func_test(RBUS_GTEST_GET31);
+}
+
+TEST(rbusApiSet, test1)
+{
+  exec_func_test(RBUS_GTEST_SET1);
+}
+
+TEST(rbusApiSet, test2)
+{
+  exec_func_test(RBUS_GTEST_SET2);
+}
+
+TEST(rbusApiSet, test3)
+{
+  exec_func_test(RBUS_GTEST_SET3);
+}
+
+TEST(rbusApiSet, test4)
+{
+  exec_func_test(RBUS_GTEST_SET4);
+}
+
+TEST(rbusApiSet, test5)
+{
+  exec_func_test(RBUS_GTEST_SET5);
+}
+
+TEST(rbusApiSet, test6)
+{
+  exec_func_test(RBUS_GTEST_SET6);
+}
+
+TEST(rbusApiSet, test7)
+{
+  exec_func_test(RBUS_GTEST_SET7);
+}
+
+TEST(rbusApiSet, test8)
+{
+  exec_func_test(RBUS_GTEST_SET8);
+}
+
+TEST(rbusApiSet, test9)
+{
+  exec_func_test(RBUS_GTEST_SET9);
+}
+
+TEST(rbusApiSet, test10)
+{
+  exec_func_test(RBUS_GTEST_SET10);
+}
+
+TEST(rbusApiSet, test11)
+{
+  exec_func_test(RBUS_GTEST_SET11);
+}
+
+TEST(rbusApiSetMulti, test1)
+{
+  exec_func_test(RBUS_GTEST_SET_MULTI1);
+}
+
+TEST(rbusApiSetMulti, test2)
+{
+  exec_func_test(RBUS_GTEST_SET_MULTI2);
+}
+
+TEST(rbusApiSetMulti, test3)
+{
+  exec_func_test(RBUS_GTEST_SET_MULTI3);
+}
+
+TEST(rbusApiSetMulti, test4)
+{
+  exec_func_test(RBUS_GTEST_SET_MULTI4);
+}
+
+TEST(rbusApiSetMulti, test5)
+{
+  exec_func_test(RBUS_GTEST_SET_MULTI5);
+}
+
+TEST(rbusApiDiscoverComp, test1)
+{
+  exec_func_test(RBUS_GTEST_DISC_COMP1);
+}
+
+TEST(rbusApiDiscoverComp, test2)
+{
+  exec_func_test(RBUS_GTEST_DISC_COMP2);
+}
+
+TEST(rbusApiDiscoverComp, test3)
+{
+  exec_func_test(RBUS_GTEST_DISC_COMP3);
+}
+
+TEST(rbusApiDiscoverComp, test4)
+{
+  exec_func_test(RBUS_GTEST_DISC_COMP4);
+}
+
+TEST(rbusApiMethod, test1)
+{
+  exec_func_test(RBUS_GTEST_METHOD1);
+}
+
+TEST(rbusApiMethod, test2)
+{
+  exec_func_test(RBUS_GTEST_METHOD2);
 }
 
 TEST(rbusApiMethodAsync, test)
 {
-  memset(gtest_err,0,sizeof(gtest_err));
-  pid_t pid = fork();
-  if (pid == 0){
-    int ret = 0;
-    ret = rbusConsumer(RBUS_GTEST_METHOD_ASYNC);
-    exit(ret);
-  } else {
-    int ret = 0;
-    int customer_status;
-    ret = rbusProvider(10);
-    waitpid(pid, &customer_status, 0);
-    printf("Value change customer result %d\n",WEXITSTATUS(customer_status));
-    EXPECT_EQ(WEXITSTATUS(customer_status),0);
-    EXPECT_EQ(ret,0);
-  }
+  exec_func_test(RBUS_GTEST_METHOD_ASYNC);
 }
 
 TEST(rbusApiValueChangeTest, test1)
 {
-  memset(gtest_err,0,sizeof(gtest_err));
-  pid_t pid = fork();
-  if (pid == 0){
-    int ret = 0;
-    ret = rbusConsumer(RBUS_GTEST_FILTER1);
-    exit(ret);
-  } else {
-    int ret = 0;
-    int customer_status;
-    ret = rbusProvider(50);
-    waitpid(pid, &customer_status, 0);
-    printf("Value change customer result %d\n",WEXITSTATUS(customer_status));
-    EXPECT_EQ(WEXITSTATUS(customer_status),0);
-    EXPECT_EQ(ret,0);
-  }
+  exec_func_test(RBUS_GTEST_FILTER1);
 }
 
 TEST(rbusApiValueChangeTest, test2)
 {
-  memset(gtest_err,0,sizeof(gtest_err));
-  pid_t pid = fork();
-  if (pid == 0){
-    int ret = 0;
-    ret = rbusConsumer(RBUS_GTEST_FILTER2);
-    exit(ret);
-  } else {
-    int ret = 0;
-    int customer_status;
-    ret = rbusProvider(50);
-    waitpid(pid, &customer_status, 0);
-    printf("Value change customer result %d\n",WEXITSTATUS(customer_status));
-    EXPECT_EQ(WEXITSTATUS(customer_status),0);
-    EXPECT_EQ(ret,0);
-  }
+  exec_func_test(RBUS_GTEST_FILTER2);
+}
+
+TEST(rbusAsyncSubTest, test1)
+{
+  exec_func_test(RBUS_GTEST_ASYNC_SUB1);
+}
+
+TEST(rbusAsyncSubTest, test2)
+{
+  exec_func_test(RBUS_GTEST_ASYNC_SUB2);
+}
+
+TEST(rbusAsyncSubTest, test3)
+{
+  exec_func_test(RBUS_GTEST_ASYNC_SUB3);
+}
+
+TEST(rbusAsyncSubTest, test4)
+{
+  exec_func_test(RBUS_GTEST_ASYNC_SUB4);
+}
+
+TEST(rbusAsyncSubTest, test5)
+{
+  exec_func_test(RBUS_GTEST_ASYNC_SUB5);
+}
+
+TEST(rbusRegRowTest, test)
+{
+  exec_func_test(RBUS_GTEST_REG_ROW);
+}
+
+TEST(rbusUnRegRowTest, test)
+{
+  exec_func_test(RBUS_GTEST_UNREG_ROW);
 }

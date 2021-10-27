@@ -17,19 +17,33 @@
  * limitations under the License.
  */
 #include "gtest/gtest.h"
+#include <rbus.h>
+#include <stdio.h>
+#include <string.h>
 
-char gtestReportPath[] = "xml:/tmp/Gtest_Report/rbus_gtest_report.xml";
-
-GTEST_API_ int main(int argc, char* argv[])
+TEST(rbusSessionTest, test1)
 {
-  ::testing::GTEST_FLAG(output) = gtestReportPath;
-  ::testing::InitGoogleTest(&argc, argv);
-  int ret = 0;
+  int rc = RBUS_ERROR_BUS_ERROR;
+  rbusHandle_t handle = NULL;
+  unsigned int sessionId = 0 , newSessionId = 0;
+  char *componentName = NULL;
 
-  ret = RUN_ALL_TESTS();
+  componentName = strdup("sessiontest");
 
-  if(ret)
-      printf("Gtest returned with error : %d !!!\n",ret);
+  rc = rbus_open(&handle, componentName);
+  EXPECT_EQ(rc,RBUS_ERROR_SUCCESS);
 
-  return 0;
+  if(RBUS_ERROR_SUCCESS == rc)
+  {
+    rc = rbus_createSession(handle , &sessionId);
+    EXPECT_EQ(rc, RBUS_ERROR_SUCCESS);
+
+    rc = rbus_getCurrentSession(handle , &newSessionId);
+    EXPECT_EQ(rc, RBUS_ERROR_SUCCESS);
+    EXPECT_EQ(sessionId, newSessionId);
+
+    rc = rbus_closeSession(handle, sessionId);
+    EXPECT_EQ(rc, RBUS_ERROR_SUCCESS);
+  }
+  free(componentName);
 }

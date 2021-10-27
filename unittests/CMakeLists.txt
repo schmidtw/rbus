@@ -38,11 +38,18 @@ add_custom_target(test_memcheck
 
 add_executable(rbus_gtest.bin
   rbusValueTest.cpp
+  rbusTokenTest.cpp
+  rbusElementTest.cpp
   rbusFunctionalityTest.cpp
+  rbusProvider.cpp
+  rbusConsumer.cpp
   rbusObjectTest.cpp
   rbusPropertyTest.cpp
   rbusFilterTest.cpp
   rbusMessageTest.cpp
+  rbusSessionTest.cpp
+  rbusApiNegTest.cpp
+  util.cpp
   main.cpp)
 add_dependencies(rbus_gtest.bin rbus)
 

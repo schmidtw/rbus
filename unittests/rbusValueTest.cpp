@@ -99,52 +99,58 @@ static void exec_validate_test(rbusValueType_t type,char *buffer)
   char type_buf[32]  = {0};
   char val_buf[1024] = {0};
 
+  stream = open_memstream(&stream_buf, &len);
+  EXPECT_NE(nullptr,stream);
+  if (stream == NULL) {
+    printf("Unable to open memstream. Error : %s\n",strerror(errno));
+    return;
+  }
+
   rbusValue_Init(&val);
   EXPECT_EQ(rbusValue_SetFromString(val,type,buffer),true);
   EXPECT_EQ(rbusValue_GetType(val), type);
   pRet = rbusValue_ToString(val, NULL, 0);
   if(type == RBUS_BOOLEAN) {
-    if(strcmp(buffer,"true") == 0)  
+    if(strcmp(buffer,"true") == 0)
       EXPECT_STREQ(pRet,"1");
-    if(strcmp(buffer,"false") == 0)  
+    if(strcmp(buffer,"false") == 0)
       EXPECT_STREQ(pRet,"0");
   } else if(type == RBUS_BYTE) {
       char tmp[4] = {0};
       sprintf(tmp,"%x",buffer[0]);
       EXPECT_STREQ(pRet,tmp);
   } else {
+    if((type == RBUS_DATETIME) && (' ' == buffer[10]))
+      buffer[10] = 'T';
     EXPECT_STREQ(pRet,buffer);
   }
   free(pRet);
+  pRet = NULL;
 
-  stream = open_memstream(&stream_buf, &len);
-  if (stream == NULL) {
-    printf("Unable to open memstream. Error : %s\n",strerror(errno));
-    rbusValue_Release(val);
-    return;
-  }
   rbusValue_fwrite(val, 0,stream);
   rbusValue_Release(val);
 
   fflush(stream);
   fclose(stream);
   pRet = strstr(stream_buf,"value:");
-  if(!pRet)
-    return;
-  pRet += strlen("value:");
-  len = strlen(pRet);
-  if(type == RBUS_BOOLEAN) {
-    if(strcmp(buffer,"true") == 0)  
-      EXPECT_EQ(strncmp(pRet,"1",len-1),0);
-    if(strcmp(buffer,"false") == 0)  
-      EXPECT_EQ(strncmp(pRet,"0",len-1),0);
-  } else if(type == RBUS_BYTE) {
-    char tmp[4] = {0};
-    sprintf(tmp,"%x",buffer[0]);
-    EXPECT_EQ(strncmp(pRet,tmp,len-1),0);
-  } else {
-    EXPECT_EQ(strncmp(pRet,buffer,len-1),0);
-  }  
+  EXPECT_NE(nullptr,pRet);
+  if(pRet)
+  {
+    pRet += strlen("value:");
+    len = strlen(pRet);
+    if(type == RBUS_BOOLEAN) {
+      if(strcmp(buffer,"true") == 0)
+        EXPECT_EQ(strncmp(pRet,"1",len-1),0);
+      if(strcmp(buffer,"false") == 0)
+        EXPECT_EQ(strncmp(pRet,"0",len-1),0);
+    } else if(type == RBUS_BYTE) {
+      char tmp[4] = {0};
+      sprintf(tmp,"%x",buffer[0]);
+      EXPECT_EQ(strncmp(pRet,tmp,len-1),0);
+    } else {
+      EXPECT_EQ(strncmp(pRet,buffer,len-1),0);
+    }
+  }
 }
 
 static void increment_val(char *buffer)
@@ -160,8 +166,8 @@ static void exec_validate_neg_test(rbusValueType_t type,char *buffer)
   char *pRet = NULL;
 
   rbusValue_Init(&val);
-  if(type == RBUS_SINGLE || type == RBUS_DOUBLE || type == RBUS_DATETIME || type == RBUS_STRING ||
-    type == RBUS_BYTE || type == RBUS_BOOLEAN || type == RBUS_CHAR) {
+  if(type == RBUS_SINGLE || type == RBUS_DOUBLE || type == RBUS_STRING ||
+      type == RBUS_BYTE || type == RBUS_CHAR) {
     EXPECT_EQ(rbusValue_SetFromString(val,type,buffer),true);
   } else {
     EXPECT_NE(rbusValue_SetFromString(val,type,buffer),true);
@@ -169,9 +175,9 @@ static void exec_validate_neg_test(rbusValueType_t type,char *buffer)
   }
   pRet = rbusValue_ToString(val, NULL, 0);
   if(type == RBUS_STRING || type == RBUS_CHAR) {
-  EXPECT_STREQ(pRet,buffer);
+    EXPECT_STREQ(pRet,buffer);
   } else {
-  EXPECT_STRNE(pRet,buffer);
+    EXPECT_STRNE(pRet,buffer);
   }
   rbusValue_Release(val);
   free(pRet);
@@ -196,6 +202,57 @@ static void exec_copy_compare_test(rbusValueType_t type,void *buffer)
   rbusValue_Copy(val2, val1);
 
   EXPECT_EQ(rbusValue_Compare( val1, val2),0);
+
+  rbusValue_Release(val1);
+  rbusValue_Release(val2);
+}
+
+static void exec_neg_copy_compare_test(rbusValueType_t type,void *buffer)
+{
+  rbusValue_t val1;
+
+  rbusValue_Init(&val1);
+  EXPECT_EQ(rbusValue_SetFromString(val1,type,(char *)buffer),true);
+  rbusValue_Copy(val1, val1);
+
+  EXPECT_EQ(rbusValue_Compare( val1, val1),0);
+
+  rbusValue_Release(val1);
+}
+
+static void value_setptr_test(rbusValueType_t type,void *buffer)
+{
+  rbusValue_t val1, val2;
+  int ret = -1;
+
+  rbusValue_Init(&val1);
+  rbusValue_Init(&val2);
+  EXPECT_EQ(rbusValue_SetFromString(val1,type,(char *)buffer),true);
+  rbusValue_SetPointer(&val1, val2);
+
+  EXPECT_EQ(rbusValue_Compare(val1, val2),0);
+
+  rbusValue_Release(val1);
+  rbusValue_Release(val2);
+}
+
+static void value_swap_test(rbusValueType_t type,void *buffer)
+{
+  rbusValue_t val1, val2, val3, val4;
+
+  rbusValue_Init(&val1);
+  rbusValue_Init(&val2);
+  EXPECT_EQ(rbusValue_SetFromString(val1,type,(char *)buffer),true);
+  EXPECT_EQ(rbusValue_SetFromString(val2,type,(char *)buffer),true);
+  if(RBUS_STRING == type){
+    EXPECT_EQ(rbusValue_SetFromString(val2,type,"a"),true);
+  }
+  val3=val1;
+  val4=val2;
+  rbusValue_Swap(&val1, &val2);
+
+  EXPECT_EQ(rbusValue_Compare(val1, val4),0);
+  EXPECT_EQ(rbusValue_Compare(val2, val3),0);
 
   rbusValue_Release(val1);
   rbusValue_Release(val2);
@@ -268,6 +325,19 @@ TEST(rbusValueTest, validate_datetime3)
   time (&rawtime);
   timeinfo = localtime (&rawtime);
   strftime (buffer,80,"%FT%T-01:00",timeinfo);
+
+  exec_validate_test(RBUS_DATETIME,buffer);
+}
+
+TEST(rbusValueTest, validate_datetime4)
+{
+  time_t rawtime;
+  struct tm * timeinfo;
+  char buffer[80] = {0};
+
+  time (&rawtime);
+  timeinfo = localtime (&rawtime);
+  strftime (buffer,80,"%F %TZ",timeinfo);
 
   exec_validate_test(RBUS_DATETIME,buffer);
 }
@@ -537,7 +607,7 @@ TEST(rbusValueTestNeg, validate_bool_1)
 {
   char buffer[8] = {0};
 
-  sprintf(buffer,"%s","true");
+  sprintf(buffer,"%s","truee");
   exec_validate_neg_test(RBUS_BOOLEAN,buffer);
 }
 
@@ -545,7 +615,7 @@ TEST(rbusValueTestNeg, validate_bool_2)
 {
   char buffer[8] = {0};
 
-  sprintf(buffer,"%s","false");
+  sprintf(buffer,"%s","ffalse");
   exec_validate_neg_test(RBUS_BOOLEAN,buffer);
 }
 
@@ -565,8 +635,7 @@ TEST(rbusValueTestNeg, validate_datetime1)
 
   time (&rawtime);
   timeinfo = localtime (&rawtime);
-  strftime (buffer,80,"%FT%TZ",timeinfo);
-  increment_val(buffer);
+  strftime (buffer,80,"%FT%RZ",timeinfo);
   exec_validate_neg_test(RBUS_DATETIME,buffer);
 }
 
@@ -735,6 +804,14 @@ TEST(rbusValueTestNeg, validate_uint64_1)
   exec_validate_neg_test(RBUS_UINT64,buffer);
 }
 
+TEST(rbusValueCopyCompare, copy_compare_uint8)
+{
+  char buffer[8] = {0};
+
+  sprintf(buffer,"%d",UCHAR_MAX);
+  exec_neg_copy_compare_test(RBUS_UINT8,buffer);
+}
+
 TEST(rbusValueCopyCompare, copy_compare_bool)
 {
   char buffer[8] = "true";
@@ -808,7 +885,7 @@ TEST(rbusValueCopyCompare, copy_compare_int64)
   exec_copy_compare_test(RBUS_INT64,buffer);
 }
 
-TEST(rbusValueCopyCompare, copy_compare_uint8)
+TEST(rbusValueCopyCompare, neg_copy_compare_uint8)
 {
   char buffer[8] = {0};
 
@@ -876,6 +953,29 @@ TEST(rbusValueCopyCompare, copy_compare_datetime)
   exec_copy_compare_test(RBUS_DATETIME,buffer);
 }
 
+TEST(rbusValueSwap, swap_value1)
+{
+  char buffer[8] = {0};
+
+  sprintf(buffer,"%d",CHAR_MIN);
+  value_swap_test(RBUS_INT8,buffer);
+}
+
+TEST(rbusValueSwap, swap_string1)
+{
+  char buffer[8] = "test";
+
+  value_swap_test(RBUS_STRING,buffer);
+}
+
+TEST(rbusValueSetptr, setptr_value1)
+{
+  char buffer[8] = {0};
+
+  sprintf(buffer,"%d",CHAR_MIN);
+  value_setptr_test(RBUS_INT8,buffer);
+}
+
 TEST(rbusValueEncDecTlv, enc_dec_tlv_datetime)
 {
   time_t rawtime;
@@ -885,6 +985,19 @@ TEST(rbusValueEncDecTlv, enc_dec_tlv_datetime)
   time (&rawtime);
   timeinfo = localtime (&rawtime);
   strftime (buffer,80,"%FT%TZ",timeinfo);
+
+  exec_encode_decode_tlv_test(RBUS_DATETIME,buffer);
+}
+
+TEST(rbusValueEncDecTlv, enc_dec_tlv_datetime1)
+{
+  time_t rawtime;
+  struct tm * timeinfo;
+  char buffer[80] = {0};
+
+  time (&rawtime);
+  timeinfo = localtime (&rawtime);
+  strftime (buffer,80,"%F %TZ",timeinfo);
 
   exec_encode_decode_tlv_test(RBUS_DATETIME,buffer);
 }

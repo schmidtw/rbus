@@ -51,6 +51,8 @@
 #ifndef TRUE
 #define TRUE                                1
 #endif
+#define VERIFY_NULL(T)          if(NULL == T){ RBUSLOG_WARN(#T" is NULL\n"); return RBUS_ERROR_INVALID_INPUT; }
+#define VERIFY_ZERO(T)          if(0 == T){ RBUSLOG_WARN(#T" is 0\n"); return RBUS_ERROR_INVALID_INPUT; }
 //********************************************************************************//
 
 
@@ -789,6 +791,7 @@ bool _is_wildcard_query(char const* name)
     return false;
 }
 
+#if 0
 char const* getLastTokenInName(char const* name)
 {
     if(name == NULL)
@@ -812,6 +815,8 @@ char const* getLastTokenInName(char const* name)
     else
         return name;
 }
+#endif
+
 /*  Recurse row elements Adding or Removing value change properties
  *  when adding a row, call this after subscriptions are added to the row element
  *  when removing a row, call this before subscriptions are removed from the row element
@@ -1814,10 +1819,8 @@ rbusError_t rbus_open(rbusHandle_t* handle, char const* componentName)
     int  i = 0;
     rbusHandle_t tmpHandle;
 
-    if((handle == NULL) || (componentName == NULL))
-    {
-        return RBUS_ERROR_INVALID_INPUT;
-    }
+    VERIFY_NULL(handle);
+    VERIFY_NULL(componentName);
 
     *handle = NULL;
 
@@ -1912,10 +1915,7 @@ rbusError_t rbus_close(rbusHandle_t handle)
     rbus_error_t err = RTMESSAGE_BUS_SUCCESS;
     struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
 
-    if(handle == NULL)
-    {
-        return RBUS_ERROR_INVALID_INPUT;
-    }
+    VERIFY_NULL(handle);
 
     if(handleInfo->eventSubs)
     {
@@ -2011,6 +2011,11 @@ rbusError_t rbus_regDataElements(
     int i;
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
+
+    VERIFY_NULL(handleInfo);
+    VERIFY_NULL(elements);
+    VERIFY_ZERO(numDataElements);
+
     for(i=0; i<numDataElements; ++i)
     {
         char* name = elements[i].name;
@@ -2081,6 +2086,11 @@ rbusError_t rbus_unregDataElements(
 {
     struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
     int i;
+
+    VERIFY_NULL(handleInfo);
+    VERIFY_NULL(elements);
+    VERIFY_ZERO(numDataElements);
+
     for(i=0; i<numDataElements; ++i)
     {
         char const* name = elements[i].name;
@@ -2140,10 +2150,8 @@ rbusError_t rbus_discoverComponentDataElements (rbusHandle_t handle,
     *numElements = 0;
     *elementNames = 0;
     UNUSED1(nextLevel);
-    if((handle == NULL) || (name == NULL))
-    {
-        return RBUS_ERROR_INVALID_INPUT;
-    }
+    VERIFY_NULL(handle);
+    VERIFY_NULL(name);
 
     ret = rbus_discoverObjectElements(name, numElements, elementNames);
 
@@ -2164,17 +2172,19 @@ rbusError_t rbus_get(rbusHandle_t handle, char const* name, rbusValue_t* value)
     int ret = -1;
     struct _rbusHandle* handleInfo = (struct _rbusHandle*) handle;
 
-    if (_is_wildcard_query(name))
-    {
-        RBUSLOG_WARN("%s This method does not support wildcard query", __FUNCTION__);
-        return RBUS_ERROR_ACCESS_NOT_ALLOWED;
-    }
+    VERIFY_NULL(handleInfo);
 
     /* Is it a valid Query */
     if (!_is_valid_get_query(name))
     {
         RBUSLOG_WARN("%s This method is only to get Parameters", __FUNCTION__);
         return RBUS_ERROR_INVALID_INPUT;
+    }
+
+    if (_is_wildcard_query(name))
+    {
+        RBUSLOG_WARN("%s This method does not support wildcard query", __FUNCTION__);
+        return RBUS_ERROR_ACCESS_NOT_ALLOWED;
     }
 
     rbusMessage_Init(&request);
@@ -2223,6 +2233,7 @@ rbusError_t rbus_get(rbusHandle_t handle, char const* name, rbusValue_t* value)
                 {
                     RBUSLOG_WARN("Param mismatch!");
                     RBUSLOG_WARN("Requested param: [%s], Received Param: [%s]", name, buff);
+                    errorcode = RBUS_ERROR_INVALID_RESPONSE_FROM_DESTINATION;
                 }
             }
         }
@@ -2307,6 +2318,12 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
     rbus_error_t err = RTMESSAGE_BUS_SUCCESS;
     int i;
     struct _rbusHandle* handleInfo = (struct _rbusHandle*) handle;
+
+    VERIFY_NULL(handleInfo);
+    VERIFY_NULL(pParamNames);
+    VERIFY_NULL(numValues);
+    VERIFY_NULL(retProperties);
+    VERIFY_ZERO(paramCount);
 
     if ((1 == paramCount) && (_is_wildcard_query(pParamNames[0])))
     {
@@ -2577,9 +2594,12 @@ rbusError_t rbus_set(rbusHandle_t handle, char const* name,rbusValue_t value, rb
     rbus_error_t err = RTMESSAGE_BUS_SUCCESS;
     rbusMessage setRequest, setResponse;
     struct _rbusHandle* handleInfo = (struct _rbusHandle*) handle;
-    rbusValueType_t type = rbusValue_GetType(value);
 
-    if ((NULL == value) || (RBUS_NONE == type))
+    VERIFY_NULL(handle);
+    VERIFY_NULL(name);
+    VERIFY_NULL(value);
+
+    if (RBUS_NONE == rbusValue_GetType(value))
     {
         return errorcode;
     }
@@ -2646,6 +2666,8 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
     struct _rbusHandle* handleInfo = (struct _rbusHandle*) handle;
     rbusValueType_t type = RBUS_NONE;
     rbusProperty_t current;
+
+    VERIFY_NULL(handle);
 
     if (numProps > 0 && properties != NULL)
     {
@@ -2899,37 +2921,35 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numValues,
     return errorcode;
 }
 #endif
-rbusError_t rbus_setByType(rbusHandle_t handle, char const* paramName, void const* paramVal, rbusValueType_t type)
+static rbusError_t rbus_setByType(rbusHandle_t handle, char const* paramName, void const* paramVal, rbusValueType_t type)
 {
     rbusError_t errorcode = RBUS_ERROR_INVALID_INPUT;
 
-    if (paramName != NULL)
+    VERIFY_NULL(paramName);
+    rbusValue_t value;
+
+    rbusValue_Init(&value);
+
+    switch(type)
     {
-        rbusValue_t value;
-
-        rbusValue_Init(&value);
-
-        switch(type)
-        {
-            case RBUS_INT32:
-                rbusValue_SetInt32(value, *((int*)paramVal));
-                break;
-            case RBUS_UINT32:
-                rbusValue_SetUInt32(value, *((unsigned int*)paramVal));
-                break;
-            case RBUS_STRING:
-                rbusValue_SetString(value, (char*)paramVal);
-                break;
-            default:
-                RBUSLOG_WARN("%s unexpected type param %d", __FUNCTION__, type);
-                break;
-        }
-
-        errorcode = rbus_set(handle, paramName, value, NULL);
-
-        rbusValue_Release(value);
-
+        case RBUS_INT32:
+            rbusValue_SetInt32(value, *((int*)paramVal));
+            break;
+        case RBUS_UINT32:
+            rbusValue_SetUInt32(value, *((unsigned int*)paramVal));
+            break;
+        case RBUS_STRING:
+            rbusValue_SetString(value, (char*)paramVal);
+            break;
+        default:
+            RBUSLOG_WARN("%s unexpected type param %d", __FUNCTION__, type);
+            break;
     }
+
+    errorcode = rbus_set(handle, paramName, value, NULL);
+
+    rbusValue_Release(value);
+
     return errorcode;
 }
 
@@ -2945,6 +2965,7 @@ rbusError_t rbus_setUInt(rbusHandle_t handle, char const* paramName, unsigned in
 
 rbusError_t rbus_setStr(rbusHandle_t handle, char const* paramName, char const* paramVal)
 {
+    VERIFY_NULL(paramVal);
     return rbus_setByType(handle, paramName, paramVal, RBUS_STRING);
 }
 
@@ -2964,7 +2985,10 @@ rbusError_t rbusTable_addRow(
 
     RBUSLOG_INFO("%s: %s %s", __FUNCTION__, tableName, aliasName);
 
-    if(tableName == NULL || tableName[strlen(tableName)-1] != dot)
+    VERIFY_NULL(handle);
+    VERIFY_NULL(tableName);
+
+    if(tableName[strlen(tableName)-1] != dot)
     {
         RBUSLOG_WARN("%s invalid table name %s", __FUNCTION__, tableName);
         return RBUS_ERROR_INVALID_INPUT;
@@ -3028,6 +3052,9 @@ rbusError_t rbusTable_removeRow(
     (void)handle;
     rbusLegacyReturn_t legacyRetCode = RBUS_LEGACY_ERR_FAILURE;
 
+    VERIFY_NULL(handle);
+    VERIFY_NULL(rowName);
+
     RBUSLOG_INFO("%s: %s", __FUNCTION__, rowName);
 
     rbusMessage_Init(&request);
@@ -3079,6 +3106,9 @@ rbusError_t rbusTable_registerRow(
     char rowName[RBUS_MAX_NAME_LENGTH] = {0};
     int rc;
 
+    VERIFY_NULL(handleInfo);
+    VERIFY_NULL(tableName);
+
     rc = snprintf(rowName, RBUS_MAX_NAME_LENGTH, "%s%d", tableName, instNum);
     if(rc < 0 || rc >= RBUS_MAX_NAME_LENGTH)
     {
@@ -3111,6 +3141,9 @@ rbusError_t rbusTable_unregisterRow(
     char const* rowName)
 {
     struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
+
+    VERIFY_NULL(handleInfo);
+    VERIFY_NULL(rowName);
 
     elementNode* rowInstElem = retrieveInstanceElement(handleInfo->elementRoot, rowName);
 
@@ -3285,6 +3318,10 @@ rbusError_t  rbusEvent_Subscribe(
 
     RBUSLOG_INFO("%s: %s", __FUNCTION__, eventName);
 
+    VERIFY_NULL(handle);
+    VERIFY_NULL(eventName);
+    VERIFY_NULL(handler);
+
     errorcode = rbusEvent_SubscribeWithRetries(handle, eventName, handler, userData, NULL, 0, 0 , timeout, NULL);
 
     if(errorcode != RBUS_ERROR_SUCCESS)
@@ -3307,6 +3344,11 @@ rbusError_t  rbusEvent_SubscribeAsync(
 
     RBUSLOG_INFO("%s: %s", __FUNCTION__, eventName);
 
+    VERIFY_NULL(handle);
+    VERIFY_NULL(eventName);
+    VERIFY_NULL(handler);
+    VERIFY_NULL(subscribeHandler);
+
     errorcode = rbusEvent_SubscribeWithRetries(handle, eventName, handler, userData, NULL, 0, 0, timeout, subscribeHandler);
 
     if(errorcode != RBUS_ERROR_SUCCESS)
@@ -3323,6 +3365,9 @@ rbusError_t rbusEvent_Unsubscribe(
 {
     struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
     rbusEventSubscription_t* sub;
+
+    VERIFY_NULL(handle);
+    VERIFY_NULL(eventName);
 
     RBUSLOG_INFO("%s: %s", __FUNCTION__, eventName);
 
@@ -3370,6 +3415,10 @@ rbusError_t rbusEvent_SubscribeEx(
     rbusError_t errorcode = RBUS_ERROR_SUCCESS;
     int i, j;
 
+    VERIFY_NULL(handle);
+    VERIFY_NULL(subscription);
+    VERIFY_ZERO(numSubscriptions);
+
     for(i = 0; i < numSubscriptions; ++i)
     {
         RBUSLOG_INFO("%s: %s", __FUNCTION__, subscription[i].eventName);
@@ -3411,6 +3460,11 @@ rbusError_t rbusEvent_SubscribeExAsync(
     rbusError_t errorcode = RBUS_ERROR_SUCCESS;
     int i, j;
 
+    VERIFY_NULL(handle);
+    VERIFY_NULL(subscription);
+    VERIFY_NULL(subscribeHandler);
+    VERIFY_ZERO(numSubscriptions);
+
     for(i = 0; i < numSubscriptions; ++i)
     {
         RBUSLOG_INFO("%s: %s", __FUNCTION__, subscription[i].eventName);
@@ -3444,7 +3498,11 @@ rbusError_t rbusEvent_UnsubscribeEx(
     int                         numSubscriptions)
 {
     rbusError_t errorcode = RBUS_ERROR_SUCCESS;
-   
+
+    VERIFY_NULL(handle);
+    VERIFY_NULL(subscription);
+    VERIFY_ZERO(numSubscriptions);
+
     struct _rbusHandle* handleInfo = (struct _rbusHandle*)handle;
     int i;
 
@@ -3514,6 +3572,9 @@ rbusError_t  rbusEvent_Publish(
     rbus_error_t err, errOut = RTMESSAGE_BUS_SUCCESS;
     rtListItem listItem;
     rbusSubscription_t* subscription;
+
+    VERIFY_NULL(handle);
+    VERIFY_NULL(eventData);
 
     RBUSLOG_INFO("%s: %s", __FUNCTION__, eventData->name);
 
@@ -3695,9 +3756,12 @@ rbusError_t rbusMethod_InvokeInternal(
 {
     (void)handle;
     rbus_error_t err;
-    int returnCode = 0;
+    int returnCode = RBUS_ERROR_INVALID_INPUT;
     rbusMessage request, response;
     rbusLegacyReturn_t legacyRetCode = RBUS_LEGACY_ERR_FAILURE;
+
+    VERIFY_NULL(handle);
+    VERIFY_NULL(methodName);
 
     RBUSLOG_INFO("%s: %s", __FUNCTION__, methodName);
 
@@ -3794,6 +3858,10 @@ rbusError_t rbusMethod_InvokeAsync(
     rbusMethodInvokeAsyncData_t* data;
     int err = 0;
 
+    VERIFY_NULL(handle);
+    VERIFY_NULL(methodName);
+    VERIFY_NULL(callback);
+
     rbusObject_Retain(inParams);
 
     data = malloc(sizeof(rbusMethodInvokeAsyncData_t));
@@ -3824,6 +3892,8 @@ rbusError_t rbusMethod_SendAsyncResponse(
 {
     rbusMessage response;
 
+    VERIFY_NULL(asyncHandle);
+
     rbusMessage_Init(&response);
     rbusMessage_SetInt32(response, error);
     if(outParams)
@@ -3839,7 +3909,7 @@ rbusError_t rbus_createSession(rbusHandle_t handle, uint32_t *pSessionId)
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     rbus_error_t err = RTMESSAGE_BUS_SUCCESS;
     rbusMessage response;
-    if (pSessionId)
+    if (pSessionId && handle)
     {
         *pSessionId = 0;
         if((err = rbus_invokeRemoteMethod(RBUS_SMGR_DESTINATION_NAME, RBUS_SMGR_METHOD_REQUEST_SESSION_ID, NULL, 6000, &response)) == RTMESSAGE_BUS_SUCCESS)
@@ -3877,7 +3947,7 @@ rbusError_t rbus_getCurrentSession(rbusHandle_t handle, uint32_t *pSessionId)
     rbus_error_t err = RTMESSAGE_BUS_SUCCESS;
     rbusMessage response;
 
-    if (pSessionId)
+    if (pSessionId && handle)
     {
         *pSessionId = 0;
         if((err = rbus_invokeRemoteMethod(RBUS_SMGR_DESTINATION_NAME, RBUS_SMGR_METHOD_GET_CURRENT_SESSION_ID, NULL, 6000, &response)) == RTMESSAGE_BUS_SUCCESS)
@@ -3914,7 +3984,7 @@ rbusError_t rbus_closeSession(rbusHandle_t handle, uint32_t sessionId)
     rbusError_t rc = RBUS_ERROR_SUCCESS;
     rbus_error_t err = RTMESSAGE_BUS_SUCCESS;
 
-    if (0 != sessionId)
+    if ((0 != sessionId) && (handle))
     {
         rbusMessage inputSession;
         rbusMessage response;

@@ -351,6 +351,7 @@ bool TokenChain_match(TokenChain* chain, elementNode* instNode)
     return true;
 }
 
+#if DEBUG_TOKEN
 void TokenChain_print(TokenChain* chain)
 {
     Token* token = chain->first;
@@ -361,3 +362,4 @@ void TokenChain_print(TokenChain* chain)
     }
     RBUSLOG_INFO("(null)");
 }
+#endif

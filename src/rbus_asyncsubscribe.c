@@ -53,7 +53,7 @@ static int rbusAsyncSubscribeRetrier_CompareHandle(const void *pitem, const void
     else
         return 0;
 }
-
+#if 0
 static int rbusAsyncSubscribeRetrier_CompareSubscription(const void *pitem, const void *psubscription)
 {
     AsyncSubscription_t* item = (AsyncSubscription_t*)pitem;
@@ -63,7 +63,7 @@ static int rbusAsyncSubscribeRetrier_CompareSubscription(const void *pitem, cons
     else
         return 0;
 }
-
+#endif
 static int rbusAsyncSubscribeRetrier_DetermineNextSendTime(rtTime_t* nextSendTime)
 {
     rtTime_t now;
@@ -344,6 +344,7 @@ void rbusAsyncSubscribe_AddSubscription(rbusEventSubscription_t* subscription)
     (void)rc;
 }
 
+#if 0
 void rbusAsyncSubscribe_RemoveSubscription(rbusEventSubscription_t* subscription)
 {
     LOCK();
@@ -353,6 +354,7 @@ void rbusAsyncSubscribe_RemoveSubscription(rbusEventSubscription_t* subscription
 
     UNLOCK();
 }
+#endif
 
 void rbusAsyncSubscribe_CloseHandle(rbusHandle_t handle)
 {
