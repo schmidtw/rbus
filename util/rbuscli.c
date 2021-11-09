@@ -421,6 +421,8 @@ rbusValueType_t getDataType_fromString(const char* pType)
         rc = RBUS_BOOLEAN;
     else if (strncasecmp("char",   pType, 4) == 0)
         rc = RBUS_CHAR;
+    else if (strncasecmp("bytes",    pType, 5) == 0)
+        rc = RBUS_BYTES;
     else if (strncasecmp("byte",   pType, 4) == 0)
         rc = RBUS_BYTE;
     else if (strncasecmp("int8",   pType, 4) == 0)
@@ -447,8 +449,6 @@ rbusValueType_t getDataType_fromString(const char* pType)
         rc = RBUS_DATETIME;
     else if (strncasecmp("string", pType, 6) == 0)
         rc = RBUS_STRING;
-    else if (strncasecmp("bytes",    pType, 3) == 0)
-        rc = RBUS_BYTES;
 
     /* Risk handling, if the user types just int, lets consider int32; same for unsigned too  */
     else if (strncasecmp("int",  pType, 3) == 0)

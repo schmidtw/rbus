@@ -79,7 +79,7 @@ rbusDataElement_t allTypeDataElements[14] = {
     {"Device.SampleProvider.AllTypes.DoubleData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
     {"Device.SampleProvider.AllTypes.DateTimeData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, NULL, NULL, NULL, NULL, NULL}},
     {"Device.SampleProvider.AllTypes.StringData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}},
-    {"Device.SampleProvider.AllTypes.BytesData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, NULL, NULL, NULL, NULL, NULL}}
+    {"Device.SampleProvider.AllTypes.BytesData", RBUS_ELEMENT_TYPE_PROPERTY, {SampleProvider_allTypesGetHandler, SampleProvider_allTypesSetHandler, NULL, NULL, NULL, NULL}}
 };
 
 typedef struct _rbus_sample_data {
@@ -370,7 +370,15 @@ rbusError_t SampleProvider_allTypesSetHandler(rbusHandle_t handle, rbusProperty_
         gTestSampleVal.m_bool = rbusValue_GetBoolean(value);
     else if ((strcmp(name, "Device.SampleProvider.AllTypes.CharData") == 0) && (type == RBUS_CHAR))
         gTestSampleVal.m_char = rbusValue_GetChar(value);
-    else if ((strcmp(name, "Device.SampleProvider.AllTypes.ByteData") == 0) && (type == RBUS_BYTES))
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.BytesData") == 0) && (type == RBUS_BYTES)){
+        int bytes_len=0;
+        uint8_t const* ptr = rbusValue_GetBytes(value, &bytes_len);
+        memset(&gTestSampleVal.m_bytes, 0, sizeof(gTestSampleVal.m_bytes));
+        if(bytes_len > sizeof(gTestSampleVal.m_bytes))
+            bytes_len = sizeof(gTestSampleVal.m_bytes);
+        memcpy(&gTestSampleVal.m_bytes, ptr, bytes_len);
+    }
+    else if ((strcmp(name, "Device.SampleProvider.AllTypes.ByteData") == 0) && (type == RBUS_BYTE))
         gTestSampleVal.m_byte = rbusValue_GetByte(value);
     else if ((strcmp(name, "Device.SampleProvider.AllTypes.Int16Data") == 0) && (type == RBUS_INT16))
         gTestSampleVal.m_int16 = rbusValue_GetInt16(value);
@@ -445,12 +453,7 @@ rbusError_t SampleProvider_allTypesGetHandler(rbusHandle_t handle, rbusProperty_
     else if (strcmp(name, "Device.SampleProvider.AllTypes.StringData") == 0)
         rbusValue_SetString(value, gTestSampleVal.m_string);
     else if (strcmp(name, "Device.SampleProvider.AllTypes.BytesData") == 0)
-    {
-        int i;
-        for (i = 0; i < 16; i++)
-            gTestSampleVal.m_bytes[i] = rand() % 256;
-        rbusValue_SetBytes(value, gTestSampleVal.m_bytes, 16);
-    }
+        rbusValue_SetBytes(value, gTestSampleVal.m_bytes, sizeof(gTestSampleVal.m_bytes));
 
     rbusProperty_SetValue(property, value);
 

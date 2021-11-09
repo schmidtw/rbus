@@ -1023,6 +1023,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
     long long tmpLL = 0;
     unsigned long long tmpULL = 0;
     errno = 0;
+    unsigned int tmp_strlen = strlen(pStringInput);
 
     if (pStringInput == NULL)
         return false;
@@ -1033,6 +1034,7 @@ bool rbusValue_SetFromString(rbusValue_t value, rbusValueType_t type, const char
         rbusValue_SetString(value, pStringInput);
         break;
     case RBUS_BYTES:
+        rbusValue_SetBytes(value,(uint8_t const*)pStringInput,tmp_strlen);
         break;
     case RBUS_BOOLEAN:
         if ((0 == strncasecmp("true", pStringInput, 4)) || (0 == strncasecmp("1", pStringInput, 1)))
