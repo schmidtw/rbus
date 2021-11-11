@@ -105,7 +105,7 @@ void testMethods(rbusHandle_t handle, int* countPass, int* countFail)
     rbusObject_t inParams;
     rbusObject_t outParams;
     rbusValue_t value;
-    int i;
+    int i, rc;
 
     if((err = rbusTable_addRow(handle, "Device.TestProvider.Table1.", "method1", &instNum1)) != RBUS_ERROR_SUCCESS)
     {
@@ -115,7 +115,9 @@ void testMethods(rbusHandle_t handle, int* countPass, int* countFail)
 
     snprintf(row1, RBUS_MAX_NAME_LENGTH, "Device.TestProvider.Table1.%u", instNum1);
 
-    snprintf(table2, RBUS_MAX_NAME_LENGTH, "%s.Table2.", row1);
+    rc = snprintf(table2, RBUS_MAX_NAME_LENGTH, "%s.Table2.", row1);
+    if(rc >= RBUS_MAX_NAME_LENGTH)
+        printf("Format Truncation error at table2 - %d %s %s:%d", rc,  __FILE__, __FUNCTION__, __LINE__);
 
     if((err = rbusTable_addRow(handle, table2, "method2", &instNum2)) != RBUS_ERROR_SUCCESS)
     {

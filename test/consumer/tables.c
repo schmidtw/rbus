@@ -144,11 +144,18 @@ int testRemoveRow(rbusHandle_t handle, TableRowTest* test, bool byIndex)
     rbusError_t err;
     char rowName[RBUS_MAX_NAME_LENGTH];
     bool success;
+    int  rc;
 
-    if(byIndex || test->alias == NULL)
-        snprintf(rowName, RBUS_MAX_NAME_LENGTH, "%s%d", test->table, test->num);
-    else
-        snprintf(rowName, RBUS_MAX_NAME_LENGTH, "%s[%s]", test->table, test->alias);
+    if(byIndex || test->alias == NULL){
+        rc = snprintf(rowName, RBUS_MAX_NAME_LENGTH, "%s%d", test->table, test->num);
+        if(rc >= RBUS_MAX_NAME_LENGTH)
+            printf("Format Truncation error at rowName - %d %s %s:%d", rc,  __FILE__, __FUNCTION__, __LINE__);
+    }
+    else{
+        rc = snprintf(rowName, RBUS_MAX_NAME_LENGTH, "%s[%s]", test->table, test->alias);
+        if(rc >= RBUS_MAX_NAME_LENGTH)
+            printf("Format Truncation error at rowName - %d %s %s:%d", rc,  __FILE__, __FUNCTION__, __LINE__);
+    }
 
     err = rbusTable_removeRow(handle, rowName);
 
@@ -175,11 +182,18 @@ int testSet(rbusHandle_t handle, TableRowTest* test, bool byIndex, int iData)
     rbusError_t err;
     char prop[RBUS_MAX_NAME_LENGTH];
     bool success;
+    int  rc;
 
-    if(byIndex || test->alias == NULL)
-        snprintf(prop, RBUS_MAX_NAME_LENGTH, "%s%d.data", test->table, test->num);
-    else
-        snprintf(prop, RBUS_MAX_NAME_LENGTH, "%s[%s].data", test->table, test->alias);
+    if(byIndex || test->alias == NULL){
+        rc = snprintf(prop, RBUS_MAX_NAME_LENGTH, "%s%d.data", test->table, test->num);
+        if(rc >= RBUS_MAX_NAME_LENGTH)
+            printf("Format Truncation error at prop - %d %s %s:%d", rc,  __FILE__, __FUNCTION__, __LINE__);
+    }
+    else{
+        rc = snprintf(prop, RBUS_MAX_NAME_LENGTH, "%s[%s].data", test->table, test->alias);
+        if(rc >= RBUS_MAX_NAME_LENGTH)
+            printf("Format Truncation error at prop - %d %s %s:%d", rc,  __FILE__, __FUNCTION__, __LINE__);
+    }
 
     err = rbus_setStr(handle, prop, test->data[iData]);
 
@@ -205,11 +219,19 @@ int testGet(rbusHandle_t handle, TableRowTest* test, bool byIndex, int iData)
     char prop[RBUS_MAX_NAME_LENGTH];
     char* value = NULL;
     bool success;
+    int  rc;
 
-    if(byIndex || test->alias == NULL)
-        snprintf(prop, RBUS_MAX_NAME_LENGTH, "%s%d.data", test->table, test->num);
-    else
-        snprintf(prop, RBUS_MAX_NAME_LENGTH, "%s[%s].data", test->table, test->alias);
+    if(byIndex || test->alias == NULL){
+        rc = snprintf(prop, RBUS_MAX_NAME_LENGTH, "%s%d.data", test->table, test->num);
+        if(rc >= RBUS_MAX_NAME_LENGTH)
+            printf("Format Truncation error at prop - %d %s %s:%d", rc,  __FILE__, __FUNCTION__, __LINE__);
+    }
+
+    else{
+        rc = snprintf(prop, RBUS_MAX_NAME_LENGTH, "%s[%s].data", test->table, test->alias);
+        if(rc >= RBUS_MAX_NAME_LENGTH)
+            printf("Format Truncation error at prop - %d %s %s:%d", rc,  __FILE__, __FUNCTION__, __LINE__);
+    }
 
     err = rbus_getStr(handle, prop, &value);
 
@@ -235,7 +257,7 @@ int testGet(rbusHandle_t handle, TableRowTest* test, bool byIndex, int iData)
 int testAddMissingRows(rbusHandle_t handle, bool firstTime)
 {
     int rows = numRows;
-    int i, j;
+    int i, j, rc;
 
     printf("_test_Tables_%s numRows=%d\n", __FUNCTION__, rows);
     for(i = 0; i < rows; ++i)
@@ -250,14 +272,18 @@ int testAddMissingRows(rbusHandle_t handle, bool firstTime)
         {
             char name[RBUS_MAX_NAME_LENGTH];
 
-            snprintf(name, RBUS_MAX_NAME_LENGTH, "%s%d.", tests[i].table, previousNum);
+            rc = snprintf(name, RBUS_MAX_NAME_LENGTH, "%s%d.", tests[i].table, previousNum);
+            if(rc >= RBUS_MAX_NAME_LENGTH)
+                printf("Format Truncation error at name - %d %s %s:%d", rc,  __FILE__, __FUNCTION__, __LINE__);
 
             for(j = i+1; j < rows; ++j)
             {
                 if( strncmp(name, tests[j].table, strlen(name))==0)
                 {
                     char newName[RBUS_MAX_NAME_LENGTH];
-                    snprintf(newName, RBUS_MAX_NAME_LENGTH, "%s%d.%s", tests[i].table, tests[i].num, tests[j].table+strlen(name));
+                    rc = snprintf(newName, RBUS_MAX_NAME_LENGTH, "%s%d.%s", tests[i].table, tests[i].num, tests[j].table+strlen(name));
+                    if(rc >= RBUS_MAX_NAME_LENGTH)
+                        printf("Format Truncation error at name - %d %s %s:%d", rc,  __FILE__, __FUNCTION__, __LINE__);
                     printf("updating name from: %s to: %s\n", tests[j].table, newName);
                     strncpy(tests[j].table, newName, RBUS_MAX_NAME_LENGTH);
                 }    
@@ -294,14 +320,16 @@ int testSetsAndGets(rbusHandle_t handle)
 int testRemoveOneRow(rbusHandle_t handle, TableRowTest* test, bool byIndex)
 {
     int rows = numRows;
-    int i;
+    int i, rc;
     char name[RBUS_MAX_NAME_LENGTH];
 
     printf("_test_Tables_%s\n", __FUNCTION__);
     if(testRemoveRow(handle, test, byIndex) != RBUS_ERROR_SUCCESS)
         return RBUS_ERROR_BUS_ERROR;
 
-     snprintf(name, RBUS_MAX_NAME_LENGTH, "%s%d.", test->table, test->num);
+    rc = snprintf(name, RBUS_MAX_NAME_LENGTH, "%s%d.", test->table, test->num);
+    if(rc >= RBUS_MAX_NAME_LENGTH)
+        printf("Format Truncation error at name - %d %s %s:%d", rc,  __FILE__, __FUNCTION__, __LINE__);
 
     /*we expect all children of this row to be recursively removed 
       so mark all children of this node non-existing*/
