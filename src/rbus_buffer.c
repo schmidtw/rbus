@@ -16,7 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-
+#define _GNU_SOURCE 1
 #include <rbus.h>
 #include "rbus_log.h"
 #include "rbus_buffer.h"

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE 1
 #include "rbus_asyncsubscribe.h"
 #include "rbus_config.h"
 #include <rbus_core.h>

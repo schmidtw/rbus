@@ -23,6 +23,7 @@
 #include <memory.h>
 #include <assert.h>
 #include <sys/stat.h>
+#include <sys/types.h> 
 #include <signal.h>
 
 #define CACHE_FILE_PATH_FORMAT "%s/rbus_subs_%s"
