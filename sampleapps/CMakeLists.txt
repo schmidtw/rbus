@@ -76,6 +76,16 @@ add_executable(rbusMethodConsumer consumer/rbusMethodConsumer.c)
 add_dependencies(rbusMethodConsumer rbus)
 target_link_libraries(rbusMethodConsumer rbus)
 
+if (BUILD_FOR_DESKTOP)
+add_executable(rbusSubConsumer consumer/rbusSubConsumer.c)
+add_dependencies(rbusSubConsumer rbus)
+target_link_libraries(rbusSubConsumer rbus)
+
+add_executable(rbusEvProvider provider/rbusEvProvider.c)
+add_dependencies(rbusEvProvider rbus)
+target_link_libraries(rbusEvProvider rbus)
+endif (BUILD_FOR_DESKTOP)
+
 add_executable(rbusMessageListener message/rbusMessageListener.c)
 add_dependencies(rbusMessageListener rbus)
 target_link_libraries(rbusMessageListener rbus)

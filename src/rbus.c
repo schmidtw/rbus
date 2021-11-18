@@ -3207,7 +3207,7 @@ static rbusError_t rbusEvent_SubscribeWithRetries(
     {
         RBUSLOG_INFO("%s: %s subscribing", __FUNCTION__, eventName);
 
-        coreerr = rbus_subscribeToEvent(NULL, sub->eventName, _event_callback_handler, payload, sub, &providerError);
+        coreerr = rbus_subscribeToEventTimeout(NULL, sub->eventName, _event_callback_handler, payload, sub, &providerError, destNotFoundTimeout);
         
         if(coreerr == RTMESSAGE_BUS_ERROR_DESTINATION_UNREACHABLE && destNotFoundTimeout > 0)
         {
