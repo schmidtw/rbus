@@ -2198,7 +2198,7 @@ rbusError_t rbus_get(rbusHandle_t handle, char const* name, rbusValue_t* value)
 
     if((err = rbus_invokeRemoteMethod(name, METHOD_GETPARAMETERVALUES, request, 6000, &response)) != RTMESSAGE_BUS_SUCCESS)
     {
-        RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
+        RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, name);
         errorcode = rbuscoreError_to_rbusError(err);
     }
     else
@@ -2358,7 +2358,7 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
                     /* Invoke the method */
                     if((err = rbus_invokeRemoteMethod(destinations[i], METHOD_GETPARAMETERVALUES, request, 60000, &response)) != RTMESSAGE_BUS_SUCCESS)
                     {
-                        RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
+                        RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, destinations[i]);
                         errorcode = rbuscoreError_to_rbusError(err);
                     }
                     else
@@ -2486,7 +2486,7 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
 
                     if((err = rbus_invokeRemoteMethod(firstParamName, METHOD_GETPARAMETERVALUES, request, 6000, &response)) != RTMESSAGE_BUS_SUCCESS)
                     {
-                        RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
+                        RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, firstParamName);
                         errorcode = rbuscoreError_to_rbusError(err);
                         break;
                     }
@@ -2623,7 +2623,7 @@ rbusError_t rbus_set(rbusHandle_t handle, char const* name,rbusValue_t value, rb
 
     if((err = rbus_invokeRemoteMethod(name, METHOD_SETPARAMETERVALUES, setRequest, 6000, &setResponse)) != RTMESSAGE_BUS_SUCCESS)
     {
-        RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
+        RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, name);
         errorcode = rbuscoreError_to_rbusError(err);
     }
     else
@@ -2788,7 +2788,7 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
 
                     if((err = rbus_invokeRemoteMethod(firstParamName, METHOD_SETPARAMETERVALUES, setRequest, 6000, &setResponse)) != RTMESSAGE_BUS_SUCCESS)
                     {
-                        RBUSLOG_ERROR("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
+                        RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, firstParamName);
                         errorcode = rbuscoreError_to_rbusError(err);
                     }
                     else
@@ -3010,7 +3010,7 @@ rbusError_t rbusTable_addRow(
         6000, 
         &response)) != RTMESSAGE_BUS_SUCCESS)
     {
-        RBUSLOG_INFO("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
+        RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, tableName);
         return rbuscoreError_to_rbusError(err);
     }
     else
@@ -3068,7 +3068,7 @@ rbusError_t rbusTable_removeRow(
         6000, 
         &response)) != RTMESSAGE_BUS_SUCCESS)
     {
-        RBUSLOG_INFO("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
+        RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, rowName);
         return rbuscoreError_to_rbusError(err);
     }
     else
@@ -3779,7 +3779,7 @@ rbusError_t rbusMethod_InvokeInternal(
         timeout, 
         &response)) != RTMESSAGE_BUS_SUCCESS)
     {
-        RBUSLOG_INFO("%s rbus_invokeRemoteMethod failed with err %d", __FUNCTION__, err);
+        RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, methodName);
         return rbuscoreError_to_rbusError(err);
     }
 
@@ -3917,7 +3917,7 @@ rbusError_t rbus_createSession(rbusHandle_t handle, uint32_t *pSessionId)
             rbusMessage_GetInt32(response, /*MESSAGE_FIELD_RESULT,*/ (int*) &err);
             if(RTMESSAGE_BUS_SUCCESS != err)
             {
-                RBUSLOG_ERROR("Session manager reports internal error %d.", err);
+                RBUSLOG_ERROR("Session manager reports internal error %d from %s for the object %s", err, handle->componentName, RBUS_SMGR_DESTINATION_NAME);
                 rc = RBUS_ERROR_SESSION_ALREADY_EXIST;
             }
             else
@@ -3955,7 +3955,7 @@ rbusError_t rbus_getCurrentSession(rbusHandle_t handle, uint32_t *pSessionId)
             rbusMessage_GetInt32(response, /*MESSAGE_FIELD_RESULT,*/ (int*) &err);
             if(RTMESSAGE_BUS_SUCCESS != err)
             {
-                RBUSLOG_ERROR("Session manager reports internal error %d.", err);
+                RBUSLOG_ERROR("Session manager reports internal error %d from %s for the object %s", err, handle->componentName, RBUS_SMGR_DESTINATION_NAME);
                 rc = RBUS_ERROR_SESSION_ALREADY_EXIST;
             }
             else
@@ -3996,7 +3996,7 @@ rbusError_t rbus_closeSession(rbusHandle_t handle, uint32_t sessionId)
             rbusMessage_GetInt32(response, /*MESSAGE_FIELD_RESULT,*/ (int*) &err);
             if(RTMESSAGE_BUS_SUCCESS != err)
             {
-                RBUSLOG_ERROR("Session manager reports internal error %d.", err);
+                RBUSLOG_ERROR("Session manager reports internal error %d from %s for the object %s", err, handle->componentName, RBUS_SMGR_DESTINATION_NAME);
                 rc = RBUS_ERROR_SESSION_ALREADY_EXIST;
             }
             else
