@@ -33,13 +33,16 @@
 #include <rbus_core.h>
 #include <signal.h>
 #include <fcntl.h>
-#include <execinfo.h>
+#if (__linux__ && __GLIBC__ && !__UCLIBC__) || __APPLE__
+  #include <execinfo.h>
+#endif
 
 #define RBUS_CLI_COMPONENT_NAME "rbuscli"
 #define RBUS_CLI_MAX_PARAM      25
 #define RBUS_CLI_MAX_CMD_ARG    (RBUS_CLI_MAX_PARAM * 3)
 #define RBUS_CLI_SESSION_ID     4230
 #define BT_BUF_SIZE 512
+
 
 static int runSteps = __LINE__;
 
@@ -2242,6 +2245,7 @@ static void exception_handler(int sig, siginfo_t *info)
     printf("\n\r\n\rThe cmd line is :%s.", cmdLine );
     printf("\n\rThe latest Line number is:%d.\n\r", runSteps);
 
+#if (__linux__ && __GLIBC__ && !__UCLIBC__) || __APPLE__
     size = backtrace(addresses, BT_BUF_SIZE);
     backtrace_symbols_fd(addresses,size,STDOUT_FILENO);
     if(size >= 3) {
@@ -2250,6 +2254,7 @@ static void exception_handler(int sig, siginfo_t *info)
             printf("\n\r%d: %p \n\r", i, addresses[i]);
         }
     }
+#endif
 
     printf("\n\r!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" );
     printf("\n\r!!!!!!!!!!!!!!!!!!!!!!!!!! Dump Ending!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" );
