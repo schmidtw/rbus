@@ -3590,7 +3590,7 @@ rbusError_t  rbusEvent_Publish(
 
     if(!el->subscriptions)/*nobody subscribed yet*/
     {
-        return RBUS_ERROR_SUCCESS;
+        return RBUS_ERROR_NOSUBSCRIBERS;
     }
 
     rtList_GetFront(el->subscriptions, &listItem);

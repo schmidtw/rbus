@@ -137,7 +137,8 @@ typedef enum _rbusError
 
     RBUS_ERROR_TIMEOUT,                         /**< The operation timedout   */
     RBUS_ERROR_ASYNC_RESPONSE,                  /**< The method request will be handle asynchronously by provider */
-    RBUS_ERROR_INVALID_METHOD                   /**< Invalid Method           */
+    RBUS_ERROR_INVALID_METHOD,                  /**< Invalid Method           */
+    RBUS_ERROR_NOSUBSCRIBERS                    /**< No subscribers present   */
 } rbusError_t;
 
 
