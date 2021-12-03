@@ -130,7 +130,7 @@ int reg_param(rbusHandle_t handle)
     memset(&dataElement,0,sizeof(dataElement));
 
     param_index++;
-    snprintf(buf,sizeof(buf),"Device.Tables.{i}.Test%d",param_index);
+    snprintf(buf,sizeof(buf),"Device.Tables.{i}.Test%hu", (unsigned short)param_index);
     dataElement.name = buf;
     dataElement.type = RBUS_ELEMENT_TYPE_PROPERTY;
     dataElement.cbTable.getHandler = getHandler;

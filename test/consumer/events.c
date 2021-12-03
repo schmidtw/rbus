@@ -257,7 +257,6 @@ static void testTableRemoveAllEvents(rbusHandle_t handle)
     testRemoveRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.2");
     testRemoveRow(handle, "Device.TestProvider.Table1.", "Device.TestProvider.Table1.", "Device.TestProvider.Table1.1");
 
-exit:
     rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.");
     rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.1.Table2.");
     rbusEvent_Unsubscribe(handle, "Device.TestProvider.Table1.[t_1].Table2.");
@@ -346,12 +345,14 @@ static void testAllProviderRegisterRows(rbusHandle_t handle)
     setTestResult(RBUS_EVENT_OBJECT_CREATED, "Device.TestProvider.TableReg.", "Device.TestProvider.TableReg.", "Device.TestProvider.TableReg.1", false);
     addTestResult(RBUS_EVENT_OBJECT_CREATED, "Device.TestProvider.TableReg.", "Device.TestProvider.TableReg.", "Device.TestProvider.TableReg.2", false);
     SUBSCRIBE("Device.TestProvider.TableReg.");
-    checkTestResult(SLEEP_TABLE_ROWS);
+    /* ARRISXB3-11307: Increased the delay to address random failure issue faced with ARRIS XB3 */
+    checkTestResult(6);
 
     setTestResult(RBUS_EVENT_OBJECT_CREATED, "Device.TestProvider.TableReg.1.TableReg.", "Device.TestProvider.TableReg.1.TableReg.", "Device.TestProvider.TableReg.1.TableReg.1", false);
     addTestResult(RBUS_EVENT_OBJECT_CREATED, "Device.TestProvider.TableReg.1.TableReg.", "Device.TestProvider.TableReg.1.TableReg.", "Device.TestProvider.TableReg.1.TableReg.2", false);
     SUBSCRIBE("Device.TestProvider.TableReg.1.TableReg.");
-    checkTestResult(SLEEP_TABLE_ROWS);
+    /* ARRISXB3-11307: Increased the delay to address random failure issue faced with ARRIS XB3 */
+    checkTestResult(6);
 }
 
 void testEvents(rbusHandle_t handle, int* countPass, int* countFail)
@@ -368,7 +369,7 @@ void testEvents(rbusHandle_t handle, int* countPass, int* countFail)
     testTableEvents(handle);
     testAllSingleValueChange(handle);
     testAllMultiValueChange(handle);
-    /*testTableRemoveAllEvents(handle);*/ //Commented to avoid the crash happening with rbusTestProvider
+    testTableRemoveAllEvents(handle);
     testAllProviderRegisterRows(handle);
 
     rtList_Destroy(gResultList,freeResult);

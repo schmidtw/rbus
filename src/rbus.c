@@ -357,6 +357,7 @@ void rbusValue_initFromMessage(rbusValue_t* value, rbusMessage msg)
         else
         {
             int32_t ival;
+            int64_t i64;
             double fval;
 
             switch(type)
@@ -376,31 +377,18 @@ void rbusValue_initFromMessage(rbusValue_t* value, rbusMessage msg)
                 case RBUS_UINT32:
                     rbusMessage_GetInt32(msg, &ival);
                     rbusValue_SetUInt32(*value, (uint32_t)ival);
+
                     break;
                 case RBUS_INT64:
                 {
-                    union UNION64
-                    {
-                        int32_t i32[2];
-                        int64_t i64;
-                    };
-                    union UNION64 u;
-                    rbusMessage_GetInt32(msg, &u.i32[0]);
-                    rbusMessage_GetInt32(msg, &u.i32[1]);
-                    rbusValue_SetInt64(*value, u.i64);
+                    rbusMessage_GetInt64(msg, &i64);
+                    rbusValue_SetInt64(*value, (int64_t)i64);
                     break;
                 }
                 case RBUS_UINT64:
                 {
-                    union UNION64
-                    {
-                        int32_t i32[2];
-                        uint64_t u64;
-                    };
-                    union UNION64 u;
-                    rbusMessage_GetInt32(msg, &u.i32[0]);
-                    rbusMessage_GetInt32(msg, &u.i32[1]);
-                    rbusValue_SetUInt64(*value, u.u64);
+                    rbusMessage_GetInt64(msg, &i64);
+                    rbusValue_SetUInt64(*value, (uint64_t)i64);
                     break;
                 }
                 case RBUS_SINGLE:
@@ -610,6 +598,7 @@ void rbusValue_appendToMessage(char const* name, rbusValue_t value, rbusMessage 
     }
     else
     {
+        int64_t i64;
         switch(type)
         {
             case RBUS_INT16:
@@ -626,28 +615,14 @@ void rbusValue_appendToMessage(char const* name, rbusValue_t value, rbusMessage 
                 break;
             case RBUS_INT64:
             {
-                union UNION64
-                {
-                    int32_t i32[2];
-                    int64_t i64;
-                };
-                union UNION64 u;
-                u.i64 = rbusValue_GetInt64(value);
-                rbusMessage_SetInt32(msg, (int32_t)u.i32[0]);
-                rbusMessage_SetInt32(msg, (int32_t)u.i32[1]);
+                i64 = rbusValue_GetInt64(value);
+                rbusMessage_SetInt64(msg, (int64_t)i64);
                 break;
             }
             case RBUS_UINT64:
             {
-                union UNION64
-                {
-                    int32_t i32[2];
-                    int64_t u64;
-                };
-                union UNION64 u;
-                u.u64 = rbusValue_GetUInt64(value);
-                rbusMessage_SetInt32(msg, (int32_t)u.i32[0]);
-                rbusMessage_SetInt32(msg, (int32_t)u.i32[1]);
+                i64 = rbusValue_GetUInt64(value);
+                rbusMessage_SetInt64(msg, (int64_t)i64);
                 break;
             }
             case RBUS_SINGLE:

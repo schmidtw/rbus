@@ -374,7 +374,7 @@ rbusError_t SampleProvider_allTypesSetHandler(rbusHandle_t handle, rbusProperty_
         int bytes_len=0;
         uint8_t const* ptr = rbusValue_GetBytes(value, &bytes_len);
         memset(&gTestSampleVal.m_bytes, 0, sizeof(gTestSampleVal.m_bytes));
-        if(bytes_len > sizeof(gTestSampleVal.m_bytes))
+        if((size_t)bytes_len > sizeof(gTestSampleVal.m_bytes))
             bytes_len = sizeof(gTestSampleVal.m_bytes);
         memcpy(&gTestSampleVal.m_bytes, ptr, bytes_len);
     }

@@ -31,7 +31,7 @@
 
 static int gDuration = 5;
 
-extern int gEventCounts[2]; /*from subscribe.c*/
+extern int gEventCounts[3]; /*from subscribe.c*/
 
 bool testSubscribeHandleEvent(
     char* label,
@@ -50,7 +50,7 @@ static void handler1(
     rbusEventSubscription_t* subscription)
 {
     (void)(handle);
-    TALLY(testSubscribeHandleEvent("_test_SubscribeEx handle1", 0, event, subscription));
+    testSubscribeHandleEvent("_test_SubscribeEx handle1", 0, event, subscription);
 }
 
 static void handler2(
@@ -59,12 +59,13 @@ static void handler2(
     rbusEventSubscription_t* subscription)
 {
     (void)(handle);
-    TALLY(testSubscribeHandleEvent("_test_SubscribeEx handle2", 1, event, subscription));
+    testSubscribeHandleEvent("_test_SubscribeEx handle2", 1, event, subscription);
 }
 
 void testSubscribeEx(rbusHandle_t handle, int* countPass, int* countFail)
 {
     int rc = RBUS_ERROR_SUCCESS;
+    int i = 0;
     char* data[2] = { "My Data 1", "My Data2" };
 
     rbusEventSubscription_t subscriptions[2] = {
@@ -80,6 +81,13 @@ void testSubscribeEx(rbusHandle_t handle, int* countPass, int* countFail)
 
     sleep(gDuration);
 
+    /* RDKB-38648: Changed the code to check for minimum number of events count to address the issue of test case number varying for each run */
+    for(i = 0; i < 2; ++i)
+    {
+        TALLY(gEventCounts[i] >= 5);
+        printf("%s Device.TestProvider.Event%d expectedMinEventCount=%d actualEventCount=%d\n",
+                gEventCounts[i] >= 5 ? "PASS" : "FAIL", i, 5, gEventCounts[i]);
+    }
     rc = rbusEvent_UnsubscribeEx(handle, subscriptions, 2);
     TALLY(rc == RBUS_ERROR_SUCCESS);
     printf("_test_SubscribeEx rbusEvent_UnsubscribeEx %s rc=%d\n", rc == RBUS_ERROR_SUCCESS ? "PASS":"FAIL", rc);

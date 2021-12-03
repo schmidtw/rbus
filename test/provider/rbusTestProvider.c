@@ -41,7 +41,7 @@ TestValueProperty* gTestValues;
 rbusValue_t gBigString = NULL;
 rbusValue_t gBigBytes = NULL;
 int32_t gByValue = 0;
-bool gEventTableSub[10] = {0};
+bool gEventTableSub[10] = {false};
 /*
  * Generic Data Model Tree Structure
  */
@@ -1315,9 +1315,9 @@ rbusError_t eventsTablesEventSubHandler(rbusHandle_t handle, rbusEventSubAction_
         return RBUS_ERROR_INVALID_INPUT;
 
     if(action == RBUS_EVENT_ACTION_SUBSCRIBE)
-        gEventTableSub[instNum]++;
+        gEventTableSub[instNum] = true;
     else
-        gEventTableSub[instNum]--;
+        gEventTableSub[instNum] = false;
 
     return RBUS_ERROR_SUCCESS;
 }
@@ -1332,7 +1332,7 @@ int main(int argc, char *argv[])
     int eventCounts[2]={0,0};
     int i, j;
     int loopFor = 0;
-    rtLogLevel logLvl;
+    rtLogLevel logLvl = RT_LOG_WARN;
 
     printf("provider: start\n");
 
@@ -1612,39 +1612,35 @@ int main(int argc, char *argv[])
             rbusTable_registerRow(handle, getName("Device.%s.TableReg.1.TableReg."), NULL, 2);
         }
 
-        if(gEventTableSub)
+        printf("publishing tableEvent!\n");
+
+        for(i = 0; i < 10; ++i)
         {
-            int i;
-            printf("publishing tableEvent!\n");
-
-            for(i = 0; i < 10; ++i)
+            if(gEventTableSub[i] == true)
             {
-                if(gEventTableSub[i] > 0)
-                {
-                    char buff[100];
+                char buff[100];
 
-                    sprintf(buff, "tableEvent data instNum=%d", i);
-                    rbusObject_t data;
-                    rbusValue_t val;
-                    rbusValue_Init(&val);
-                    rbusValue_SetString(val, buff);
-                    rbusObject_Init(&data, NULL);
-                    rbusObject_SetValue(data, "data", val);
+                sprintf(buff, "tableEvent data instNum=%d", i);
+                rbusObject_t data;
+                rbusValue_t val;
+                rbusValue_Init(&val);
+                rbusValue_SetString(val, buff);
+                rbusObject_Init(&data, NULL);
+                rbusObject_SetValue(data, "data", val);
 
-                    sprintf(buff, "%s.%d.Event", getName("Device.%s.EventsTable"), i); 
-                    rbusEvent_t event;
-                    event.name = buff;
-                    event.data = data;
-                    event.type = RBUS_EVENT_GENERAL;
+                sprintf(buff, "%s.%d.Event", getName("Device.%s.EventsTable"), i); 
+                rbusEvent_t event;
+                event.name = buff;
+                event.data = data;
+                event.type = RBUS_EVENT_GENERAL;
 
-                    rc = rbusEvent_Publish(handle, &event);
+                rc = rbusEvent_Publish(handle, &event);
 
-                    rbusValue_Release(val);
-                    rbusObject_Release(data);
+                rbusValue_Release(val);
+                rbusObject_Release(data);
 
-                    if(rc != RBUS_ERROR_SUCCESS)
-                        printf("provider: rbusEvent_Publish %s failed: %d\n", event.name, rc);
-                }
+                if(rc != RBUS_ERROR_SUCCESS)
+                    printf("provider: rbusEvent_Publish %s failed: %d\n", event.name, rc);
             }
         }
     }

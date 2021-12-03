@@ -2204,8 +2204,6 @@ static void exception_handler(int sig, siginfo_t *info)
     time_t rawtime;
     struct tm * timeinfo;
     static char cmdLine[1024]  = {0};
-    int size, i;
-    void *addresses[BT_BUF_SIZE];
 
     snprintf( cmdFile,32,  "/proc/self/cmdline" );
 
@@ -2246,6 +2244,8 @@ static void exception_handler(int sig, siginfo_t *info)
     printf("\n\rThe latest Line number is:%d.\n\r", runSteps);
 
 #if (__linux__ && __GLIBC__ && !__UCLIBC__) || __APPLE__
+    int size, i;
+    void *addresses[BT_BUF_SIZE];
     size = backtrace(addresses, BT_BUF_SIZE);
     backtrace_symbols_fd(addresses,size,STDOUT_FILENO);
     if(size >= 3) {
@@ -2267,7 +2267,7 @@ static void enable_exception_handlers (void)
     struct sigaction sigact;
 
     memset( &sigact, 0, sizeof( struct sigaction ) );
-    sigact.sa_sigaction = exception_handler;
+    sigact.sa_sigaction = (void*)exception_handler;
     sigact.sa_flags = SA_RESTART | SA_SIGINFO;
 
     sigaction(SIGSEGV, &sigact, 0L);

@@ -336,7 +336,8 @@ void testTypesValueChange(rbusHandle_t handle)
         needMore = 0;
         for(i = 0; i < 6; ++i)
         {
-            if(intCounter[i].actual < intCounter[i].expected)
+            /* ARRISXB3-11307 : Added string check also to address failure with ARRISXB3*/
+            if((intCounter[i].actual < intCounter[i].expected) || (strCounter[i].actual <  strCounter[i].expected))
                 needMore = 1;
         }
     }
