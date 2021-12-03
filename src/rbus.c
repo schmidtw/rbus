@@ -45,6 +45,7 @@
 #define UNUSED6(a,b,c,d,e,f)    UNUSED1(a),UNUSED5(b,c,d,e,f)
 
 #define MAX_COMPS_PER_PROCESS               5
+#define INVOKE_TIMEOUT                      60000
 #ifndef FALSE
 #define FALSE                               0
 #endif
@@ -2171,7 +2172,7 @@ rbusError_t rbus_get(rbusHandle_t handle, char const* name, rbusValue_t* value)
 
     RBUSLOG_DEBUG("Calling rbus_invokeRemoteMethod for [%s]", name);
 
-    if((err = rbus_invokeRemoteMethod(name, METHOD_GETPARAMETERVALUES, request, 6000, &response)) != RTMESSAGE_BUS_SUCCESS)
+    if((err = rbus_invokeRemoteMethod(name, METHOD_GETPARAMETERVALUES, request, INVOKE_TIMEOUT, &response)) != RTMESSAGE_BUS_SUCCESS)
     {
         RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, name);
         errorcode = rbuscoreError_to_rbusError(err);
@@ -2333,7 +2334,7 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
                     rbusMessage_SetInt32(request, 1);
                     rbusMessage_SetString(request, pParamNames[0]);
                     /* Invoke the method */
-                    if((err = rbus_invokeRemoteMethod(destinations[i], METHOD_GETPARAMETERVALUES, request, 60000, &response)) != RTMESSAGE_BUS_SUCCESS)
+                    if((err = rbus_invokeRemoteMethod(destinations[i], METHOD_GETPARAMETERVALUES, request, INVOKE_TIMEOUT, &response)) != RTMESSAGE_BUS_SUCCESS)
                     {
                         RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, destinations[i]);
                         errorcode = rbuscoreError_to_rbusError(err);
@@ -2461,7 +2462,7 @@ rbusError_t rbus_getExt(rbusHandle_t handle, int paramCount, char const** pParam
                     RBUSLOG_DEBUG("%s sending batch request with %d params to component %s", __FUNCTION__, batchCount, componentName);
                     free(componentName);
 
-                    if((err = rbus_invokeRemoteMethod(firstParamName, METHOD_GETPARAMETERVALUES, request, 6000, &response)) != RTMESSAGE_BUS_SUCCESS)
+                    if((err = rbus_invokeRemoteMethod(firstParamName, METHOD_GETPARAMETERVALUES, request, INVOKE_TIMEOUT, &response)) != RTMESSAGE_BUS_SUCCESS)
                     {
                         RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, firstParamName);
                         errorcode = rbuscoreError_to_rbusError(err);
@@ -2598,7 +2599,7 @@ rbusError_t rbus_set(rbusHandle_t handle, char const* name,rbusValue_t value, rb
     /* Set the Commit value; FIXME: Should we use string? */
     rbusMessage_SetString(setRequest, (!opts || opts->commit) ? "TRUE" : "FALSE");
 
-    if((err = rbus_invokeRemoteMethod(name, METHOD_SETPARAMETERVALUES, setRequest, 6000, &setResponse)) != RTMESSAGE_BUS_SUCCESS)
+    if((err = rbus_invokeRemoteMethod(name, METHOD_SETPARAMETERVALUES, setRequest, INVOKE_TIMEOUT, &setResponse)) != RTMESSAGE_BUS_SUCCESS)
     {
         RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, name);
         errorcode = rbuscoreError_to_rbusError(err);
@@ -2763,7 +2764,7 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
                     /* Set the Commit value; FIXME: Should we use string? */
                     rbusMessage_SetString(setRequest, (!opts || opts->commit) ? "TRUE" : "FALSE");
 
-                    if((err = rbus_invokeRemoteMethod(firstParamName, METHOD_SETPARAMETERVALUES, setRequest, 6000, &setResponse)) != RTMESSAGE_BUS_SUCCESS)
+                    if((err = rbus_invokeRemoteMethod(firstParamName, METHOD_SETPARAMETERVALUES, setRequest, INVOKE_TIMEOUT, &setResponse)) != RTMESSAGE_BUS_SUCCESS)
                     {
                         RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, firstParamName);
                         errorcode = rbuscoreError_to_rbusError(err);
@@ -2995,7 +2996,7 @@ rbusError_t rbusTable_addRow(
                      because the broker simlpy looks at the top level nodes that are owned by a component route.  maybe this breaks if the broker changes*/
         METHOD_ADDTBLROW, 
         request, 
-        6000, 
+        INVOKE_TIMEOUT, 
         &response)) != RTMESSAGE_BUS_SUCCESS)
     {
         RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, tableName);
@@ -3053,7 +3054,7 @@ rbusError_t rbusTable_removeRow(
         rowName,
         METHOD_DELETETBLROW, 
         request, 
-        6000, 
+        INVOKE_TIMEOUT, 
         &response)) != RTMESSAGE_BUS_SUCCESS)
     {
         RBUSLOG_ERROR("%s by %s failed; Received error %d from RBUS Daemon for the object %s", __FUNCTION__, handle->componentName, err, rowName);
@@ -3799,7 +3800,7 @@ rbusError_t rbusMethod_Invoke(
     rbusObject_t inParams, 
     rbusObject_t* outParams)
 {
-    return rbusMethod_InvokeInternal(handle, methodName, inParams, outParams, 6000);
+    return rbusMethod_InvokeInternal(handle, methodName, inParams, outParams, INVOKE_TIMEOUT);
 }
 
 typedef struct _rbusMethodInvokeAsyncData_t
@@ -3900,7 +3901,7 @@ rbusError_t rbus_createSession(rbusHandle_t handle, uint32_t *pSessionId)
     if (pSessionId && handle)
     {
         *pSessionId = 0;
-        if((err = rbus_invokeRemoteMethod(RBUS_SMGR_DESTINATION_NAME, RBUS_SMGR_METHOD_REQUEST_SESSION_ID, NULL, 6000, &response)) == RTMESSAGE_BUS_SUCCESS)
+        if((err = rbus_invokeRemoteMethod(RBUS_SMGR_DESTINATION_NAME, RBUS_SMGR_METHOD_REQUEST_SESSION_ID, NULL, INVOKE_TIMEOUT, &response)) == RTMESSAGE_BUS_SUCCESS)
         {
             rbusMessage_GetInt32(response, /*MESSAGE_FIELD_RESULT,*/ (int*) &err);
             if(RTMESSAGE_BUS_SUCCESS != err)
@@ -3938,7 +3939,7 @@ rbusError_t rbus_getCurrentSession(rbusHandle_t handle, uint32_t *pSessionId)
     if (pSessionId && handle)
     {
         *pSessionId = 0;
-        if((err = rbus_invokeRemoteMethod(RBUS_SMGR_DESTINATION_NAME, RBUS_SMGR_METHOD_GET_CURRENT_SESSION_ID, NULL, 6000, &response)) == RTMESSAGE_BUS_SUCCESS)
+        if((err = rbus_invokeRemoteMethod(RBUS_SMGR_DESTINATION_NAME, RBUS_SMGR_METHOD_GET_CURRENT_SESSION_ID, NULL, INVOKE_TIMEOUT, &response)) == RTMESSAGE_BUS_SUCCESS)
         {
             rbusMessage_GetInt32(response, /*MESSAGE_FIELD_RESULT,*/ (int*) &err);
             if(RTMESSAGE_BUS_SUCCESS != err)
@@ -3979,7 +3980,7 @@ rbusError_t rbus_closeSession(rbusHandle_t handle, uint32_t sessionId)
 
         rbusMessage_Init(&inputSession);
         rbusMessage_SetInt32(inputSession, /*MESSAGE_FIELD_PAYLOAD,*/ sessionId);
-        if((err = rbus_invokeRemoteMethod(RBUS_SMGR_DESTINATION_NAME, RBUS_SMGR_METHOD_END_SESSION, inputSession, 6000, &response)) == RTMESSAGE_BUS_SUCCESS)
+        if((err = rbus_invokeRemoteMethod(RBUS_SMGR_DESTINATION_NAME, RBUS_SMGR_METHOD_END_SESSION, inputSession, INVOKE_TIMEOUT, &response)) == RTMESSAGE_BUS_SUCCESS)
         {
             rbusMessage_GetInt32(response, /*MESSAGE_FIELD_RESULT,*/ (int*) &err);
             if(RTMESSAGE_BUS_SUCCESS != err)
