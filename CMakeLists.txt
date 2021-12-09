@@ -38,6 +38,31 @@ find_package(rbus-core REQUIRED)
 find_package(rtMessage REQUIRED)
 find_package(linenoise REQUIRED)
 
+IF (NOT DEFINED CMAKE_INSTALL_BINDIR)
+    SET(CMAKE_INSTALL_BINDIR ${CMAKE_INSTALL_PREFIX}/bin)
+ENDIF ()
+
+IF (NOT DEFINED CMAKE_INSTALL_LIBDIR)
+    SET(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/lib)
+ENDIF ()
+
+include(CMakePackageConfigHelpers)
+
+SET (CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/rBus")
+
+configure_package_config_file(rbusConfig.cmake.in
+  rbusConfig.cmake
+  INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
+
+write_basic_package_version_file(
+  rbusConfigVersion.cmake
+  VERSION 1.1.1
+  COMPATIBILITY AnyNewerVersion )
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/rbusConfig.cmake"
+              "${CMAKE_CURRENT_BINARY_DIR}/rbusConfigVersion.cmake"
+        DESTINATION "${CMAKE_INSTALL_CMAKEDIR}" )
+
 if (BUILD_FOR_DESKTOP)
   message("Building for desktop")
   include_directories(${CMAKE_INSTALL_PREFIX}/include)
@@ -104,6 +129,29 @@ if (ENABLE_RDKLOGGER)
     add_definitions(-DENABLE_RDKLOGGER)
 endif (ENABLE_RDKLOGGER)
 
+add_library(rBus ${CMAKE_INSTALL_PREFIX})
+
+SET_TARGET_PROPERTIES (rBus PROPERTIES OUTPUT_NAME "rBus")
+SET_TARGET_PROPERTIES(rBus PROPERTIES LINKER_LANGUAGE C)
+
+SET (RBUS_INSTALLTARGETS rBus)
+
+INSTALL (TARGETS ${RBUS_INSTALLTARGETS} EXPORT rbus-targets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+EXPORT (EXPORT rbus-targets
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/rbus-targets.cmake"
+)
+
+INSTALL (EXPORT rbus-targets
+    FILE
+        rbus-targets.cmake
+    DESTINATION
+        "${CMAKE_INSTALL_CMAKEDIR}"
+)
 
 add_subdirectory(src)
 
