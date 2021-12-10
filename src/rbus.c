@@ -1516,7 +1516,7 @@ static void _get_callback_handler (rbusHandle_t handle, rbusMessage request, rbu
                 else
                 {
                     RBUSLOG_WARN("Element retrieved, but no cb installed for [%s]!", parameterName);
-                    result = RBUS_ERROR_ACCESS_NOT_ALLOWED;
+                    result = RBUS_ERROR_INVALID_OPERATION;
                     break;
                 }
             }
@@ -1599,7 +1599,7 @@ static void _table_add_row_callback_handler (rbusHandle_t handle, rbusMessage re
         else
         {
             RBUSLOG_WARN("%s tableAddRowHandler not registered table [%s] alias [%s]", __FUNCTION__, tableName, aliasName);
-            result = RBUS_ERROR_ACCESS_NOT_ALLOWED;
+            result = RBUS_ERROR_INVALID_OPERATION;
         }
     }
     else
@@ -1655,7 +1655,7 @@ static void _table_remove_row_callback_handler (rbusHandle_t handle, rbusMessage
             else
             {
                 RBUSLOG_INFO("%s tableRemoveRowHandler not registered row [%s]", __FUNCTION__, rowName);
-                result = RBUS_ERROR_ACCESS_NOT_ALLOWED;
+                result = RBUS_ERROR_INVALID_OPERATION;
             }
         }
         else
@@ -1723,7 +1723,7 @@ static int _method_callback_handler(rbusHandle_t handle, rbusMessage request, rb
         else
         {
             RBUSLOG_INFO("%s methodHandler not registered method [%s]", __FUNCTION__, methodName);
-            result = RBUS_ERROR_ACCESS_NOT_ALLOWED;
+            result = RBUS_ERROR_INVALID_OPERATION;
         }
     }
     else
@@ -2188,6 +2188,7 @@ rbusError_t rbus_get(rbusHandle_t handle, char const* name, rbusValue_t* value)
         RBUSLOG_DEBUG("Response from the remote method is [%d]!",ret);
         errorcode = (rbusError_t) ret;
         legacyRetCode = (rbusLegacyReturn_t) ret;
+        char const* pErrorReason = NULL;
 
         if((errorcode == RBUS_ERROR_SUCCESS) || (legacyRetCode == RBUS_LEGACY_ERR_SUCCESS))
         {
@@ -2214,8 +2215,8 @@ rbusError_t rbus_get(rbusHandle_t handle, char const* name, rbusValue_t* value)
         }
         else
         {
-            RBUSLOG_ERROR("Response from remote method indicates the call failed!!");
-            errorcode = RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
+            rbusMessage_GetString(response, &pErrorReason);
+            RBUSLOG_WARN("Failed to Get the Value for %s", pErrorReason);
             if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
             {
                 errorcode = CCSPError_to_rbusError(legacyRetCode);
@@ -2241,6 +2242,7 @@ rbusError_t _getExt_response_parser(rbusMessage response, int *numValues, rbusPr
 
     errorcode = (rbusError_t) ret;
     legacyRetCode = (rbusLegacyReturn_t) ret;
+    char const* pErrorReason = NULL;
 
     *numValues = 0;
     if((errorcode == RBUS_ERROR_SUCCESS) || (legacyRetCode == RBUS_LEGACY_ERR_SUCCESS))
@@ -2275,8 +2277,8 @@ rbusError_t _getExt_response_parser(rbusMessage response, int *numValues, rbusPr
     }
     else
     {
-        RBUSLOG_ERROR("Response from remote method indicates the call failed!!");
-        errorcode = RBUS_ERROR_ELEMENT_DOES_NOT_EXIST;
+        rbusMessage_GetString(response, &pErrorReason);
+        RBUSLOG_WARN("Failed to Get the Value for %s", pErrorReason);
         if(legacyRetCode > RBUS_LEGACY_ERR_SUCCESS)
         {
             errorcode = CCSPError_to_rbusError(legacyRetCode);

@@ -1028,7 +1028,7 @@ void validate_and_execute_delrow_cmd (int argc, char *argv[])
     }
     else
     {
-        printf ("\n\nDeletion of a row from table failed ..\n\r");
+        printf ("\n\nDeletion of a row from table failed with error code:%d..\n\r", rc);
     }
 }
 
