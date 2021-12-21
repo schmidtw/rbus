@@ -3198,7 +3198,7 @@ static rbusError_t rbusEvent_SubscribeWithRetries(
     }
     else
     {
-        destNotFoundTimeout = timeout * 1000; /*concert seconds to miliseconds*/
+        destNotFoundTimeout = timeout * 1000; /*convert seconds to milliseconds */
     }
 
     sub = malloc(sizeof(rbusEventSubscription_t));
@@ -3858,7 +3858,7 @@ rbusError_t rbusMethod_InvokeAsync(
     data->methodName = strdup(methodName);
     data->inParams = inParams;
     data->callback = callback;
-    data->timeout = timeout > 0 ? timeout : 6000;
+    data->timeout = timeout > 0 ? (timeout * 1000) : INVOKE_TIMEOUT; /* convert seconds to milliseconds */
 
     if((err = pthread_create(&pid, NULL, rbusMethod_InvokeAsyncThreadFunc, data)) != 0)
     {

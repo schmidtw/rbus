@@ -1376,7 +1376,7 @@ rbusError_t rbusMethod_Invoke(
  *  @param      methodName  Method name
  *  @param      inParams    Input params
  *  @param      callback    Callback handler for the method's return parameters.
- *  @param      timeout     Optional maximum time to receive a callback. 
+ *  @param      timeout     Optional maximum time in seconds to receive a callback.
  *  @return RBus error code as defined by rbusError_t.
  *  Possible values are: RBUS_ERROR_INVALID_EVENT
  *  @ingroup Methods

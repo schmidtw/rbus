@@ -193,10 +193,10 @@ void testMethods(rbusHandle_t handle, int* countPass, int* countFail)
     /*
      * Call method Device.TestProvider.MethodAsync1() with non-blocking rbusMethod_InvokeAsync, with timeout
      */
-    printf("\n##########################################\n# TEST rbusMethod_InvokeAsync(%s, 2000) \n#\n", "Device.TestProvider.MethodAsync1()");
+    printf("\n##########################################\n# TEST rbusMethod_InvokeAsync(%s, 2) \n#\n", "Device.TestProvider.MethodAsync1()");
     asyncCalled = false;
     asyncError = RBUS_ERROR_TIMEOUT;
-    err = rbusMethod_InvokeAsync(handle, "Device.TestProvider.MethodAsync1()", inParams, asyncMethodHandler1, 2000);
+    err = rbusMethod_InvokeAsync(handle, "Device.TestProvider.MethodAsync1()", inParams, asyncMethodHandler1, 2);
     printf("consumer: rbusMethod_InvokeAsync(%s) %s\n", "Device.TestProvider.MethodAsync1()",
         err == RBUS_ERROR_SUCCESS ? "success" : "fail");
     TEST(err == RBUS_ERROR_SUCCESS);
