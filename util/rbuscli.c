@@ -1058,7 +1058,7 @@ void validate_and_execute_set_cmd (int argc, char *argv[])
         int index = 0;
         int loopCnt = 0;
         int paramCnt = i/3;
-        rbusProperty_t properties = NULL, last = NULL;
+        rbusProperty_t properties = NULL;
         rbusValue_t setVal[RBUS_CLI_MAX_PARAM];
         char const* setNames[RBUS_CLI_MAX_PARAM];
 
@@ -1086,12 +1086,12 @@ void validate_and_execute_set_cmd (int argc, char *argv[])
             rbusProperty_Init(&next, setNames[index], setVal[index]);
             if(properties == NULL)
             {
-                properties = last = next;
+                properties = next;
             }
             else
             {
-                rbusProperty_SetNext(last, next);
-                last=next;
+                rbusProperty_PushBack(properties, next);
+                rbusProperty_Release(next);
             }
         }
 

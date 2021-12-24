@@ -2797,6 +2797,7 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
                         /* Release the reponse message */
                         rbusMessage_Release(setResponse);
                     }
+                    free(componentName);
                 }
                 else
                 {
@@ -2808,7 +2809,17 @@ rbusError_t rbus_setMulti(rbusHandle_t handle, int numProps, rbusProperty_t prop
         {
             errorcode = RBUS_ERROR_DESTINATION_NOT_REACHABLE;
             RBUSLOG_ERROR("Discover component names failed with error %d and counts %d/%d", errorcode, numProps, numComponents);
+            for(i = 0; i < numComponents; i++)
+            {
+                if(componentNames[i])
+                {
+                    free(componentNames[i]);
+                    componentNames[i] = NULL;
+                }
+            }
         }
+        if(pParamNames)
+            free(pParamNames);
         if(componentNames)
             free(componentNames);
     }
