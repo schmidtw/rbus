@@ -1668,6 +1668,7 @@ void validate_and_execute_method_values_cmd (int argc, char *argv[])
         rbusProperty_Init(&prop, argv[i], value);
         rbusObject_SetProperty(inParams,prop);
         rbusValue_Release(value);
+        rbusProperty_Release(prop);
 
         i = i+3;
     }
@@ -1710,6 +1711,7 @@ void validate_and_execute_method_names_cmd (int argc, char *argv[])
     {
         rbusProperty_Init(&prop, argv[i], NULL) ;
         rbusObject_SetProperty(inParams,prop);
+        rbusProperty_Release(prop);
     }
     execute_method_cmd(argv[1], argv[2], inParams);
 }
