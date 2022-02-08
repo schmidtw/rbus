@@ -310,7 +310,7 @@ rbusError_t createTableRowNode(Node* parent, char const* alias, uint32_t* instNu
 
             if(child->type == RBUS_ELEMENT_TYPE_TABLE_ROW)
             {
-                if(child->name && strlen(child->name) && strcmp(child->name, alias)==0)
+                if(strlen(child->name) && strcmp(child->name, alias)==0)
                 {
                     return RBUS_ERROR_ELEMENT_NAME_DUPLICATE;
                 }
