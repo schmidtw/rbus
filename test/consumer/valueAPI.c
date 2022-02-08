@@ -234,12 +234,6 @@ void testValue_Ints()
     rbusValue_SetInt16(val, INT16_MAX);
     TEST(rbusValue_GetInt16(val) == INT16_MAX);
 
-    rbusValue_SetInt16(val, INT16_MIN-1);
-    TEST(rbusValue_GetInt16(val) == INT16_MAX);
-
-    rbusValue_SetInt16(val, INT16_MAX+1);
-    TEST(rbusValue_GetInt16(val) == INT16_MIN);
-
     /*UINT16*/
     rbusValue_SetUInt16(val, 0);
     TEST(rbusValue_GetUInt16(val) == 0);
@@ -250,21 +244,12 @@ void testValue_Ints()
     rbusValue_SetUInt16(val, -1);
     TEST(rbusValue_GetUInt16(val) == UINT16_MAX);
 
-    rbusValue_SetUInt16(val, UINT16_MAX+1);
-    TEST(rbusValue_GetUInt16(val) == 0);
-
     /*INT32*/
     rbusValue_SetInt32(val, INT32_MIN);
     TEST(rbusValue_GetInt32(val) == INT32_MIN);
 
     rbusValue_SetInt32(val, INT32_MAX);
     TEST(rbusValue_GetInt32(val) == INT32_MAX);
-
-    rbusValue_SetInt32(val, INT32_MIN-1);
-    TEST(rbusValue_GetInt32(val) == INT32_MAX);
-
-    rbusValue_SetInt32(val, INT32_MAX+1);
-    TEST(rbusValue_GetInt32(val) == INT32_MIN);
 
     /*UINT16*/
     rbusValue_SetUInt32(val, 0);
@@ -276,21 +261,12 @@ void testValue_Ints()
     rbusValue_SetUInt32(val, -1);
     TEST(rbusValue_GetUInt32(val) == UINT32_MAX);
 
-    rbusValue_SetUInt32(val, UINT32_MAX+1);
-    TEST(rbusValue_GetUInt32(val) == 0);
-
     /*INT64*/
     rbusValue_SetInt64(val, INT64_MIN);
     TEST(rbusValue_GetInt64(val) == INT64_MIN);
 
     rbusValue_SetInt64(val, INT64_MAX);
     TEST(rbusValue_GetInt64(val) == INT64_MAX);
-
-    rbusValue_SetInt64(val, INT64_MIN-1);
-    TEST(rbusValue_GetInt64(val) == INT64_MAX);
-
-    rbusValue_SetInt64(val, INT64_MAX+1);
-    TEST(rbusValue_GetInt64(val) == INT64_MIN);
 
     /*UINT64*/
     rbusValue_SetUInt64(val, 0);
@@ -301,9 +277,6 @@ void testValue_Ints()
 
     rbusValue_SetUInt64(val, -1);
     TEST(rbusValue_GetUInt64(val) == UINT64_MAX);
-
-    rbusValue_SetUInt64(val, UINT64_MAX+1);
-    TEST(rbusValue_GetUInt64(val) == 0);
 
     rbusValue_Release(val);
 
