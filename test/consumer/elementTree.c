@@ -67,13 +67,13 @@ void checkmd5(const char* name, elementNode* root, const char* correctmd5)
 
 void insertElem(elementNode* root, char* path, rbusElementType_t type)
 {
-    rbusDataElement_t elem = {path, type, {NULL}};
+    rbusDataElement_t elem = {path, type, {NULL, NULL, NULL, NULL, NULL, NULL}};
     insertElement(root, &elem);
 }
 
 void insertElemWithGetter(elementNode* root, char* path, rbusElementType_t type)
 {
-    rbusDataElement_t elem = {path, type, {(rbusGetHandler_t)!NULL, NULL, NULL, NULL, NULL, NULL}};
+    rbusDataElement_t elem = {path, type, {NULL, NULL, NULL, NULL, NULL, NULL}};
     insertElement(root, &elem);    
 }
 
