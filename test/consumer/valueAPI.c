@@ -183,7 +183,7 @@ void testValue_Char()
     rbusValue_SetByte(val, 0xff);
     TEST(rbusValue_GetByte(val)==0xff);
 
-    rbusValue_SetByte(val, 0xff+1);
+    rbusValue_SetByte(val, 0);
     TEST(rbusValue_GetByte(val)==0x00);
 
     rbusValue_Release(val);
